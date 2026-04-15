@@ -140,19 +140,24 @@ Portfolio Manager (final: Strong Buy/Buy/Hold/Sell/Short)
 Reflect & Remember → 5 agent memories updated with actual P&L outcome
 ```
 
-### Free vs Paid Features
+### Features — Free vs LLM API Cost
 
-| Feature | Cost | What it does |
-|---------|------|--------------|
-| **Top Picks** | FREE | Ranks NIFTY 50/100/BSE 250 stocks by combined signal strength |
-| **Market Scan** | FREE | Finds stocks with gap ups/downs, volume spikes, breakouts |
-| **Strategies** | FREE | S/R levels, Pivot Points, Cyclical patterns |
-| **Performance Tracker** | FREE | Measures historical win rate of each strategy |
-| **Seasonal Backtest** | FREE | Tests "buy in month X, sell in month Y" strategies |
-| **News Feed** | FREE | Aggregates Indian market news from RSS + yfinance |
-| **Charts** | FREE | Candlestick charts with volume |
-| **Deep Analysis** | ~Rs.15-60 | Full AI pipeline with customizable analysts/depth/language |
-| **AI Backtest** | ~Rs.15 per date | Runs deep analysis on historical dates |
+> **Note on costs**: The software itself is free and open source. "Cost" below refers to the **LLM API usage fees** you pay directly to your chosen AI provider (Anthropic, OpenAI, Google, etc.) for the features that call their APIs. You bring your own API key. Nothing is charged by this project or its authors — all billing is between you and your LLM provider.
+
+| Feature | Uses LLM API? | Est. Cost per Run | What it does |
+|---------|---------------|-------------------|--------------|
+| **Top Picks** | No | FREE | Ranks NIFTY 50/100/BSE 250 stocks by combined signal strength |
+| **Market Scan** | No | FREE | Finds stocks with gap ups/downs, volume spikes, breakouts |
+| **Strategies** | No | FREE | S/R levels, Pivot Points, Cyclical patterns |
+| **Performance Tracker** | No | FREE | Measures historical win rate of each strategy |
+| **Seasonal Backtest** | No | FREE | Tests "buy in month X, sell in month Y" strategies |
+| **News Feed** | No | FREE | Aggregates Indian market news from RSS + yfinance |
+| **Charts** | No | FREE | Candlestick charts with volume |
+| **Deep Analysis** | Yes | ~Rs.15-60 (~$0.18-0.72 USD) | Full AI pipeline with customizable analysts/depth/language |
+| **AI Backtest** | Yes | ~Rs.15 per date (~$0.18/date) | Runs deep analysis on historical dates |
+| **Reflect & Remember** | Yes | ~Rs.5-10 per trade | Agent learns from your P&L outcome |
+
+Costs shown assume the default Anthropic Claude setup (Haiku for fast tasks + Sonnet for decisions). Switching to cheaper providers like Gemini Flash or GPT-4o-mini can reduce costs by 3-5x. See [Cost Optimization](#cost-optimization) below.
 
 ### Unified Recommendation Engine (FREE)
 
