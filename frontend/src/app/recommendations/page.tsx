@@ -1,14 +1,14 @@
 "use client";
 
 import { useState } from "react";
-import { getRecommendations } from "@/lib/api";
+import { getRecommendations, openPaperTrade } from "@/lib/api";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { HelpSection } from "@/components/HelpSection";
-import { Loader2, TrendingUp, TrendingDown, Sparkles, ChevronDown, ChevronUp, Target, Search } from "lucide-react";
+import { Loader2, TrendingUp, TrendingDown, Sparkles, ChevronDown, ChevronUp, Target, Search, FlaskConical } from "lucide-react";
 import Link from "next/link";
 import { toast } from "sonner";
 import { NextStep } from "@/components/NextStep";
@@ -101,6 +101,30 @@ function RecommendationCard({ rec }: { rec: any }) {
             <Button variant="ghost" size="sm" onClick={() => setExpanded(!expanded)}>
               {expanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
               Signals
+            </Button>
+            <Button
+              size="sm"
+              variant="ghost"
+              title="Open paper trade to track if this pick works"
+              onClick={async () => {
+                try {
+                  await openPaperTrade({
+                    ticker: rec.ticker,
+                    source: "recommendation",
+                    strategy: "Recommendation Engine (combined signals)",
+                    signal: rec.direction,
+                    score: rec.score,
+                    confidence: rec.confidence,
+                    success_probability: rec.success_probability,
+                    triggered_signals: rec.signals,  // array of {type, direction, value, weight}
+                  } as any);
+                  toast.success(`Paper trade opened at Rs.${rec.price}`);
+                } catch (e: any) {
+                  toast.error(e.message || "Failed to track");
+                }
+              }}
+            >
+              <FlaskConical className="h-3 w-3 mr-1" /> Track
             </Button>
             <Link href={`/analysis?ticker=${rec.ticker}`}>
               <Button size="sm" variant="outline" title="Run full AI analysis (costs ~Rs.15-25, takes 1-3 min)">

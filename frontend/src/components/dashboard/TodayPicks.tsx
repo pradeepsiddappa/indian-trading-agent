@@ -1,11 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { getRecommendations, getWatchlist } from "@/lib/api";
+import { getRecommendations, getWatchlist, openPaperTrade } from "@/lib/api";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, TrendingUp, TrendingDown, Sparkles, RefreshCw, ArrowRight, Bell, Star } from "lucide-react";
+import { Loader2, TrendingUp, TrendingDown, Sparkles, RefreshCw, ArrowRight, Bell, Star, FlaskConical } from "lucide-react";
 import Link from "next/link";
 import { toast } from "sonner";
 
@@ -127,11 +127,37 @@ export function TodayPicks({ universe = "nifty100" }: { universe?: string }) {
                     </p>
                   </div>
                 </div>
-                <Link href={`/analysis?ticker=${pick.ticker}`}>
-                  <Button size="sm" variant="outline">
-                    Analyze <ArrowRight className="h-3 w-3 ml-1" />
+                <div className="flex gap-1">
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    title="Open paper trade (simulated)"
+                    onClick={async () => {
+                      try {
+                        await openPaperTrade({
+                          ticker: pick.ticker,
+                          source: "recommendation",
+                          strategy: "Recommendation Engine (combined signals)",
+                          signal: pick.direction,
+                          score: pick.score,
+                          confidence: pick.confidence,
+                          success_probability: pick.success_probability,
+                          triggered_signals: pick.signals,
+                        } as any);
+                        toast.success(`Opened paper trade for ${pick.ticker} at Rs.${pick.price}`);
+                      } catch (e: any) {
+                        toast.error(e.message || "Failed to track");
+                      }
+                    }}
+                  >
+                    <FlaskConical className="h-3 w-3 mr-1" /> Track
                   </Button>
-                </Link>
+                  <Link href={`/analysis?ticker=${pick.ticker}`}>
+                    <Button size="sm" variant="outline">
+                      Analyze <ArrowRight className="h-3 w-3 ml-1" />
+                    </Button>
+                  </Link>
+                </div>
               </div>
             ))}
           </div>

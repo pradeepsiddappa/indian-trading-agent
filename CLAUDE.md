@@ -56,7 +56,9 @@ ANALYZE
 
 VALIDATE
   🏆 Performance       — Historical win rate of each strategy (FREE)
-  🧪 Backtest          — Run AI pipeline on past dates + seasonal backtest
+  🧪 Simulation        — Paper trading + historical recommender backtest (FREE)
+  🧠 Learning Insights — Pattern analysis of YOUR past trades (FREE, no ML)
+  🔬 AI Backtest       — Run AI pipeline on past dates (paid)
   📋 My Trades         — History with P&L tracking + "Teach the agent" reflection
 
 ⚙️ Settings           — API keys (UI), LLM provider switcher, model selection, cost guide
@@ -96,6 +98,32 @@ VALIDATE
   - 5 agents reflect on what went right/wrong
   - Lessons added to memory, used in future analyses
   - Shows "Agent Memory: N lessons learned" badge on History page
+- **Important**: The LLM itself is NOT fine-tuned — memory is keyword-retrieved via BM25 and injected into future prompts as context
+
+### Paper Trading Simulation (FREE)
+- **Paper Trades** — Click "Track" on any Top Pick or Recommendation → opens virtual position at current market price
+- **Multi-horizon tracking** — auto-fetches actual prices at 1/3/5/10 trading days later
+- **Captures full context** — source (recommendation/scanner/manual), strategy name, triggered signals, confidence, score
+- **Performance by Strategy** — compare win rates across sources (e.g., Recommendations vs Manual vs AI Analysis)
+- **Historical Recommender Backtest** — replay recommendation engine on past 60 days, measure actual 5-day outcomes
+  - Validates engine quality before risking real money
+  - FREE (pure price math, no AI API calls)
+  - Persists to `recommender_backtests` table so you can re-view past runs
+
+### Learning Insights (FREE, no ML)
+- **Pattern analysis** of all closed trades (paper + real with logged P&L)
+- 7 insight categories:
+  - Signal Type (STRONG BUY vs BUY vs SELL win rates)
+  - Confidence Level (are HIGH picks actually better?)
+  - Strategy (which source performs best for you)
+  - Seasonality (which months you trade well)
+  - Ticker (which stocks you read well/poorly)
+  - Indicator (which specific signals work for your style)
+  - Direction (long vs short bias)
+- Classifies each insight: Strong edge / Works / Average / Marginal / Avoid
+- Generates specific actionable tips per insight
+- Minimum 3 closed trades required; best with 20+
+- **Purpose**: helps YOU learn to filter the agent's output, not train the agent itself
 
 ### Settings Management (UI-based)
 - **API Keys** — Store multiple provider keys in local SQLite (priority over .env)
@@ -126,7 +154,7 @@ VALIDATE
 
 ### `backend/` — FastAPI REST + WebSocket API
 - **app.py** — FastAPI app with CORS, loads API keys from DB + applies LLM config at startup
-- **db.py** — SQLite schema: watchlist, analysis_history (with P&L cols), backtest_runs, backtest_trades, settings
+- **db.py** — SQLite schema: watchlist, analysis_history (with P&L cols), backtest_runs, backtest_trades, settings, paper_trades, recommender_backtests
 - **ws.py** — WebSocket connection manager
 - **models.py** — Pydantic request/response models (includes analyst selection, depth, language)
 - **settings_manager.py** — API key storage + LLM config management (DB priority over .env)
@@ -136,7 +164,9 @@ VALIDATE
 - **recommender.py** — Unified recommendation engine (combines ALL signals with weights)
 - **performance.py** — Historical strategy performance measurement
 - **cyclical.py** — Monthly seasonality, day-of-week, sector rotation analysis
-- **backtest_engine.py** — Backtesting loop with P&L calculation
+- **backtest_engine.py** — AI-based backtesting loop with P&L calculation (paid)
+- **simulation.py** — Paper trading + historical recommender backtest (FREE)
+- **insights.py** — Learning insights: pattern analysis across trade categories
 - **news_sources.py** — RSS + yfinance aggregator, customizable feeds
 - **routers/**
   - `analysis.py` — `POST /api/analysis/run` (with customization) + `WS /api/analysis/ws/{task_id}` (streams heartbeats + stats) + `PUT /{task_id}/pnl` (with reflect option) + `GET /memory/stats`
@@ -146,7 +176,9 @@ VALIDATE
   - `scanner.py` — Market scanner (synchronous)
   - `recommender.py` — Unified recommendations
   - `performance.py` — Strategy win rate measurement
-  - `backtest.py` — Backtest run + WebSocket streaming
+  - `backtest.py` — AI-based backtest run + WebSocket streaming (paid)
+  - `simulation.py` — Paper trade CRUD + refresh prices + historical recommender backtest (FREE)
+  - `insights.py` — Learning insights (pattern analysis on past trades)
   - `settings.py` — API key CRUD + LLM provider management
   - `news.py` — News feed aggregator + custom source management
 
@@ -155,27 +187,30 @@ VALIDATE
 - **Theme**: Light mode (default)
 - **app/**
   - `layout.tsx` — Root layout with sidebar, Open Sans font
-  - `page.tsx` — Dashboard (Today): greeting + market status + auto-loaded top picks + workflow guide + watchlist + quick actions
-  - `recommendations/` — Unified recommendation engine UI
-  - `analysis/page.tsx` — Run AI analysis with **customization panel** (analysts, depth, language), live heartbeat, stats card after completion
+  - `page.tsx` — Dashboard (Today): greeting + market status + auto-loaded top picks + sector heatmap + workflow guide + watchlist + quick actions (incl. position size calc)
+  - `recommendations/page.tsx` — Unified recommendation engine UI with "Track" button to open paper trades
+  - `analysis/page.tsx` — Run AI analysis with customization panel, live heartbeat, stats card, position size calc
   - `analysis/[id]/page.tsx` — View past analysis
-  - `scanner/page.tsx` — Market scanner with 3 tabs
+  - `scanner/page.tsx` — Market scanner with 3 tabs (Gap has UP/DOWN filter)
   - `strategies/page.tsx` — Strategy Hub (cards)
   - `strategies/support-resistance/page.tsx` — S/R + Pivot Points
   - `strategies/cyclical/page.tsx` — Cyclical patterns with insights, entry/exit windows, seasonal backtest
   - `performance/page.tsx` — Historical strategy win rates
-  - `backtest/page.tsx` — AI-based backtest with P&L tracking
+  - `simulation/page.tsx` — Paper trading + historical recommender backtest (FREE)
+  - `insights/page.tsx` — Learning insights (pattern analysis on your trades)
+  - `backtest/page.tsx` — AI-based backtest with P&L tracking (paid)
   - `charts/page.tsx` — Candlestick charts
-  - `history/page.tsx` — Past analyses with P&L columns, **"Log P&L" button** per row, agent memory badge
+  - `history/page.tsx` — Past analyses with Open/Closed tabs, "Log P&L" button per row, agent memory badge
   - `settings/page.tsx` — API keys, LLM config, system config, cost guide
   - `news/page.tsx` — News Feed tab + Customize Sources tab
 - **components/**
   - `layout/Sidebar.tsx` — Grouped navigation (Discover/Analyze/Validate) with hints
-  - `dashboard/` — MarketOverview, Watchlist, RecentAnalyses, TodayPicks, WorkflowGuide, QuickActions
-  - `analysis/` — AgentProgress, ReportPanel, DebateView, DecisionCard, **AnalysisOptions** (customization panel), **StatsCard** (token + cost display)
-  - `history/PnLDialog.tsx` — P&L entry dialog with "Teach the agent" checkbox
+  - `dashboard/` — MarketOverview, Watchlist (with alerts), RecentAnalyses, TodayPicks (with Track button + watchlist match highlights), WorkflowGuide, QuickActions (incl. Position Calc), SectorHeatmap
+  - `analysis/` — AgentProgress, ReportPanel (controlled tabs, auto-advance), DebateView, DecisionCard, AnalysisOptions (customization panel), StatsCard (token + cost display)
+  - `history/PnLDialog.tsx` — P&L entry dialog with "Mark as Open" + "Teach the agent" checkbox
   - `settings/` — ApiKeysManager, LLMSettings
   - `TickerSearch.tsx` — Typeahead stock search (name → ticker)
+  - `PositionSizeCalculator.tsx` — Standalone dialog: capital, risk %, entry/SL/target → shares + R:R
   - `HelpSection.tsx` — Collapsible FAQ on every page
   - `NextStep.tsx` — Workflow continuity buttons across pages
 - **lib/**
@@ -310,9 +345,31 @@ The unified engine (`recommender.py`) uses weighted scoring:
 
 ## Storage Paths
 
-- SQLite DB: `~/.tradingagents/trading_agent.db` (watchlist, history, backtests, settings, API keys)
+- SQLite DB: `~/.tradingagents/trading_agent.db` — tables:
+  - `watchlist` — saved tickers
+  - `analysis_history` — AI analyses with P&L columns
+  - `backtest_runs` + `backtest_trades` — AI backtest runs
+  - `paper_trades` — virtual trades with multi-horizon P&L + triggered_signals JSON
+  - `recommender_backtests` — historical recommender engine replay results
+  - `settings` — API keys + LLM config + news sources
 - Agent memories: `~/.tradingagents/memory/{bull,bear,trader,invest_judge,portfolio_manager}_memory.json`
 - Analysis logs: `~/.tradingagents/logs/` (per-analysis JSON state dumps)
+
+## Data Flow Across Features
+
+```
+Recommendations (FREE)
+    ↓ "Track" button
+Paper Trades (FREE, tracks at 1/3/5/10 days)
+    ↓ time passes + refresh prices
+Simulation / Learning Insights (FREE)
+    ↓ patterns surface
+You filter better → take real trades
+    ↓ "Log P&L" with reflection
+Real trades + agent memory growth
+    ↓
+Learning Insights updates with combined data
+```
 
 ## Remaining Phases (Unimplemented)
 

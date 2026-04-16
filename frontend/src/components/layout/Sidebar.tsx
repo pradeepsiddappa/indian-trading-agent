@@ -15,6 +15,7 @@ import {
   Settings,
   TrendingUp,
   Newspaper,
+  Brain,
 } from "lucide-react";
 
 type NavItem = {
@@ -55,8 +56,10 @@ const navGroups: NavGroup[] = [
     title: "VALIDATE",
     items: [
       { href: "/performance", label: "Performance", icon: Award, hint: "Strategy win rates" },
-      { href: "/backtest", label: "Backtest", icon: FlaskConical, hint: "Historical P&L testing" },
-      { href: "/history", label: "My Trades", icon: History, hint: "Past analyses & P&L" },
+      { href: "/simulation", label: "Simulation", icon: FlaskConical, hint: "Paper trade + backtest" },
+      { href: "/insights", label: "Learning Insights", icon: Brain, hint: "What works for YOU" },
+      { href: "/backtest", label: "AI Backtest", icon: FlaskConical, hint: "AI on past dates (paid)" },
+      { href: "/history", label: "My Trades", icon: History, hint: "Real trades & P&L" },
     ],
   },
   {

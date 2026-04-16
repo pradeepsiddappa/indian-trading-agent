@@ -71,6 +71,9 @@ export const saveLLMSettings = (data: { llm_provider?: string; deep_think_llm?: 
   });
 export const getProviders = () => fetchAPI(`/api/settings/providers`);
 
+// Learning Insights
+export const getLearningInsights = () => fetchAPI(`/api/insights/`);
+
 // News Feed
 export const getNewsFeed = (maxPerSource = 10) => fetchAPI(`/api/news/?max_per_source=${maxPerSource}`);
 export const getTickerNews = (ticker: string, maxItems = 15) => fetchAPI(`/api/news/ticker/${ticker}?max_items=${maxItems}`);
@@ -91,6 +94,50 @@ export const getSectorRotation = (months = 3) =>
   fetchAPI(`/api/strategies/cyclical/sector-rotation?months=${months}`);
 export const backtestSeasonal = (ticker: string, buyMonths: string, sellMonths: string, years = 5) =>
   fetchAPI(`/api/strategies/cyclical/backtest-seasonal?ticker=${ticker}&buy_months=${buyMonths}&sell_months=${sellMonths}&years=${years}`, { method: "POST" });
+
+// Simulation (Paper Trading + Historical Backtest)
+export const openPaperTrade = (data: {
+  ticker: string;
+  source?: string;
+  signal?: string;
+  score?: number;
+  success_probability?: number;
+  notes?: string;
+}) => fetchAPI(`/api/simulation/paper-trade`, { method: "POST", body: JSON.stringify(data) });
+
+export const listPaperTrades = (status?: string) =>
+  fetchAPI(`/api/simulation/paper-trades${status ? `?status=${status}` : ""}`);
+
+export const refreshPaperTrades = () =>
+  fetchAPI(`/api/simulation/paper-trades/refresh`, { method: "POST" });
+
+export const getPaperTradingStats = () => fetchAPI(`/api/simulation/paper-trades/stats`);
+
+export const deletePaperTrade = (tradeId: number) =>
+  fetchAPI(`/api/simulation/paper-trades/${tradeId}`, { method: "DELETE" });
+
+export const closePaperTrade = (tradeId: number) =>
+  fetchAPI(`/api/simulation/paper-trades/${tradeId}/close`, { method: "PUT" });
+
+export const runRecommenderBacktest = (params: {
+  universe?: string;
+  start_date?: string;
+  end_date?: string;
+  interval_days?: number;
+}) => {
+  const q = new URLSearchParams();
+  if (params.universe) q.set("universe", params.universe);
+  if (params.start_date) q.set("start_date", params.start_date);
+  if (params.end_date) q.set("end_date", params.end_date);
+  if (params.interval_days) q.set("interval_days", String(params.interval_days));
+  return fetchAPI(`/api/simulation/recommender-backtest?${q.toString()}`, { method: "POST" });
+};
+
+export const getRecommenderBacktestResult = (runId: string) =>
+  fetchAPI(`/api/simulation/recommender-backtest/${runId}`);
+
+export const listRecommenderBacktests = () =>
+  fetchAPI(`/api/simulation/recommender-backtest-history`);
 
 // Recommendations
 export const getRecommendations = (universe = "nifty100", minSignals = 2) =>
