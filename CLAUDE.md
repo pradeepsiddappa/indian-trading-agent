@@ -371,17 +371,40 @@ Real trades + agent memory growth
 Learning Insights updates with combined data
 ```
 
+## Smart Filters on Recommendations
+
+### FII/DII Flow Bias (NEW)
+- Live NSE data via `nsepython` (cached 1 hour in `fii_dii_history` table)
+- `backend/fii_dii.py` — fetcher + manual entry fallback
+- `get_market_bias()` returns score adjustment -1.5 to +1.5 based on FII/DII net values
+- Recommender's `_apply_market_bias()` adjusts every stock score before classifying
+- Dashboard shows banner: today's FII/DII net + 5-day trend + reasoning
+- API: `/api/fii-dii/today`, `/history`, `/bias`, `/manual`
+
+### Earnings + Economic Calendar (NEW)
+- `backend/calendar_data.py` — hardcoded RBI/Budget/Fed/F&O dates + yfinance earnings fetch
+- `get_event_filter_for_ticker()` returns score adjustment for upcoming events
+- Recommender's `_apply_event_filter()` penalizes stocks with imminent events
+- Earnings (≤2 days): -2.5 | Budget (≤1 day): -2.0 | RBI today: -1.5 | FOMC today: -1.0 | F&O expiry today: -0.5
+- Dashboard banner shows today's events + 14-day forecast
+- API: `/api/calendar/today`, `/upcoming`, `/ticker/{ticker}`, `/refresh-earnings`
+
 ## Remaining Phases (Unimplemented)
+
+### Pre-Kite Hardening
+- **Sector concentration checker** — prevents over-exposure to single sector
+- **Phase 4a: Kite read-only sync** — live portfolio + margin visibility (no order risk)
+- **Phase 4b: Kite order placement** — one-click bracket orders with safety checks
 
 ### Future Big Features
 - **Options/Futures Phase 3** — Derivatives analyst, option chains, Greeks, PCR, lot sizes
-- **Kite API Phase 4** — Real-time data + automated order placement
 - **Real-time signal loop Phase 5** — Intraday scanning during market hours
 
 ### Nice-to-haves
 - News sentiment analysis (auto-score articles as bullish/bearish)
 - Stock-specific news on Analysis page
-- Per-ticker watchlist alerts when Top Picks include them
+- Promoter activity tracker (NSE bulk/block deals)
+- Comparative analysis (side-by-side stock comparison)
 - Export analysis reports as PDF
 - Dark mode toggle
 - Multi-stock batch analysis queue

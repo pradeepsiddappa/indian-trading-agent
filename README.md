@@ -29,9 +29,14 @@ This project is built on top of the excellent [TradingAgents](https://github.com
 - FastAPI backend with WebSocket streaming
 - Market Scanner (Gap / Volume / Breakout detection)
 - Unified Recommendation Engine (combines 10+ signals into ranked trade ideas)
+- **FII/DII Daily Flow Tracker** — live institutional buy/sell data adjusts all recommendations
+- **Earnings + Economic Calendar** — RBI policy, Budget, FOMC, F&O expiry, per-stock earnings dates filter recommendations
 - Support/Resistance & Pivot Point calculator
 - Cyclical Pattern analysis (monthly seasonality, sector rotation, day-of-week)
 - Strategy Performance Tracker (measures historical win rates)
+- Paper Trading Simulation (multi-horizon P&L tracking, no API cost)
+- Historical Recommender Backtest (replay engine on past 60 days)
+- Learning Insights (pattern analysis on YOUR trades, no ML)
 - Seasonal Backtest (no AI cost)
 - Position Size Calculator
 - P&L Tracking + "Reflect & Remember" (feed outcomes to agent memory)
@@ -47,18 +52,25 @@ Please consider starring the [original repo](https://github.com/TauricResearch/T
 ## Demo
 
 ```
-🏠 Today              — Daily workflow dashboard with auto-loaded top picks
+🏠 Today              — Daily workflow dashboard with auto-loaded top picks,
+                        FII/DII flow banner, calendar warnings, sector heatmap
+
 DISCOVER
   ✨ Top Picks         — AI-free unified recommendations (FREE)
+                        Auto-adjusts for FII/DII bias + upcoming events
   📡 Market Scan       — Gap / Volume / Breakout (FREE)
   🎯 Strategies        — S/R, Pivot, Cyclical patterns (FREE)
   📰 News Feed         — RSS + yfinance, customizable (FREE)
+
 ANALYZE
   🔍 Deep Analysis     — AI-powered 10-agent pipeline (~Rs.15-60)
   📊 Charts            — Candlestick charts (FREE)
+
 VALIDATE
   🏆 Performance       — Strategy win rates (FREE)
-  🧪 Backtest          — Historical testing (FREE or AI-based)
+  🧪 Simulation        — Paper trading + historical backtest (FREE)
+  🧠 Learning Insights — Pattern analysis of YOUR trades (FREE)
+  🔬 Backtest          — AI on past dates (paid)
   📋 My Trades         — P&L tracking + agent learning
 ```
 
@@ -183,6 +195,41 @@ Ratings: STRONG BUY (score ≥ +4), BUY (+2 to +4), SELL (-2 to -4), STRONG SELL
 
 Success probability: 50% baseline + 4% per score point + 2% per aligned signal (capped at 85%).
 
+### Smart Filters Layered on Top (FREE)
+
+Two market-wide filters automatically adjust every recommendation before showing it to you:
+
+**1. FII/DII Institutional Flow** — In Indian markets, the single biggest predictor of next-day direction:
+
+| Today's Flow | Score Adjustment | Effect |
+|-------------|------------------|--------|
+| FII selling > Rs.2,000 Cr | -1.5 | Demotes BUYs to NEUTRAL |
+| FII selling > Rs.1,000 Cr | -1.0 | Reduces conviction |
+| FII buying > Rs.2,000 Cr | +1.5 | Promotes BUYs to STRONG BUY |
+| FII buying > Rs.1,000 Cr | +1.0 | Adds tailwind |
+| DIIs partially offsetting | +0.5x reduction | "Mixed" bias |
+
+Live data via NSE (cached 1 hour). Falls back to manual entry if scraping fails.
+
+**2. Earnings + Economic Calendar** — Avoids trading into known volatility:
+
+| Event in Next N Days | Score Penalty |
+|---------------------|---------------|
+| Stock earnings (≤2 days) | -2.5 |
+| Union Budget (≤1 day) | -2.0 |
+| RBI Monetary Policy (today) | -1.5 |
+| US Fed FOMC (today) | -1.0 |
+| F&O monthly expiry (today) | -0.5 |
+
+Hardcoded RBI/Budget/Fed dates (published yearly). Per-stock earnings dates pulled from yfinance.
+
+**Real example:** On a day when FIIs sold Rs.8,000 Cr and INFY has earnings tomorrow:
+- Pure technical score: STRONG BUY (+5.0)
+- After FII filter: BUY (+3.5)
+- After earnings filter: NEUTRAL (+1.0) — filtered out
+
+This prevents the most common AI trading mistakes: trading against institutional flow + trading into earnings volatility.
+
 ---
 
 ## Project Structure
@@ -288,7 +335,12 @@ Switch providers (OpenAI GPT-5.4-mini, Gemini Flash) for even cheaper analyses (
 - [x] Full multi-agent AI pipeline adapted for Indian markets
 - [x] Web UI with Dashboard, Scanner, Strategies, Analysis, Backtest, etc.
 - [x] Unified recommendation engine
+- [x] **FII/DII daily flow tracker** (live NSE data, integrated as recommendation filter)
+- [x] **Earnings + Economic Calendar** (RBI/Budget/Fed/expiry/earnings filters)
 - [x] Strategy performance tracker
+- [x] Paper trading simulation (multi-horizon P&L tracking)
+- [x] Historical recommender backtest
+- [x] Learning insights (pattern analysis on user trades)
 - [x] Cyclical pattern analysis + seasonal backtest
 - [x] P&L tracking with agent learning (Reflect & Remember)
 - [x] Memory persistence across sessions
@@ -301,11 +353,17 @@ Switch providers (OpenAI GPT-5.4-mini, Gemini Flash) for even cheaper analyses (
 - [x] Multi-LLM provider support
 - [x] Cost tracking per analysis
 
-### Planned
+### Pre-Kite Hardening (in progress)
+- [ ] Sector concentration checker (don't open 5 trades all in IT)
+- [ ] Phase 4a: Zerodha Kite read-only sync (live portfolio + margin)
+- [ ] Phase 4b: One-click order placement with bracket SL/target
+
+### Future
 - [ ] Options & Futures analyzer (derivatives agent, option chains, Greeks, PCR)
-- [ ] Zerodha Kite API integration (real-time data + automated order placement)
-- [ ] Real-time intraday signal loop
-- [ ] FII/DII daily flow (requires NSE scraping or paid API)
+- [ ] Real-time intraday signal loop (auto-scan during market hours)
+- [ ] Promoter activity tracker (NSE bulk/block deals)
+- [ ] Comparative analysis (side-by-side stock comparison)
+- [ ] Trade journal with notes
 - [ ] Mobile responsive UI
 - [ ] Dark mode toggle
 - [ ] Export analyses as PDF
