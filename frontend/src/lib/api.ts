@@ -74,6 +74,21 @@ export const getProviders = () => fetchAPI(`/api/settings/providers`);
 // Learning Insights
 export const getLearningInsights = () => fetchAPI(`/api/insights/`);
 
+// FII/DII
+export const getFiiDiiToday = (forceRefresh = false) =>
+  fetchAPI(`/api/fii-dii/today${forceRefresh ? "?force_refresh=true" : ""}`);
+export const getFiiDiiHistory = (days = 10) => fetchAPI(`/api/fii-dii/history?days=${days}`);
+export const getFiiDiiBias = () => fetchAPI(`/api/fii-dii/bias`);
+export const submitFiiDiiManual = (data: {
+  date: string;
+  fii_net: number;
+  dii_net: number;
+  fii_buy?: number;
+  fii_sell?: number;
+  dii_buy?: number;
+  dii_sell?: number;
+}) => fetchAPI(`/api/fii-dii/manual`, { method: "POST", body: JSON.stringify(data) });
+
 // News Feed
 export const getNewsFeed = (maxPerSource = 10) => fetchAPI(`/api/news/?max_per_source=${maxPerSource}`);
 export const getTickerNews = (ticker: string, maxItems = 15) => fetchAPI(`/api/news/ticker/${ticker}?max_items=${maxItems}`);

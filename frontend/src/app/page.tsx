@@ -7,6 +7,7 @@ import { TodayPicks } from "@/components/dashboard/TodayPicks";
 import { WorkflowGuide } from "@/components/dashboard/WorkflowGuide";
 import { QuickActions } from "@/components/dashboard/QuickActions";
 import { SectorHeatmap } from "@/components/dashboard/SectorHeatmap";
+import { FIIDIIBanner } from "@/components/dashboard/FIIDIIBanner";
 
 function getGreeting() {
   const hour = new Date().getHours();
@@ -40,6 +41,9 @@ export default function DashboardPage() {
 
       {/* Market Status Bar */}
       <MarketOverview />
+
+      {/* FII/DII Flow Banner */}
+      <FIIDIIBanner />
 
       {/* Today's Top Picks — auto-loaded */}
       <TodayPicks universe="nifty100" />

@@ -231,21 +231,84 @@ def _analyze_stock(ticker: str) -> dict | None:
         return None
 
 
-def recommend(universe: str = "nifty100", min_signals: int = 2) -> dict:
+def _apply_market_bias(result: dict, bias: dict) -> dict:
+    """Apply market-wide FII/DII bias to a single stock result."""
+    if not bias or bias.get("score_adjustment", 0) == 0:
+        return result
+
+    adj = bias["score_adjustment"]
+    new_score = round(result["score"] + adj, 2)
+
+    # Add FII/DII as a visible signal
+    fii_signal = {
+        "type": f"FII/DII Flow ({bias['bias']})",
+        "direction": "BULLISH" if adj > 0 else ("BEARISH" if adj < 0 else "NEUTRAL"),
+        "value": bias["reasoning"],
+        "weight": adj,
+    }
+    result["signals"] = list(result.get("signals", [])) + [fii_signal]
+    if adj > 0:
+        result["bullish_signal_count"] = result.get("bullish_signal_count", 0) + 1
+    elif adj < 0:
+        result["bearish_signal_count"] = result.get("bearish_signal_count", 0) + 1
+
+    # Re-classify direction based on new score
+    if new_score >= 4.0:
+        direction = "STRONG BUY"
+    elif new_score >= 2.0:
+        direction = "BUY"
+    elif new_score <= -4.0:
+        direction = "STRONG SELL"
+    elif new_score <= -2.0:
+        direction = "SELL"
+    else:
+        direction = "NEUTRAL"
+
+    # Re-compute success probability with new score
+    abs_score = abs(new_score)
+    aligned = max(result.get("bullish_signal_count", 0), result.get("bearish_signal_count", 0))
+    score_edge = min(abs_score * 4, 30)
+    alignment_bonus = min(aligned * 2, 15)
+    success_probability = round(min(50 + score_edge + alignment_bonus, 85), 0)
+    if abs_score < 2:
+        success_probability = 50
+
+    result["score"] = new_score
+    result["direction"] = direction
+    result["success_probability"] = int(success_probability)
+    result["market_bias_applied"] = bias["bias"]
+
+    return result
+
+
+def recommend(universe: str = "nifty100", min_signals: int = 2, apply_market_bias: bool = True) -> dict:
     """Run recommendation engine across a stock universe.
 
     Args:
         universe: nifty50, nifty100, or bse250
         min_signals: minimum number of aligned signals to recommend
+        apply_market_bias: if True, FII/DII flow adjusts each stock's score
     """
     stocks = UNIVERSES.get(universe, NIFTY_100)
     all_results = []
+
+    # Fetch FII/DII market bias once (used for all stocks)
+    market_bias = None
+    if apply_market_bias:
+        try:
+            from backend.fii_dii import get_market_bias
+            market_bias = get_market_bias()
+        except Exception as e:
+            print(f"[Recommender] FII/DII fetch failed: {e}", flush=True)
 
     with ThreadPoolExecutor(max_workers=10) as executor:
         futures = {executor.submit(_analyze_stock, ticker): ticker for ticker in stocks}
         for f in as_completed(futures):
             result = f.result()
             if result and (result["bullish_signal_count"] >= min_signals or result["bearish_signal_count"] >= min_signals):
+                # Apply market bias before classifying
+                if market_bias:
+                    result = _apply_market_bias(result, market_bias)
                 all_results.append(result)
 
     # Separate by direction and sort
@@ -258,6 +321,7 @@ def recommend(universe: str = "nifty100", min_signals: int = 2) -> dict:
         "universe": universe,
         "total_analyzed": len(stocks),
         "total_with_signals": len(all_results),
+        "market_bias": market_bias,
         "strong_buys": strong_buys[:20],
         "buys": buys[:20],
         "sells": sells[:20],
