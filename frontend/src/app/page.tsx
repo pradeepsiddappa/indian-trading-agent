@@ -8,6 +8,7 @@ import { WorkflowGuide } from "@/components/dashboard/WorkflowGuide";
 import { QuickActions } from "@/components/dashboard/QuickActions";
 import { SectorHeatmap } from "@/components/dashboard/SectorHeatmap";
 import { FIIDIIBanner } from "@/components/dashboard/FIIDIIBanner";
+import { CalendarBanner } from "@/components/dashboard/CalendarBanner";
 
 function getGreeting() {
   const hour = new Date().getHours();
@@ -44,6 +45,9 @@ export default function DashboardPage() {
 
       {/* FII/DII Flow Banner */}
       <FIIDIIBanner />
+
+      {/* Calendar / Events Banner */}
+      <CalendarBanner />
 
       {/* Today's Top Picks — auto-loaded */}
       <TodayPicks universe="nifty100" />

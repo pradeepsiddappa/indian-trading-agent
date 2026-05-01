@@ -281,13 +281,70 @@ def _apply_market_bias(result: dict, bias: dict) -> dict:
     return result
 
 
-def recommend(universe: str = "nifty100", min_signals: int = 2, apply_market_bias: bool = True) -> dict:
+def _apply_event_filter(result: dict, event_filter: dict) -> dict:
+    """Apply event-based score adjustment (earnings, RBI, Budget, etc)."""
+    if not event_filter or not event_filter.get("has_event"):
+        return result
+
+    adj = event_filter.get("score_adjustment", 0)
+    if adj == 0:
+        return result
+
+    new_score = round(result["score"] + adj, 2)
+
+    # Add event as a visible "signal"
+    warning = event_filter.get("warning") or "Upcoming event"
+    event_signal = {
+        "type": f"Event Risk ({warning})",
+        "direction": "BEARISH",
+        "value": warning,
+        "weight": adj,
+    }
+    result["signals"] = list(result.get("signals", [])) + [event_signal]
+    result["bearish_signal_count"] = result.get("bearish_signal_count", 0) + 1
+    result["event_warning"] = warning
+    result["upcoming_events"] = event_filter.get("events", [])
+
+    # Re-classify
+    if new_score >= 4.0:
+        direction = "STRONG BUY"
+    elif new_score >= 2.0:
+        direction = "BUY"
+    elif new_score <= -4.0:
+        direction = "STRONG SELL"
+    elif new_score <= -2.0:
+        direction = "SELL"
+    else:
+        direction = "NEUTRAL"
+
+    abs_score = abs(new_score)
+    aligned = max(result.get("bullish_signal_count", 0), result.get("bearish_signal_count", 0))
+    score_edge = min(abs_score * 4, 30)
+    alignment_bonus = min(aligned * 2, 15)
+    success_probability = round(min(50 + score_edge + alignment_bonus, 85), 0)
+    if abs_score < 2:
+        success_probability = 50
+
+    result["score"] = new_score
+    result["direction"] = direction
+    result["success_probability"] = int(success_probability)
+
+    return result
+
+
+def recommend(
+    universe: str = "nifty100",
+    min_signals: int = 2,
+    apply_market_bias: bool = True,
+    apply_event_filter: bool = True,
+) -> dict:
     """Run recommendation engine across a stock universe.
 
     Args:
         universe: nifty50, nifty100, or bse250
         min_signals: minimum number of aligned signals to recommend
         apply_market_bias: if True, FII/DII flow adjusts each stock's score
+        apply_event_filter: if True, upcoming earnings/RBI/Budget penalize scores
     """
     stocks = UNIVERSES.get(universe, NIFTY_100)
     all_results = []
@@ -301,14 +358,34 @@ def recommend(universe: str = "nifty100", min_signals: int = 2, apply_market_bia
         except Exception as e:
             print(f"[Recommender] FII/DII fetch failed: {e}", flush=True)
 
+    # Fetch market-wide events once (RBI, Fed, Budget, expiry)
+    today_market_events = []
+    if apply_event_filter:
+        try:
+            from backend.calendar_data import get_today_events, get_market_events_in_range
+            from datetime import date, timedelta
+            today = date.today()
+            today_market_events = get_market_events_in_range(today, today + timedelta(days=2))
+        except Exception as e:
+            print(f"[Recommender] Calendar fetch failed: {e}", flush=True)
+
     with ThreadPoolExecutor(max_workers=10) as executor:
         futures = {executor.submit(_analyze_stock, ticker): ticker for ticker in stocks}
         for f in as_completed(futures):
             result = f.result()
             if result and (result["bullish_signal_count"] >= min_signals or result["bearish_signal_count"] >= min_signals):
-                # Apply market bias before classifying
+                # Apply market bias
                 if market_bias:
                     result = _apply_market_bias(result, market_bias)
+                # Apply event filter (per-ticker check)
+                if apply_event_filter:
+                    try:
+                        from backend.calendar_data import get_event_filter_for_ticker
+                        event_filter = get_event_filter_for_ticker(result["ticker"], days_ahead=2)
+                        if event_filter.get("has_event"):
+                            result = _apply_event_filter(result, event_filter)
+                    except Exception:
+                        pass
                 all_results.append(result)
 
     # Separate by direction and sort
@@ -322,6 +399,7 @@ def recommend(universe: str = "nifty100", min_signals: int = 2, apply_market_bia
         "total_analyzed": len(stocks),
         "total_with_signals": len(all_results),
         "market_bias": market_bias,
+        "today_market_events": today_market_events,
         "strong_buys": strong_buys[:20],
         "buys": buys[:20],
         "sells": sells[:20],

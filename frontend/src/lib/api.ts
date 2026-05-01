@@ -74,6 +74,14 @@ export const getProviders = () => fetchAPI(`/api/settings/providers`);
 // Learning Insights
 export const getLearningInsights = () => fetchAPI(`/api/insights/`);
 
+// Calendar (Earnings + Economic Events)
+export const getCalendarToday = () => fetchAPI(`/api/calendar/today`);
+export const getCalendarUpcoming = (days = 7) => fetchAPI(`/api/calendar/upcoming?days=${days}`);
+export const getCalendarForTicker = (ticker: string, days = 2) =>
+  fetchAPI(`/api/calendar/ticker/${ticker}?days=${days}`);
+export const refreshEarningsCalendar = (universe = "nifty100") =>
+  fetchAPI(`/api/calendar/refresh-earnings?universe=${universe}`, { method: "POST" });
+
 // FII/DII
 export const getFiiDiiToday = (forceRefresh = false) =>
   fetchAPI(`/api/fii-dii/today${forceRefresh ? "?force_refresh=true" : ""}`);
