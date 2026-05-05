@@ -116,9 +116,16 @@ function RecommendationCard({ rec }: { rec: any }) {
                     score: rec.score,
                     confidence: rec.confidence,
                     success_probability: rec.success_probability,
-                    triggered_signals: rec.signals,  // array of {type, direction, value, weight}
+                    triggered_signals: rec.signals,
                   } as any);
-                  toast.success(`Paper trade opened at Rs.${rec.price}`);
+                  toast.success(`${rec.ticker} tracked at Rs.${rec.price}`, {
+                    description: "Paper trade opened. Check P&L at 1/3/5/10 days on the Simulation page.",
+                    duration: 6000,
+                    action: {
+                      label: "View Simulation",
+                      onClick: () => { window.location.href = "/simulation"; },
+                    },
+                  });
                 } catch (e: any) {
                   toast.error(e.message || "Failed to track");
                 }

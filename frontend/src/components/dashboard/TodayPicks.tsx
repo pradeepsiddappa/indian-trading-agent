@@ -144,7 +144,14 @@ export function TodayPicks({ universe = "nifty100" }: { universe?: string }) {
                           success_probability: pick.success_probability,
                           triggered_signals: pick.signals,
                         } as any);
-                        toast.success(`Opened paper trade for ${pick.ticker} at Rs.${pick.price}`);
+                        toast.success(`${pick.ticker} tracked at Rs.${pick.price}`, {
+                          description: "Paper trade opened. Check P&L at 1/3/5/10 days on the Simulation page.",
+                          duration: 6000,
+                          action: {
+                            label: "View Simulation",
+                            onClick: () => { window.location.href = "/simulation"; },
+                          },
+                        });
                       } catch (e: any) {
                         toast.error(e.message || "Failed to track");
                       }
