@@ -62,6 +62,7 @@ VALIDATE
   🎯 Verdict Calibration — Is the daily verdict actually predictive? (FREE)
   ⚖️ Confidence Calibration — Brier score: are stated probabilities honest? (FREE)
   👁️ Shadow Trades       — Counterfactual auto-tracking of skipped picks (FREE)
+  🧠 Memory Admin        — Inspect + prune agent BM25 memories (FREE)
   🔬 AI Backtest       — Run AI pipeline on past dates (paid)
   📋 My Trades         — History with P&L tracking + "Teach the agent" reflection
 
@@ -415,6 +416,27 @@ Learning Insights updates with combined data
 - Suggestion formula: `new_mag = abs(current) * clamp((wilson_lower - 0.30) / 0.20, 0, 2.5)`, sign preserved, clipped to [0, 3.5]
 - Frontend: `/signals` page — full per-signal table with current vs suggested weights, "Apply Suggested Weights" button, "Reset to Defaults"
 - API: `GET /api/signal-performance/?window_days=N`, `GET /active-weights`, `POST /apply`, `POST /reset`
+
+### Memory Pruning + Decay — Tier 4.2 (NEW)
+- `tradingagents/agents/utils/memory.py` rewritten to v2 schema:
+  - Each entry now: `{situation, recommendation, created_at, last_accessed, hit_count}`
+  - Backward-compat: legacy `documents`+`recommendations` array files auto-migrate on load (timestamped with current time + zero hits, console logs the migration)
+  - Disk format keeps both legacy mirror keys AND new `entries` array, schema_version=2
+  - `documents` and `recommendations` exposed as `@property` for any caller still using them
+- Decay formula: `score = max(0, bm25_score) × decay_factor`
+  - Grace period: ≤30 days → 1.0
+  - Linear decay: 30→365 days drops from 1.0 to 0.2 floor
+  - Frecency bonus: 1.25× if `last_accessed` within 7 days
+  - `_decay_factor()` is the single source of truth
+- `get_memories()` now updates `last_accessed` + `hit_count` on retrieved entries (only when score > 0 — prevents irrelevant entries from inflating hit count)
+- New methods: `prune(max_age_days, min_hits, min_decay, dry_run)`, `delete_entry(index)`, `list_entries()`, `stats()`
+- Module-level helpers: `list_all_memory_stats()`, `prune_all_memories()` for cross-agent ops
+- `backend/routers/memory.py` — admin REST API: `GET /api/memory/`, `GET /{name}/entries`, `POST /{name}/prune`, `POST /prune-all`, `DELETE /{name}/entry/{index}`
+- Frontend `/memory-admin` page:
+  - Per-agent stat grid (total, active, decayed, stale, never_hit, avg_decay, oldest age)
+  - Pruning form with three optional criteria + Preview (dry-run) + Prune All buttons
+  - Click an agent card to inspect entries (situation + lesson previews, age, decay color-coded, hit count, delete button)
+- Bug fix during build: BM25 returns negative scores for below-average matches; multiplying negatives by smaller decay would invert ranking. Fixed by `max(0, score)` before applying decay.
 
 ### Conditional Regime Weights — Tier 4.1 (NEW)
 - `backend/signal_performance.py` extended:

@@ -62,6 +62,7 @@ const navGroups: NavGroup[] = [
       { href: "/verdict-calibration", label: "Verdict Calibration", icon: Target, hint: "Is the daily verdict accurate?" },
       { href: "/confidence-calibration", label: "Confidence Calibration", icon: Award, hint: "Brier score: are probabilities honest?" },
       { href: "/shadow-trades", label: "Shadow Trades", icon: Search, hint: "Counterfactual: trades you skipped" },
+      { href: "/memory-admin", label: "Memory Admin", icon: Brain, hint: "Inspect + prune agent BM25 memories" },
       { href: "/backtest", label: "AI Backtest", icon: FlaskConical, hint: "AI on past dates (paid)" },
       { href: "/history", label: "My Trades", icon: History, hint: "Real trades & P&L" },
     ],

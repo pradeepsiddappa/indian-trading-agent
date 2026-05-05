@@ -45,6 +45,7 @@ This project is built on top of the excellent [TradingAgents](https://github.com
 - **Confidence Calibration (Brier score)** — measures whether the recommender's stated `success_probability` is honest. Reliability diagram bins predictions by probability and compares to actual win rate. Flags overconfidence/underconfidence.
 - **Shadow Trades** — every STRONG BUY (and HIGH-confidence BUY) auto-recorded as a virtual trade regardless of whether the user clicked Track. After 1/3/5/10 days, actual P&L backfills. Surfaces false negatives — winners the user wrongly skipped — and tells you whether your filtering helps or hurts.
 - **Conditional Regime Weights** — recommender automatically picks the right weight layer based on today's regime. Three-layer merge: DEFAULT → base tuned → regime-specific overrides. So a signal that wins 75% in BULL but 25% in BEAR can have different weights applied automatically depending on which regime is active.
+- **Memory Pruning + Decay (BM25)** — agent BM25 memories now carry per-entry metadata (created_at, last_accessed, hit_count). Every retrieval applies an age-based decay multiplier so old lessons fade out automatically. Manual pruning (by age, hit count, or decay floor) physically removes stale entries. Lessons learned in a 2024 bull market no longer pollute 2026 decisions.
 - Seasonal Backtest (no AI cost)
 - Position Size Calculator
 - P&L Tracking + "Reflect & Remember" (feed outcomes to agent memory)
@@ -88,6 +89,7 @@ VALIDATE
   🎯 Verdict Calibration — Is the daily verdict actually predictive? (FREE)
   ⚖️ Confidence Calibration — Brier score: are probabilities honest? (FREE)
   👁️ Shadow Trades     — Counterfactual: trades you skipped (FREE)
+  🧠 Memory Admin      — Inspect + prune agent BM25 memories (FREE)
   🔬 Backtest          — AI on past dates (paid)
   📋 My Trades         — P&L tracking + agent learning
 ```
@@ -405,6 +407,40 @@ Tomorrow: regime shifts to BULL
 
 The Dashboard's Top Picks header shows the active regime + override count: `NIFTY100 · HIGH_VOL ⚡3` means 3 regime-specific overrides are active right now. Hover over the badge for details.
 
+#### 🧠 Memory Pruning + Decay (Tier 4.2)
+
+Each AI agent (Bull, Bear, Trader, Judge, Portfolio Manager) keeps a journal of past situations + lessons in BM25-indexed JSON files at `~/.tradingagents/memory/`. When a new analysis runs, the most lexically-similar past lessons get retrieved and injected into the prompt as context.
+
+The risk: **stale lessons pollute decisions.** A 2024 bull-market lesson ("buy IT on dollar weakness") may be wrong in a 2026 bear regime. BM25 alone has no concept of staleness.
+
+Tier 4.2 fixes this with two mechanisms:
+
+**1. Automatic age-based decay** — Every retrieval applies a multiplier:
+
+```
+final_score = max(0, BM25_score) × decay_factor
+
+decay_factor:
+  age ≤ 30 days     → 1.00 (full weight)
+  30 < age ≤ 365    → linear decay 1.00 → 0.20
+  age > 365 days    → 0.20 (floor)
+  + 1.25× bonus if accessed in last 7 days (frecency)
+```
+
+So a 30-day-old lesson with BM25 score 8 wins over a 400-day-old lesson with score 9, even though the older one matched slightly better lexically.
+
+**2. Manual pruning** at `/memory-admin`:
+
+| Criterion | What it removes |
+|-----------|-----------------|
+| `max_age_days` | Hard cutoff (e.g., 540 = drop entries older than 18 months) |
+| `min_hits` | Entries past the 30-day grace period that have been retrieved fewer than N times — catches lessons that turned out to be irrelevant |
+| `min_decay` | Entries whose current decay is below this floor (e.g., 0.30) |
+
+Always run **dry-run** first to preview. Pruning is irreversible.
+
+The page also exposes per-agent stats (active / decayed / stale / never_hit) and lets you delete individual entries by index. Pre-existing memory files auto-migrate on first load — they're stamped with the current timestamp and zero hit count, so legacy data is preserved but starts collecting metadata going forward.
+
 #### ⚖️ Confidence Calibration — Brier score
 
 The recommender attaches a `success_probability` (e.g., 65%) to every pick. This page checks whether that number is *honest* — when it says 65%, do trades actually win 65% of the time?
@@ -572,6 +608,7 @@ Switch providers (OpenAI GPT-5.4-mini, Gemini Flash) for even cheaper analyses (
 - [x] **Confidence Calibration** (Brier score + reliability diagram for the recommender's success_probability)
 - [x] **Shadow Trades** (counterfactual auto-tracking of every STRONG BUY regardless of user action)
 - [x] **Conditional Regime Weights** (recommender auto-picks per-regime weight layer at runtime)
+- [x] **Memory Pruning + Decay** (BM25 memories with age-based decay multiplier + admin UI)
 - [x] Strategy performance tracker
 - [x] Paper trading simulation (multi-horizon P&L tracking)
 - [x] Historical recommender backtest
