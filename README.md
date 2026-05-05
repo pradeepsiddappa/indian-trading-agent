@@ -39,6 +39,7 @@ This project is built on top of the excellent [TradingAgents](https://github.com
 - Paper Trading Simulation (multi-horizon P&L tracking, no API cost)
 - Historical Recommender Backtest (replay engine on past 60 days)
 - Learning Insights (pattern analysis on YOUR trades, no ML)
+- **Signal Performance Tracker** — measures real win rate of each recommender signal from closed trades and auto-tunes the scoring weights (closes the feedback loop)
 - Seasonal Backtest (no AI cost)
 - Position Size Calculator
 - P&L Tracking + "Reflect & Remember" (feed outcomes to agent memory)
@@ -77,6 +78,7 @@ VALIDATE
   🏆 Performance       — Strategy win rates (FREE)
   🧪 Simulation        — Paper trading + historical backtest (FREE)
   🧠 Learning Insights — Pattern analysis of YOUR trades (FREE)
+  📈 Signal Performance — Per-signal win rate + auto-tune recommender (FREE)
   🔬 Backtest          — AI on past dates (paid)
   📋 My Trades         — P&L tracking + agent learning
 ```

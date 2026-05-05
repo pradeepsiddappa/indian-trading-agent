@@ -36,6 +36,28 @@ DEFAULT_WEIGHTS = {
 }
 
 
+# Live-tuned overrides loaded from the settings table at the start of each
+# `recommend()` call. Defaults to a copy of DEFAULT_WEIGHTS until the
+# signal_performance "Apply" endpoint persists overrides.
+_ACTIVE_WEIGHTS: dict[str, float] = dict(DEFAULT_WEIGHTS)
+
+
+def _refresh_active_weights() -> None:
+    """Pull tuned overrides (if any) from settings into _ACTIVE_WEIGHTS.
+
+    Imported lazily to avoid circular import (signal_performance imports
+    DEFAULT_WEIGHTS from this module).
+    """
+    global _ACTIVE_WEIGHTS
+    try:
+        from backend.signal_performance import get_tuned_weights
+        merged = dict(DEFAULT_WEIGHTS)
+        merged.update(get_tuned_weights())
+        _ACTIVE_WEIGHTS = merged
+    except Exception:
+        _ACTIVE_WEIGHTS = dict(DEFAULT_WEIGHTS)
+
+
 def _compute_rsi(closes, period=14):
     """Simple RSI calculation."""
     deltas = np.diff(closes)
@@ -80,20 +102,20 @@ def _analyze_stock(ticker: str) -> dict | None:
             if gap_pct > 0:
                 # Gap up
                 if current_close >= prev_close:
-                    score += DEFAULT_WEIGHTS["gap_up_filled"]
-                    signals.append({"type": "Gap Up (Filled)", "direction": "BULLISH", "value": f"+{gap_pct:.2f}%", "weight": DEFAULT_WEIGHTS["gap_up_filled"]})
+                    score += _ACTIVE_WEIGHTS["gap_up_filled"]
+                    signals.append({"type": "Gap Up (Filled)", "direction": "BULLISH", "value": f"+{gap_pct:.2f}%", "weight": _ACTIVE_WEIGHTS["gap_up_filled"]})
                 else:
-                    score += DEFAULT_WEIGHTS["gap_up_open"]
-                    signals.append({"type": "Gap Up (Unfilled)", "direction": "FADE", "value": f"+{gap_pct:.2f}%", "weight": DEFAULT_WEIGHTS["gap_up_open"]})
+                    score += _ACTIVE_WEIGHTS["gap_up_open"]
+                    signals.append({"type": "Gap Up (Unfilled)", "direction": "FADE", "value": f"+{gap_pct:.2f}%", "weight": _ACTIVE_WEIGHTS["gap_up_open"]})
             else:
                 # Gap down
                 if current_close >= prev_close:
                     # Gap down filled = bullish reversal
-                    score += DEFAULT_WEIGHTS["gap_down_filled"]
-                    signals.append({"type": "Gap Down (Filled - Reversal)", "direction": "BULLISH", "value": f"{gap_pct:.2f}%", "weight": DEFAULT_WEIGHTS["gap_down_filled"]})
+                    score += _ACTIVE_WEIGHTS["gap_down_filled"]
+                    signals.append({"type": "Gap Down (Filled - Reversal)", "direction": "BULLISH", "value": f"{gap_pct:.2f}%", "weight": _ACTIVE_WEIGHTS["gap_down_filled"]})
                 else:
-                    score += DEFAULT_WEIGHTS["gap_down_open"]
-                    signals.append({"type": "Gap Down (Unfilled)", "direction": "FADE", "value": f"{gap_pct:.2f}%", "weight": DEFAULT_WEIGHTS["gap_down_open"]})
+                    score += _ACTIVE_WEIGHTS["gap_down_open"]
+                    signals.append({"type": "Gap Down (Unfilled)", "direction": "FADE", "value": f"{gap_pct:.2f}%", "weight": _ACTIVE_WEIGHTS["gap_down_open"]})
 
         # === VOLUME SPIKE ===
         if avg_volume > 0:
@@ -101,11 +123,11 @@ def _analyze_stock(ticker: str) -> dict | None:
             if vol_ratio >= 2.0:
                 price_change = (current_close - prev_close) / prev_close * 100
                 if price_change > 0.5:
-                    score += DEFAULT_WEIGHTS["volume_bullish"]
-                    signals.append({"type": "Volume Spike (Bullish)", "direction": "BULLISH", "value": f"{vol_ratio:.1f}x avg", "weight": DEFAULT_WEIGHTS["volume_bullish"]})
+                    score += _ACTIVE_WEIGHTS["volume_bullish"]
+                    signals.append({"type": "Volume Spike (Bullish)", "direction": "BULLISH", "value": f"{vol_ratio:.1f}x avg", "weight": _ACTIVE_WEIGHTS["volume_bullish"]})
                 elif price_change < -0.5:
-                    score += DEFAULT_WEIGHTS["volume_bearish"]
-                    signals.append({"type": "Volume Spike (Bearish)", "direction": "BEARISH", "value": f"{vol_ratio:.1f}x avg", "weight": DEFAULT_WEIGHTS["volume_bearish"]})
+                    score += _ACTIVE_WEIGHTS["volume_bearish"]
+                    signals.append({"type": "Volume Spike (Bearish)", "direction": "BEARISH", "value": f"{vol_ratio:.1f}x avg", "weight": _ACTIVE_WEIGHTS["volume_bearish"]})
 
         # === BREAKOUT ===
         n_day_high = float(np.max(highs[-21:-1]))  # 20-day high excluding today
@@ -114,15 +136,15 @@ def _analyze_stock(ticker: str) -> dict | None:
             vol_ratio = current_volume / avg_volume if avg_volume > 0 else 1
             breakout_pct = (current_close - n_day_high) / n_day_high * 100
             if vol_ratio >= 1.5:
-                score += DEFAULT_WEIGHTS["breakout_vol_confirmed"]
-                signals.append({"type": "Breakout (Volume Confirmed)", "direction": "BULLISH", "value": f"+{breakout_pct:.2f}% above 20d high", "weight": DEFAULT_WEIGHTS["breakout_vol_confirmed"]})
+                score += _ACTIVE_WEIGHTS["breakout_vol_confirmed"]
+                signals.append({"type": "Breakout (Volume Confirmed)", "direction": "BULLISH", "value": f"+{breakout_pct:.2f}% above 20d high", "weight": _ACTIVE_WEIGHTS["breakout_vol_confirmed"]})
             else:
-                score += DEFAULT_WEIGHTS["breakout_weak"]
-                signals.append({"type": "Breakout (Weak Volume)", "direction": "BULLISH", "value": f"+{breakout_pct:.2f}% above 20d high", "weight": DEFAULT_WEIGHTS["breakout_weak"]})
+                score += _ACTIVE_WEIGHTS["breakout_weak"]
+                signals.append({"type": "Breakout (Weak Volume)", "direction": "BULLISH", "value": f"+{breakout_pct:.2f}% above 20d high", "weight": _ACTIVE_WEIGHTS["breakout_weak"]})
         elif current_low < n_day_low:
             breakdown_pct = (current_close - n_day_low) / n_day_low * 100
-            score += DEFAULT_WEIGHTS["breakdown_support"]
-            signals.append({"type": "Breakdown Below Support", "direction": "BEARISH", "value": f"{breakdown_pct:.2f}% below 20d low", "weight": DEFAULT_WEIGHTS["breakdown_support"]})
+            score += _ACTIVE_WEIGHTS["breakdown_support"]
+            signals.append({"type": "Breakdown Below Support", "direction": "BEARISH", "value": f"{breakdown_pct:.2f}% below 20d low", "weight": _ACTIVE_WEIGHTS["breakdown_support"]})
 
         # === SUPPORT/RESISTANCE PROXIMITY ===
         recent_high = float(np.max(highs[-60:]))
@@ -131,21 +153,21 @@ def _analyze_stock(ticker: str) -> dict | None:
         distance_to_low = (current_close - recent_low) / current_close * 100
 
         if distance_to_low < 2.0:  # Within 2% of 60-day low
-            score += DEFAULT_WEIGHTS["near_support"]
-            signals.append({"type": "Near Major Support", "direction": "BULLISH", "value": f"{distance_to_low:.1f}% above low", "weight": DEFAULT_WEIGHTS["near_support"]})
+            score += _ACTIVE_WEIGHTS["near_support"]
+            signals.append({"type": "Near Major Support", "direction": "BULLISH", "value": f"{distance_to_low:.1f}% above low", "weight": _ACTIVE_WEIGHTS["near_support"]})
         elif distance_to_high < 2.0:  # Within 2% of 60-day high
-            score += DEFAULT_WEIGHTS["near_resistance"]
-            signals.append({"type": "Near Major Resistance", "direction": "BEARISH", "value": f"{distance_to_high:.1f}% below high", "weight": DEFAULT_WEIGHTS["near_resistance"]})
+            score += _ACTIVE_WEIGHTS["near_resistance"]
+            signals.append({"type": "Near Major Resistance", "direction": "BEARISH", "value": f"{distance_to_high:.1f}% below high", "weight": _ACTIVE_WEIGHTS["near_resistance"]})
 
         # === RSI ===
         if len(closes) >= 14:
             rsi = _compute_rsi(closes[-15:])
             if rsi < 30:
-                score += DEFAULT_WEIGHTS["rsi_oversold"]
-                signals.append({"type": "RSI Oversold", "direction": "BULLISH", "value": f"RSI {rsi:.1f}", "weight": DEFAULT_WEIGHTS["rsi_oversold"]})
+                score += _ACTIVE_WEIGHTS["rsi_oversold"]
+                signals.append({"type": "RSI Oversold", "direction": "BULLISH", "value": f"RSI {rsi:.1f}", "weight": _ACTIVE_WEIGHTS["rsi_oversold"]})
             elif rsi > 70:
-                score += DEFAULT_WEIGHTS["rsi_overbought"]
-                signals.append({"type": "RSI Overbought", "direction": "BEARISH", "value": f"RSI {rsi:.1f}", "weight": DEFAULT_WEIGHTS["rsi_overbought"]})
+                score += _ACTIVE_WEIGHTS["rsi_overbought"]
+                signals.append({"type": "RSI Overbought", "direction": "BEARISH", "value": f"RSI {rsi:.1f}", "weight": _ACTIVE_WEIGHTS["rsi_overbought"]})
         else:
             rsi = None
 
@@ -158,22 +180,22 @@ def _analyze_stock(ticker: str) -> dict | None:
         if len(month_data) > 10:
             avg_month_return = float(month_data.mean() * 100)
             if avg_month_return > 0.2:
-                score += DEFAULT_WEIGHTS["cyclical_bullish"]
-                signals.append({"type": "Cyclical (Bullish Month)", "direction": "BULLISH", "value": f"+{avg_month_return:.2f}% historical avg", "weight": DEFAULT_WEIGHTS["cyclical_bullish"]})
+                score += _ACTIVE_WEIGHTS["cyclical_bullish"]
+                signals.append({"type": "Cyclical (Bullish Month)", "direction": "BULLISH", "value": f"+{avg_month_return:.2f}% historical avg", "weight": _ACTIVE_WEIGHTS["cyclical_bullish"]})
             elif avg_month_return < -0.2:
-                score += DEFAULT_WEIGHTS["cyclical_bearish"]
-                signals.append({"type": "Cyclical (Bearish Month)", "direction": "BEARISH", "value": f"{avg_month_return:.2f}% historical avg", "weight": DEFAULT_WEIGHTS["cyclical_bearish"]})
+                score += _ACTIVE_WEIGHTS["cyclical_bearish"]
+                signals.append({"type": "Cyclical (Bearish Month)", "direction": "BEARISH", "value": f"{avg_month_return:.2f}% historical avg", "weight": _ACTIVE_WEIGHTS["cyclical_bearish"]})
 
         # === TREND (Moving Averages) ===
         if len(closes) >= 200:
             sma50 = float(np.mean(closes[-50:]))
             sma200 = float(np.mean(closes[-200:]))
             if current_close > sma50 > sma200:
-                score += DEFAULT_WEIGHTS["uptrend_strong"]
-                signals.append({"type": "Strong Uptrend", "direction": "BULLISH", "value": "Price > 50 SMA > 200 SMA", "weight": DEFAULT_WEIGHTS["uptrend_strong"]})
+                score += _ACTIVE_WEIGHTS["uptrend_strong"]
+                signals.append({"type": "Strong Uptrend", "direction": "BULLISH", "value": "Price > 50 SMA > 200 SMA", "weight": _ACTIVE_WEIGHTS["uptrend_strong"]})
             elif current_close < sma50 < sma200:
-                score += DEFAULT_WEIGHTS["downtrend_strong"]
-                signals.append({"type": "Strong Downtrend", "direction": "BEARISH", "value": "Price < 50 SMA < 200 SMA", "weight": DEFAULT_WEIGHTS["downtrend_strong"]})
+                score += _ACTIVE_WEIGHTS["downtrend_strong"]
+                signals.append({"type": "Strong Downtrend", "direction": "BEARISH", "value": "Price < 50 SMA < 200 SMA", "weight": _ACTIVE_WEIGHTS["downtrend_strong"]})
 
         # === DETERMINE OVERALL RECOMMENDATION ===
         if score >= 4.0:
@@ -402,6 +424,9 @@ def recommend(
         apply_concentration_check: if True, penalize stocks that would over-concentrate sector
         total_capital: portfolio capital for concentration % calculation
     """
+    # Refresh learned weight overrides from settings before scoring any stock
+    _refresh_active_weights()
+
     stocks = UNIVERSES.get(universe, NIFTY_100)
     all_results = []
 

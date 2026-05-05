@@ -58,6 +58,7 @@ VALIDATE
   🏆 Performance       — Historical win rate of each strategy (FREE)
   🧪 Simulation        — Paper trading + historical recommender backtest (FREE)
   🧠 Learning Insights — Pattern analysis of YOUR past trades (FREE, no ML)
+  📈 Signal Performance — Per-signal win rate + auto-tune recommender (FREE)
   🔬 AI Backtest       — Run AI pipeline on past dates (paid)
   📋 My Trades         — History with P&L tracking + "Teach the agent" reflection
 
@@ -398,6 +399,19 @@ Learning Insights updates with combined data
 - Recommender's `_apply_concentration_filter()` only applied to BULLISH signals
 - Dashboard widget with stacked bar showing sector allocation
 - API: `/api/concentration/summary`, `/allocation`, `/check/{ticker}`, `/positions`
+
+### Signal Performance Tracker (NEW)
+- `backend/signal_performance.py` — analyzer + auto-tuner for recommender weights
+- Reads `paper_trades` with `pnl_5d_pct IS NOT NULL`, explodes the `triggered_signals` JSON, credits/blames each signal that fired
+- Win logic: BULLISH signal wins when 5d P&L > 0; BEARISH/FADE wins when < 0 (multi-attribution — every signal in a trade gets one observation)
+- Wilson lower bound at 80% CI used for honest small-sample estimates (avoids over-reacting to lucky streaks)
+- `compute_signal_performance(window_days=90)` returns per-signal: n, wins, losses, win_rate, wilson_lower_80, avg_return_5d_pct, current_weight, suggested_weight, delta, verdict (TUNE_UP / TUNE_DOWN / KEEP / INSUFFICIENT_DATA)
+- `apply_tuned_weights()` persists suggestions to `settings.recommender_tuned_weights` (JSON dict)
+- `recommender.py` calls `_refresh_active_weights()` at start of every `recommend()` — merges DEFAULT_WEIGHTS with tuned overrides into module-level `_ACTIVE_WEIGHTS`. All scoring inside `_analyze_stock` reads from `_ACTIVE_WEIGHTS`, so the engine literally rewrites itself from real outcomes
+- Min sample size: 10 trades per signal before any change is suggested
+- Suggestion formula: `new_mag = abs(current) * clamp((wilson_lower - 0.30) / 0.20, 0, 2.5)`, sign preserved, clipped to [0, 3.5]
+- Frontend: `/signals` page — full per-signal table with current vs suggested weights, "Apply Suggested Weights" button, "Reset to Defaults"
+- API: `GET /api/signal-performance/?window_days=N`, `GET /active-weights`, `POST /apply`, `POST /reset`
 
 ### Daily Trading Verdict (NEW)
 - `backend/daily_verdict.py` — synthesizes all 4 filters into ONE decision

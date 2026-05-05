@@ -179,6 +179,19 @@ export const getRecommendations = (universe = "nifty100", minSignals = 2) =>
 export const analyzeRecommendation = (ticker: string) =>
   fetchAPI(`/api/recommend/stock/${ticker}`);
 
+// Signal Performance (per-signal win rate + auto-tune)
+export const getSignalPerformance = (windowDays = 90) =>
+  fetchAPI(`/api/signal-performance/?window_days=${windowDays}`);
+export const getActiveSignalWeights = () =>
+  fetchAPI(`/api/signal-performance/active-weights`);
+export const applySignalWeights = (windowDays = 90, onlyKeys?: string[]) =>
+  fetchAPI(`/api/signal-performance/apply`, {
+    method: "POST",
+    body: JSON.stringify({ window_days: windowDays, only_keys: onlyKeys ?? null }),
+  });
+export const resetSignalWeights = () =>
+  fetchAPI(`/api/signal-performance/reset`, { method: "POST" });
+
 // Performance
 export const getPerformanceAll = (universe = "nifty50", lookbackDays = 60) =>
   fetchAPI(`/api/performance/all?universe=${universe}&lookback_days=${lookbackDays}`);
