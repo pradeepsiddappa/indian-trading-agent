@@ -61,6 +61,7 @@ VALIDATE
   📈 Signal Performance — Per-signal win rate + auto-tune recommender (FREE)
   🎯 Verdict Calibration — Is the daily verdict actually predictive? (FREE)
   ⚖️ Confidence Calibration — Brier score: are stated probabilities honest? (FREE)
+  👁️ Shadow Trades       — Counterfactual auto-tracking of skipped picks (FREE)
   🔬 AI Backtest       — Run AI pipeline on past dates (paid)
   📋 My Trades         — History with P&L tracking + "Teach the agent" reflection
 
@@ -414,6 +415,22 @@ Learning Insights updates with combined data
 - Suggestion formula: `new_mag = abs(current) * clamp((wilson_lower - 0.30) / 0.20, 0, 2.5)`, sign preserved, clipped to [0, 3.5]
 - Frontend: `/signals` page — full per-signal table with current vs suggested weights, "Apply Suggested Weights" button, "Reset to Defaults"
 - API: `GET /api/signal-performance/?window_days=N`, `GET /active-weights`, `POST /apply`, `POST /reset`
+
+### Shadow Trades / Counterfactual Learning (NEW)
+- `backend/shadow_trades.py` + `shadow_trades` table — auto-tracks every STRONG BUY (and HIGH-conf BUY) the recommender produces, regardless of whether user clicked Track
+- Hooked into `recommend()` in `backend/recommender.py` — after each call, idempotent insert (PRIMARY KEY ticker+signal_date) records picks
+- `record_shadow_trades_from_recommendations(recs)` filters to STRONG BUY (any HIGH/MEDIUM conf) + BUY with HIGH conf only; skips noise from MEDIUM-conf BUYs
+- `refresh_shadow_prices()` — backfills 1/3/5/10d prices via yfinance, computes pnl_*_pct; auto-runs whenever paper-trade `refresh_paper_trade_prices()` is called
+- `shadow_vs_user_comparison()` — compares win rate of all shadows vs user-tracked subset vs skipped subset; verdict: filter_helps / filter_hurts / filter_neutral / insufficient_data (needs ≥5 in tracked + skipped buckets)
+- `user_tracked` flag set to 1 if user opened a paper_trade for the ticker on the same day
+- Reuses `_price_n_days_later()` from simulation.py for backfill (consistent with paper trades)
+- Frontend `/shadow-trades`:
+  - Verdict pill ("Filter HURTS" / "Filter HELPS" / etc.) with explanation
+  - 4-card stats grid (all / tracked / skipped / strong_buys only)
+  - Full trade table with date, ticker, signal, confidence, regime, predicted%, entry, per-horizon P&L, tracked icon
+  - 6-step "How to use this page" callout
+- Sidebar entry under VALIDATE
+- API: `GET /api/shadow-trades/?window_days=N&only_ripe=bool`, `GET /comparison`, `POST /refresh`
 
 ### Confidence Calibration / Brier Score (NEW)
 - `backend/confidence_calibration.py` — measures whether recommender's `success_probability` is honest

@@ -139,6 +139,34 @@ def ensure_db():
                 updated_at TEXT DEFAULT (datetime('now'))
             );
 
+            -- Shadow trades: every STRONG BUY (and HIGH-conviction BUY) the recommender produces is
+            -- auto-tracked here, regardless of whether the user clicked Track. Lets us measure the
+            -- recommender's true win rate independent of user filtering, and detect false negatives
+            -- (good picks the user skipped).
+            CREATE TABLE IF NOT EXISTS shadow_trades (
+                ticker TEXT NOT NULL,
+                signal_date TEXT NOT NULL,              -- YYYY-MM-DD: when the rec was generated
+                signal TEXT,                            -- STRONG BUY | BUY
+                score REAL,
+                confidence TEXT,                        -- HIGH | MEDIUM | LOW
+                success_probability INTEGER,
+                triggered_signals TEXT,                 -- JSON list (same shape as paper_trades)
+                regime_at_entry TEXT,
+                entry_price REAL NOT NULL,
+                price_1d REAL,
+                price_3d REAL,
+                price_5d REAL,
+                price_10d REAL,
+                pnl_1d_pct REAL,
+                pnl_3d_pct REAL,
+                pnl_5d_pct REAL,
+                pnl_10d_pct REAL,
+                user_tracked INTEGER DEFAULT 0,         -- 1 if user also opened a paper_trade for this ticker on this day
+                created_at TEXT DEFAULT (datetime('now')),
+                updated_at TEXT DEFAULT (datetime('now')),
+                PRIMARY KEY (ticker, signal_date)       -- idempotent: one shadow per ticker per day
+            );
+
             -- Historical backtest of the recommendation engine
             CREATE TABLE IF NOT EXISTS recommender_backtests (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,

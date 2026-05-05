@@ -43,6 +43,7 @@ This project is built on top of the excellent [TradingAgents](https://github.com
 - **Verdict Calibration** — daily snapshot of the headline verdict + Nifty close, then 1/3/5-day forward returns measure whether GREEN/YELLOW/RED actually predict market direction
 - **Market Regime Classifier** — labels every trading day BULL / BEAR / SIDEWAYS / HIGH_VOL, tags every paper trade with the regime at entry, and reveals which signals are regime-dependent (e.g., "Near Support" might win 70% in BULL but 35% in BEAR)
 - **Confidence Calibration (Brier score)** — measures whether the recommender's stated `success_probability` is honest. Reliability diagram bins predictions by probability and compares to actual win rate. Flags overconfidence/underconfidence.
+- **Shadow Trades** — every STRONG BUY (and HIGH-confidence BUY) auto-recorded as a virtual trade regardless of whether the user clicked Track. After 1/3/5/10 days, actual P&L backfills. Surfaces false negatives — winners the user wrongly skipped — and tells you whether your filtering helps or hurts.
 - Seasonal Backtest (no AI cost)
 - Position Size Calculator
 - P&L Tracking + "Reflect & Remember" (feed outcomes to agent memory)
@@ -85,6 +86,7 @@ VALIDATE
   📈 Signal Performance — Per-signal win rate + auto-tune recommender (FREE)
   🎯 Verdict Calibration — Is the daily verdict actually predictive? (FREE)
   ⚖️ Confidence Calibration — Brier score: are probabilities honest? (FREE)
+  👁️ Shadow Trades     — Counterfactual: trades you skipped (FREE)
   🔬 Backtest          — AI on past dates (paid)
   📋 My Trades         — P&L tracking + agent learning
 ```
@@ -396,6 +398,29 @@ Lower is better. Reference points:
 
 After ~50 closed trades the picture stabilizes. Re-check monthly — calibration drifts as the engine's input distribution shifts.
 
+#### 👁️ Shadow Trades — counterfactual learning
+
+Without this, you only learn from picks you took. Every winner you skipped is invisible — false negatives that quietly poison your filtering instincts.
+
+Every time the recommender produces a STRONG BUY (or HIGH-confidence BUY), the system **auto-records it as a shadow trade** regardless of whether you clicked Track. After 1/3/5/10 trading days, actual P&L backfills via yfinance.
+
+The page splits stats into 4 buckets:
+
+| Bucket | What it measures |
+|--------|------------------|
+| All shadow trades | Recommender's true win rate, independent of user behavior |
+| You tracked | Subset where you opened a paper trade |
+| You **skipped** | Subset where you didn't act |
+| STRONG BUYs only | Highest-conviction picks separated from BUYs |
+
+**Filter verdict** compares skipped vs tracked win rate:
+
+- **Filter helps** (skipped < tracked by 10%+): your selectivity is adding value
+- **Filter neutral** (within 10%): no measurable edge yet
+- **Filter HURTS** (skipped > tracked by 10%+): you're systematically skipping winners — trust the recommender more
+
+The trade table shows every shadow with its regime tag and per-horizon P&L. Rows where `user_tracked = ✗` and 5d P&L is large positive are the most painful — picks you skipped that turned into winners. Reviewing these reveals what your gut filter is missing.
+
 ---
 
 ## Project Structure
@@ -509,6 +534,7 @@ Switch providers (OpenAI GPT-5.4-mini, Gemini Flash) for even cheaper analyses (
 - [x] **Verdict Calibration** (grades daily verdict against actual Nifty moves at 1/3/5d horizons)
 - [x] **Market Regime Classifier** (BULL/BEAR/SIDEWAYS/HIGH_VOL tagging on every trade + conditional signal stats)
 - [x] **Confidence Calibration** (Brier score + reliability diagram for the recommender's success_probability)
+- [x] **Shadow Trades** (counterfactual auto-tracking of every STRONG BUY regardless of user action)
 - [x] Strategy performance tracker
 - [x] Paper trading simulation (multi-horizon P&L tracking)
 - [x] Historical recommender backtest

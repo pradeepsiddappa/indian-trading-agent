@@ -496,7 +496,7 @@ def recommend(
     sells = sorted([r for r in all_results if r["direction"] == "SELL"], key=lambda x: x["score"])
     strong_sells = sorted([r for r in all_results if r["direction"] == "STRONG SELL"], key=lambda x: x["score"])
 
-    return {
+    result = {
         "universe": universe,
         "total_analyzed": len(stocks),
         "total_with_signals": len(all_results),
@@ -508,3 +508,14 @@ def recommend(
         "sells": sells[:20],
         "strong_sells": strong_sells[:20],
     }
+
+    # Shadow-record every STRONG BUY + HIGH-conf BUY for counterfactual learning.
+    # Idempotent (PRIMARY KEY ticker+signal_date) so multiple recommend() calls
+    # in a day are safe. Best-effort, never raises.
+    try:
+        from backend.shadow_trades import record_shadow_trades_from_recommendations
+        record_shadow_trades_from_recommendations(result)
+    except Exception as e:
+        print(f"[Recommender] shadow recording failed: {e}", flush=True)
+
+    return result
