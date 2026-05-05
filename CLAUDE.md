@@ -389,10 +389,34 @@ Learning Insights updates with combined data
 - Dashboard banner shows today's events + 14-day forecast
 - API: `/api/calendar/today`, `/upcoming`, `/ticker/{ticker}`, `/refresh-earnings`
 
+### Sector Concentration Checker (NEW)
+- `backend/concentration.py` — reverse-maps tickers to sectors, tracks open positions
+- `get_open_positions()` — aggregates active paper trades + open analysis trades
+- `get_concentration_summary()` — risk level (HIGH/MEDIUM/LOW) + per-sector breakdown
+- `check_new_trade_concentration()` — penalty if a new trade would breach limits
+- Default limits: max 3 positions/sector, max 30% capital/sector
+- Recommender's `_apply_concentration_filter()` only applied to BULLISH signals
+- Dashboard widget with stacked bar showing sector allocation
+- API: `/api/concentration/summary`, `/allocation`, `/check/{ticker}`, `/positions`
+
+### Daily Trading Verdict (NEW)
+- `backend/daily_verdict.py` — synthesizes all 4 filters into ONE decision
+- Inputs: FII/DII bias, calendar events (3-day lookahead), concentration risk, live HIGH-conviction setup count
+- Output: `{verdict: GREEN/YELLOW/RED, label, action, position_size, max_trades, min_conviction}`
+- Decision rules:
+  - 2+ caution flags → RED (STAND DOWN, 0% size)
+  - 1 caution flag → YELLOW (SELECTIVE, 50-75% size, HIGH conviction only)
+  - 1+ favorable flags + 0 caution → GREEN (TRADE, full size)
+  - 2+ favorable flags → GREEN AGGRESSIVE (5 trades max)
+- Headline card at TOP of Dashboard
+- Tells user EXACTLY what to do: "Don't open new positions" / "Take 3-5 setups" / "HIGH conviction only at 50% size"
+- API: `GET /api/daily-verdict/`
+
 ## Remaining Phases (Unimplemented)
 
 ### Pre-Kite Hardening
-- **Sector concentration checker** — prevents over-exposure to single sector
+- ✅ Sector concentration checker — prevents over-exposure to single sector
+- ✅ Daily Verdict synthesizer — single trade-or-skip decision
 - **Phase 4a: Kite read-only sync** — live portfolio + margin visibility (no order risk)
 - **Phase 4b: Kite order placement** — one-click bracket orders with safety checks
 

@@ -29,8 +29,10 @@ This project is built on top of the excellent [TradingAgents](https://github.com
 - FastAPI backend with WebSocket streaming
 - Market Scanner (Gap / Volume / Breakout detection)
 - Unified Recommendation Engine (combines 10+ signals into ranked trade ideas)
+- **Daily Trading Verdict** — synthesizes all filters into single TRADE / SELECTIVE / STAND DOWN decision
 - **FII/DII Daily Flow Tracker** — live institutional buy/sell data adjusts all recommendations
 - **Earnings + Economic Calendar** — RBI policy, Budget, FOMC, F&O expiry, per-stock earnings dates filter recommendations
+- **Sector Concentration Checker** — prevents over-exposure to single sector (max 3 positions / 30% capital per sector)
 - Support/Resistance & Pivot Point calculator
 - Cyclical Pattern analysis (monthly seasonality, sector rotation, day-of-week)
 - Strategy Performance Tracker (measures historical win rates)
@@ -52,12 +54,17 @@ Please consider starring the [original repo](https://github.com/TauricResearch/T
 ## Demo
 
 ```
-🏠 Today              — Daily workflow dashboard with auto-loaded top picks,
-                        FII/DII flow banner, calendar warnings, sector heatmap
+🏠 Today              — Daily workflow dashboard with:
+                        • Daily Verdict (TRADE / SELECTIVE / STAND DOWN)
+                        • Auto-loaded top picks
+                        • FII/DII flow banner
+                        • Calendar event warnings
+                        • Sector concentration tracker
+                        • Sector heatmap
 
 DISCOVER
   ✨ Top Picks         — AI-free unified recommendations (FREE)
-                        Auto-adjusts for FII/DII bias + upcoming events
+                        Auto-adjusts for FII/DII + events + concentration
   📡 Market Scan       — Gap / Volume / Breakout (FREE)
   🎯 Strategies        — S/R, Pivot, Cyclical patterns (FREE)
   📰 News Feed         — RSS + yfinance, customizable (FREE)
@@ -223,12 +230,41 @@ Live data via NSE (cached 1 hour). Falls back to manual entry if scraping fails.
 
 Hardcoded RBI/Budget/Fed dates (published yearly). Per-stock earnings dates pulled from yfinance.
 
+**3. Sector Concentration Checker** — Prevents over-exposure to one sector:
+
+| State | Penalty |
+|-------|---------|
+| Adding trade would breach 30% sector limit | -1.5 |
+| Adding trade would exceed 3 positions per sector | -1.5 |
+| Approaching 80% of limit | -0.5 |
+
+Tracks paper trades + open analysis trades. Stops AI from giving you 5 STRONG BUYs all in IT sector (which would be one concentrated bet, not five separate trades).
+
 **Real example:** On a day when FIIs sold Rs.8,000 Cr and INFY has earnings tomorrow:
 - Pure technical score: STRONG BUY (+5.0)
 - After FII filter: BUY (+3.5)
 - After earnings filter: NEUTRAL (+1.0) — filtered out
 
-This prevents the most common AI trading mistakes: trading against institutional flow + trading into earnings volatility.
+This prevents the most common AI trading mistakes: trading against institutional flow + trading into earnings volatility + accidental sector concentration.
+
+### The Daily Verdict (top of Dashboard)
+
+All 3 filters above plus a live HIGH-conviction setup count are synthesized into a **single decision** at the top of the Dashboard:
+
+| Verdict | When | What You Do |
+|---------|------|-------------|
+| 🟢 **TRADE** | 1-2 favorable, 0 caution flags | Full position size, take 3-5 setups |
+| 🟡 **SELECTIVE** | 1 caution flag | HIGH conviction only, 50-75% size |
+| 🔴 **STAND DOWN** | 2+ caution flags | Skip the day or paper trade only |
+
+The verdict shows:
+- Position size % (0-100%)
+- Max trades for the day
+- Minimum conviction required (HIGH/MEDIUM)
+- Specific action: *"Don't open new positions. Manage existing only."*
+- Caution + favorable flags listed with reasoning
+
+This is the **"what do I actually do today?"** answer — eliminates daily decision paralysis.
 
 ---
 
@@ -335,8 +371,10 @@ Switch providers (OpenAI GPT-5.4-mini, Gemini Flash) for even cheaper analyses (
 - [x] Full multi-agent AI pipeline adapted for Indian markets
 - [x] Web UI with Dashboard, Scanner, Strategies, Analysis, Backtest, etc.
 - [x] Unified recommendation engine
+- [x] **Daily Trading Verdict** (synthesizes all filters into TRADE/SELECTIVE/STAND DOWN)
 - [x] **FII/DII daily flow tracker** (live NSE data, integrated as recommendation filter)
 - [x] **Earnings + Economic Calendar** (RBI/Budget/Fed/expiry/earnings filters)
+- [x] **Sector Concentration Checker** (max 3 positions, 30% capital per sector)
 - [x] Strategy performance tracker
 - [x] Paper trading simulation (multi-horizon P&L tracking)
 - [x] Historical recommender backtest
@@ -353,8 +391,9 @@ Switch providers (OpenAI GPT-5.4-mini, Gemini Flash) for even cheaper analyses (
 - [x] Multi-LLM provider support
 - [x] Cost tracking per analysis
 
-### Pre-Kite Hardening (in progress)
-- [ ] Sector concentration checker (don't open 5 trades all in IT)
+### Pre-Kite Hardening
+- [x] Sector concentration checker
+- [x] Daily Verdict synthesizer
 - [ ] Phase 4a: Zerodha Kite read-only sync (live portfolio + margin)
 - [ ] Phase 4b: One-click order placement with bracket SL/target
 
