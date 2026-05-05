@@ -164,21 +164,31 @@ echo
 ok "${C_BOLD}Both servers are running.${C_RESET}"
 echo "  Backend logs:  $BACKEND_LOG"
 echo "  Frontend logs: $FRONTEND_LOG"
+echo "  Frontend URL:  ${FRONTEND_URL}"
 echo
-log "Tailing both logs (prefixed). Press Ctrl+C to stop everything."
+log "Tailing both logs. Press Ctrl+C to stop everything."
 echo
 
-# Use sed to prefix each line so you can tell which service it's from.
-tail -F "$BACKEND_LOG" "$FRONTEND_LOG" 2>/dev/null \
-  | sed -u \
-      -e "s|^==> ${BACKEND_LOG} <==|${C_BLUE}--- backend ---${C_RESET}|" \
-      -e "s|^==> ${FRONTEND_LOG} <==|${C_GREEN}--- frontend ---${C_RESET}|" &
+# Tail both files in background. Using 'tail -F' so it follows even
+# if files get rotated. Output goes directly to this terminal.
+tail -F "$BACKEND_LOG" "$FRONTEND_LOG" 2>/dev/null &
 TAIL_PID=$!
 
-# Wait for either backend or frontend to die — whichever happens first.
-# This makes Ctrl+C also propagate via the EXIT trap.
-wait -n "$BACKEND_PID" "$FRONTEND_PID" 2>/dev/null || true
+# Poll both child PIDs every 2s. Using `kill -0` (signal 0 = check existence)
+# instead of `wait -n` because the latter behaves unreliably when stdout is
+# redirected (e.g., under nohup) — it can return immediately even when the
+# children are alive, causing premature shutdown.
+while kill -0 "$BACKEND_PID" 2>/dev/null && kill -0 "$FRONTEND_PID" 2>/dev/null; do
+  sleep 2
+done
 
-# If we got here, one of them died on its own.
-err "A service exited. Cleaning up the other..."
+# If we got here, at least one service died on its own.
+if ! kill -0 "$BACKEND_PID" 2>/dev/null; then
+  err "Backend exited unexpectedly. Last 20 lines:"
+  tail -n 20 "$BACKEND_LOG" 1>&2
+fi
+if ! kill -0 "$FRONTEND_PID" 2>/dev/null; then
+  err "Frontend exited unexpectedly. Last 20 lines:"
+  tail -n 20 "$FRONTEND_LOG" 1>&2
+fi
 exit 1
