@@ -58,6 +58,7 @@ Please consider starring the [original repo](https://github.com/TauricResearch/T
 
 ```
 🏠 Today              — Daily workflow dashboard with:
+                        • Market Regime badge (BULL / BEAR / SIDEWAYS / HIGH_VOL)
                         • Daily Verdict (TRADE / SELECTIVE / STAND DOWN)
                         • Auto-loaded top picks
                         • FII/DII flow banner
@@ -327,6 +328,42 @@ RED    5 days  +0.3% avg 5d  40% accuracy  ✗ over-cautious — loosen threshol
 ```
 
 Both pages live under **VALIDATE** in the sidebar. Together they close the full loop: real trades → measured outcomes → updated weights + calibrated thresholds → smarter recommendations.
+
+#### ⚡ Market Regime Classifier — conditional signal performance
+
+Solves the "signal averaging" problem: a signal might win 70% in bull markets and 35% in bear, but the lifetime average of 52% is mush.
+
+Every trading day is classified into one of four regimes:
+
+| Regime | Trigger | What it means for trading |
+|--------|---------|---------------------------|
+| 🟢 **BULL** | Nifty > 50 SMA > 200 SMA, normal vol | Trend favors longs. Breakout signals reliable. |
+| 🔴 **BEAR** | Nifty < 50 SMA < 200 SMA, normal vol | Trend favors shorts. Bounce signals fail more often. |
+| 🟡 **SIDEWAYS** | SMAs not aligned (mixed trend) | Range-bound. Mean-reversion works, breakouts fakeout. |
+| 🟣 **HIGH_VOL** | Realized 20d vol > 1.5× the 120d baseline | Extreme moves dominate. Reduce size, most signals less reliable. Overrides the trend label. |
+
+The Dashboard has a color-coded **Regime Badge** showing today's classification + the volatility readout (e.g., *"Vol 18.5% (baseline 10.4%)"*).
+
+Every paper trade is tagged with `regime_at_entry` automatically. The `/signals` page splits each signal's win rate by regime in a 4-column grid:
+
+```
+Signal                      BULL    BEAR    SIDE    HIGH    Spread
+Volume Spike (Bullish)      75%     25%     57%     43%     50%   ⚡ regime-dependent
+                            (12)    (4)     (7)     (8)
+Breakout (Vol Confirmed)    72%     65%     68%     58%     14%   works across regimes
+                            (15)    (8)     (9)     (12)
+```
+
+Signals with **spread > 20%** (and n≥5 in 2+ regimes) are flagged ⚡ **regime-dependent** — meaning the blanket weight in the main signal table is misleading. You should only act on these signals when the favorable regime is active.
+
+How to use it day-to-day:
+
+1. Glance at the Dashboard regime badge before trading.
+2. Open `/signals`, scroll to the regime breakdown.
+3. For each ⚡ signal you care about, note which regime it works in.
+4. Manually skip those signals when the wrong regime is active.
+
+The recommender doesn't yet auto-apply regime-conditional weights — that's a follow-up. For now the data is surfaced for human filtering.
 
 ---
 
