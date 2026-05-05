@@ -282,6 +282,51 @@ The card shows: position size %, max trades, min conviction, the specific action
 
 This is the **"what do I actually do today?"** answer — eliminates daily decision paralysis.
 
+### The Feedback Loop (closes the learning cycle)
+
+The system improves itself from real trade outcomes. Two pages drive this:
+
+#### 📈 Signal Performance — auto-tunes the recommender
+
+Every paper trade stores which signals fired (`triggered_signals` JSON). After 5-day P&L is known, each signal is credited or blamed for the outcome (multi-attribution — every signal in a trade gets one observation).
+
+Aggregated stats per signal:
+
+| Stat | Meaning |
+|------|---------|
+| `n` | Number of closed trades the signal appeared in |
+| `win_rate` | Raw fraction that won |
+| `wilson_lower_80` | Honest lower bound at 80% confidence — handles small samples |
+| `avg_return_5d_pct` | Mean realized return when the signal fired |
+| `suggested_weight` | New weight derived from Wilson lower bound |
+| `verdict` | `TUNE_UP` / `TUNE_DOWN` / `KEEP` / `INSUFFICIENT_DATA` |
+
+Suggestion formula preserves direction (a bullish signal stays bullish) and scales magnitude by `(wilson - 0.30) / 0.20`, capped at 2.5×. Minimum 10 trades per signal before any change is suggested — below that, data is too noisy.
+
+Click **Apply Suggested Weights** to persist overrides into the `settings` table. The recommender's `_refresh_active_weights()` reloads them at the start of every `recommend()` call. **The engine literally rewrites itself from your trade outcomes.**
+
+#### 🎯 Verdict Calibration — grades the daily verdict
+
+Every dashboard load snapshots today's verdict + Nifty close into `verdict_history`. After 1/3/5 trading days, forward closes backfill and outcomes are classified:
+
+| Verdict | Correct when | Wrong when |
+|---------|--------------|------------|
+| GREEN | Nifty return > +0.10% | < -0.10% |
+| RED | Nifty return < -0.10% | > +0.10% |
+| YELLOW | abs(return) ≤ 0.50% (quiet day) | > 0.50% |
+
+Accuracy = `correct / (correct + wrong)`. Neutrals are excluded so ±0.05% noise doesn't pollute the score.
+
+After ~30 days of data, the calibration table reveals whether the headline filter is genuinely predictive or whether thresholds need retuning. Example output:
+
+```
+GREEN  8 days  +0.4% avg 5d  67% accuracy  ✓ trustworthy
+YELLOW 9 days  +0.1% avg 5d  71% quiet-day accuracy  ✓ identifies low-edge days
+RED    5 days  +0.3% avg 5d  40% accuracy  ✗ over-cautious — loosen thresholds
+```
+
+Both pages live under **VALIDATE** in the sidebar. Together they close the full loop: real trades → measured outcomes → updated weights + calibrated thresholds → smarter recommendations.
+
 ---
 
 ## Project Structure
@@ -391,6 +436,8 @@ Switch providers (OpenAI GPT-5.4-mini, Gemini Flash) for even cheaper analyses (
 - [x] **FII/DII daily flow tracker** (live NSE data, integrated as recommendation filter)
 - [x] **Earnings + Economic Calendar** (RBI/Budget/Fed/expiry/earnings filters)
 - [x] **Sector Concentration Checker** (max 3 positions, 30% capital per sector)
+- [x] **Signal Performance Tracker** (auto-tunes recommender weights from real outcomes)
+- [x] **Verdict Calibration** (grades daily verdict against actual Nifty moves at 1/3/5d horizons)
 - [x] Strategy performance tracker
 - [x] Paper trading simulation (multi-horizon P&L tracking)
 - [x] Historical recommender backtest
