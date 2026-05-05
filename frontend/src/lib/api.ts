@@ -192,6 +192,19 @@ export const applySignalWeights = (windowDays = 90, onlyKeys?: string[]) =>
 export const resetSignalWeights = () =>
   fetchAPI(`/api/signal-performance/reset`, { method: "POST" });
 
+// Tier 4.1: per-regime conditional weights
+export const getRegimeWeightSuggestions = (windowDays = 180) =>
+  fetchAPI(`/api/signal-performance/regime-suggestions?window_days=${windowDays}`);
+export const getActiveRegimeWeights = () =>
+  fetchAPI(`/api/signal-performance/regime-active`);
+export const applyRegimeWeights = (windowDays = 180, onlyRegimes?: string[]) =>
+  fetchAPI(`/api/signal-performance/regime-apply`, {
+    method: "POST",
+    body: JSON.stringify({ window_days: windowDays, only_regimes: onlyRegimes ?? null }),
+  });
+export const resetRegimeWeights = () =>
+  fetchAPI(`/api/signal-performance/regime-reset`, { method: "POST" });
+
 // Market Regime (Bull/Bear/Sideways/High-Vol classifier)
 export const getCurrentRegime = () => fetchAPI(`/api/regime/current`);
 export const backfillTradeRegimes = () =>

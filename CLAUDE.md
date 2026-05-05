@@ -416,6 +416,26 @@ Learning Insights updates with combined data
 - Frontend: `/signals` page — full per-signal table with current vs suggested weights, "Apply Suggested Weights" button, "Reset to Defaults"
 - API: `GET /api/signal-performance/?window_days=N`, `GET /active-weights`, `POST /apply`, `POST /reset`
 
+### Conditional Regime Weights — Tier 4.1 (NEW)
+- `backend/signal_performance.py` extended:
+  - `compute_regime_conditional_weights(window_days)` — per-regime suggested overrides
+  - `apply_regime_weights(only_regimes)` — persist to `settings.recommender_regime_weights` (JSON: `{"BULL": {...}, "BEAR": {...}, "SIDEWAYS": {...}, "HIGH_VOL": {...}}`)
+  - `get_active_weights_for_regime(regime)` — three-layer merge: DEFAULT → base tuned → regime override
+  - Conservative thresholds: `MIN_SAMPLE_PER_REGIME=5`, `REGIME_OVERRIDE_THRESHOLD=0.10`, delta>=0.25
+- `backend/recommender.py` modified:
+  - `_refresh_active_weights()` now detects current regime via `market_regime.get_current_regime()` and applies the matching layer
+  - Module-level `_ACTIVE_REGIME` tracks which regime's weights are loaded
+  - `recommend()` response includes `active_regime` + `regime_weight_overrides_active` count
+- Frontend:
+  - `/signals` page has new "Conditional Regime Weights (Tier 4.1)" section with 4-card grid (one per regime), Apply All / Reset buttons
+  - `TodayPicks.tsx` header shows `NIFTY100 · HIGH_VOL ⚡N` where N is active override count
+- API additions:
+  - `GET /api/signal-performance/regime-suggestions?window_days=N`
+  - `GET /api/signal-performance/regime-active`
+  - `POST /api/signal-performance/regime-apply` (body: `{window_days, only_regimes?}`)
+  - `POST /api/signal-performance/regime-reset`
+- Smoke test: HIGH_VOL active, applied 1 override (rsi_overbought -1.0 → 0.0 from 5 trades, 40% WR), recommend response confirmed `regime_weight_overrides_active: 1`
+
 ### Shadow Trades / Counterfactual Learning (NEW)
 - `backend/shadow_trades.py` + `shadow_trades` table — auto-tracks every STRONG BUY (and HIGH-conf BUY) the recommender produces, regardless of whether user clicked Track
 - Hooked into `recommend()` in `backend/recommender.py` — after each call, idempotent insert (PRIMARY KEY ticker+signal_date) records picks

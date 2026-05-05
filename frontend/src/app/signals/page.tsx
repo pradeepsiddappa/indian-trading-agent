@@ -8,6 +8,10 @@ import {
   resetSignalWeights,
   getSignalPerformanceByRegime,
   backfillTradeRegimes,
+  getRegimeWeightSuggestions,
+  getActiveRegimeWeights,
+  applyRegimeWeights,
+  resetRegimeWeights,
 } from "@/lib/api";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -101,9 +105,29 @@ const REGIME_COLORS: Record<string, string> = {
   HIGH_VOL: "text-purple-700",
 };
 
+type RegimeSuggestion = {
+  current: number;
+  suggested: number;
+  delta: number;
+  n: number;
+  wins: number;
+  win_rate: number;
+  wilson_lower_80: number;
+  avg_return_5d_pct: number | null;
+  verdict: string;
+};
+type RegimeSuggestions = {
+  lookback_days: number;
+  min_sample_per_regime: number;
+  by_regime: Record<string, Record<string, RegimeSuggestion>>;
+  summary: Record<string, { override_count: number }>;
+};
+
 export default function SignalsPage() {
   const [data, setData] = useState<Performance | null>(null);
   const [regimeData, setRegimeData] = useState<RegimePerf | null>(null);
+  const [regimeSuggestions, setRegimeSuggestions] = useState<RegimeSuggestions | null>(null);
+  const [activeRegimeWeights, setActiveRegimeWeights] = useState<Record<string, Record<string, number>>>({});
   const [overrides, setOverrides] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
   const [applying, setApplying] = useState(false);
@@ -112,18 +136,54 @@ export default function SignalsPage() {
   const load = async () => {
     setLoading(true);
     try {
-      const [perf, weights, regime]: any[] = await Promise.all([
+      const [perf, weights, regime, regSugg, regActive]: any[] = await Promise.all([
         getSignalPerformance(windowDays),
         getActiveSignalWeights(),
         getSignalPerformanceByRegime(Math.max(windowDays, 180)),
+        getRegimeWeightSuggestions(Math.max(windowDays, 180)),
+        getActiveRegimeWeights(),
       ]);
       setData(perf);
       setOverrides(weights?.overrides || {});
       setRegimeData(regime);
+      setRegimeSuggestions(regSugg);
+      setActiveRegimeWeights(regActive?.by_regime || {});
     } catch (e: any) {
       toast.error(e.message || "Failed to load signal performance");
     }
     setLoading(false);
+  };
+
+  const applyAllRegimeWeights = async () => {
+    setApplying(true);
+    try {
+      const r: any = await applyRegimeWeights();
+      const total = Object.values(r.applied || {}).reduce<number>((acc: number, arr: any) => acc + (arr?.length ?? 0), 0);
+      if (total === 0) {
+        toast.info("No regime overrides to apply yet (need n≥5 per regime with significant deviation).");
+      } else {
+        toast.success(`Applied ${total} regime override(s)`, {
+          description: "Recommender will use them on the next run.",
+        });
+      }
+      await load();
+    } catch (e: any) {
+      toast.error(e.message || "Failed to apply regime weights");
+    }
+    setApplying(false);
+  };
+
+  const resetAllRegimeWeights = async () => {
+    if (!confirm("Reset all per-regime overrides? Recommender will fall back to base tuned weights.")) return;
+    setApplying(true);
+    try {
+      await resetRegimeWeights();
+      toast.success("Regime weights cleared");
+      await load();
+    } catch (e: any) {
+      toast.error(e.message || "Failed to reset regime weights");
+    }
+    setApplying(false);
   };
 
   const backfillRegimes = async () => {
@@ -503,6 +563,74 @@ export default function SignalsPage() {
                 Need n≥5 in at least 2 regimes for spread calculation.
               </div>
             )}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Conditional regime weights — Tier 4.1 */}
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <div>
+            <CardTitle className="text-base">Conditional Regime Weights (Tier 4.1)</CardTitle>
+            <p className="text-xs text-muted-foreground mt-1">
+              Per-regime weight overrides layered on top of base tuned weights. Recommender automatically picks the right layer based on today's regime.
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button onClick={applyAllRegimeWeights} disabled={applying} size="sm">
+              {applying ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <Sparkles className="h-3 w-3 mr-1" />}
+              Apply All Regime Suggestions
+            </Button>
+            <Button onClick={resetAllRegimeWeights} disabled={applying || Object.keys(activeRegimeWeights).length === 0} size="sm" variant="outline">
+              <Undo2 className="h-3 w-3 mr-1" />
+              Reset Regime Layer
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent className="p-5 space-y-4">
+          {/* Per-regime cards */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+            {(["BULL", "BEAR", "SIDEWAYS", "HIGH_VOL"] as const).map((regime) => {
+              const sugg = regimeSuggestions?.by_regime[regime] || {};
+              const active = activeRegimeWeights[regime] || {};
+              const suggCount = Object.keys(sugg).length;
+              const activeCount = Object.keys(active).length;
+              return (
+                <div key={regime} className="border rounded-lg p-3">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className={`text-sm font-semibold ${REGIME_COLORS[regime]}`}>{regime}</span>
+                    {activeCount > 0 && (
+                      <Badge variant="outline" className="text-xs bg-purple-50 text-purple-700 border-purple-200">
+                        {activeCount} active
+                      </Badge>
+                    )}
+                  </div>
+                  <p className="text-xs text-muted-foreground mb-2">
+                    {suggCount === 0 ? "No suggestions (need n≥5 with significant deviation)" : `${suggCount} suggestion${suggCount > 1 ? "s" : ""}`}
+                  </p>
+                  {suggCount > 0 && (
+                    <ul className="text-xs space-y-1">
+                      {Object.entries(sugg).slice(0, 4).map(([key, info]) => (
+                        <li key={key} className="flex items-center justify-between">
+                          <span className="text-muted-foreground truncate" title={key}>{key.replace(/_/g, " ")}</span>
+                          <span className="tabular-nums whitespace-nowrap">
+                            <span className="text-muted-foreground">{info.current.toFixed(1)}</span>
+                            {" → "}
+                            <span className={info.delta > 0 ? "text-green-700 font-semibold" : "text-red-700 font-semibold"}>
+                              {info.suggested.toFixed(1)}
+                            </span>
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+
+          <div className="text-xs text-muted-foreground border-t pt-3">
+            <strong>How layering works:</strong> DEFAULT_WEIGHTS → base tuned weights (Apply Suggested Weights button above) → regime-specific overrides (this card). Recommender automatically picks the active regime's overrides at runtime. Regime overrides are conservative — only applied when n≥5 in that regime AND Wilson lower bound differs from 50% by &gt;10% AND the suggested change is &gt;0.25.
           </div>
         </CardContent>
       </Card>
