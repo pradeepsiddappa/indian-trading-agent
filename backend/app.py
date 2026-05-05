@@ -13,7 +13,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 from backend.db import ensure_db
-from backend.routers import market_data, analysis, watchlist, backtest, strategies, scanner, performance, recommender, settings as settings_router, news as news_router, simulation as simulation_router, insights as insights_router, fii_dii as fii_dii_router, calendar as calendar_router
+from backend.routers import market_data, analysis, watchlist, backtest, strategies, scanner, performance, recommender, settings as settings_router, news as news_router, simulation as simulation_router, insights as insights_router, fii_dii as fii_dii_router, calendar as calendar_router, concentration as concentration_router
 from backend.settings_manager import load_api_keys_into_env, apply_llm_config_to_default
 
 
@@ -56,6 +56,7 @@ app.include_router(simulation_router.router)
 app.include_router(insights_router.router)
 app.include_router(fii_dii_router.router)
 app.include_router(calendar_router.router)
+app.include_router(concentration_router.router)
 
 
 @app.get("/api/health")

@@ -281,6 +281,58 @@ def _apply_market_bias(result: dict, bias: dict) -> dict:
     return result
 
 
+def _apply_concentration_filter(result: dict, concentration_check: dict) -> dict:
+    """Apply sector concentration penalty if adding this trade would over-expose."""
+    if not concentration_check:
+        return result
+
+    sector = concentration_check.get("sector", "Other")
+    result["sector"] = sector
+
+    adj = concentration_check.get("score_adjustment", 0)
+    if adj == 0:
+        return result
+
+    new_score = round(result["score"] + adj, 2)
+    warnings = concentration_check.get("warnings", [])
+
+    conc_signal = {
+        "type": f"Sector Concentration ({sector})",
+        "direction": "BEARISH",
+        "value": "; ".join(warnings) if warnings else "Approaching sector limit",
+        "weight": adj,
+    }
+    result["signals"] = list(result.get("signals", [])) + [conc_signal]
+    result["bearish_signal_count"] = result.get("bearish_signal_count", 0) + 1
+    result["concentration_warning"] = "; ".join(warnings) if warnings else None
+    result["concentration_breach"] = concentration_check.get("would_breach", False)
+
+    if new_score >= 4.0:
+        direction = "STRONG BUY"
+    elif new_score >= 2.0:
+        direction = "BUY"
+    elif new_score <= -4.0:
+        direction = "STRONG SELL"
+    elif new_score <= -2.0:
+        direction = "SELL"
+    else:
+        direction = "NEUTRAL"
+
+    abs_score = abs(new_score)
+    aligned = max(result.get("bullish_signal_count", 0), result.get("bearish_signal_count", 0))
+    score_edge = min(abs_score * 4, 30)
+    alignment_bonus = min(aligned * 2, 15)
+    success_probability = round(min(50 + score_edge + alignment_bonus, 85), 0)
+    if abs_score < 2:
+        success_probability = 50
+
+    result["score"] = new_score
+    result["direction"] = direction
+    result["success_probability"] = int(success_probability)
+
+    return result
+
+
 def _apply_event_filter(result: dict, event_filter: dict) -> dict:
     """Apply event-based score adjustment (earnings, RBI, Budget, etc)."""
     if not event_filter or not event_filter.get("has_event"):
@@ -337,6 +389,8 @@ def recommend(
     min_signals: int = 2,
     apply_market_bias: bool = True,
     apply_event_filter: bool = True,
+    apply_concentration_check: bool = True,
+    total_capital: float = 500000,
 ) -> dict:
     """Run recommendation engine across a stock universe.
 
@@ -345,6 +399,8 @@ def recommend(
         min_signals: minimum number of aligned signals to recommend
         apply_market_bias: if True, FII/DII flow adjusts each stock's score
         apply_event_filter: if True, upcoming earnings/RBI/Budget penalize scores
+        apply_concentration_check: if True, penalize stocks that would over-concentrate sector
+        total_capital: portfolio capital for concentration % calculation
     """
     stocks = UNIVERSES.get(universe, NIFTY_100)
     all_results = []
@@ -369,6 +425,15 @@ def recommend(
         except Exception as e:
             print(f"[Recommender] Calendar fetch failed: {e}", flush=True)
 
+    # Fetch current concentration summary once
+    concentration_summary = None
+    if apply_concentration_check:
+        try:
+            from backend.concentration import get_concentration_summary
+            concentration_summary = get_concentration_summary()
+        except Exception as e:
+            print(f"[Recommender] Concentration check failed: {e}", flush=True)
+
     with ThreadPoolExecutor(max_workers=10) as executor:
         futures = {executor.submit(_analyze_stock, ticker): ticker for ticker in stocks}
         for f in as_completed(futures):
@@ -386,6 +451,18 @@ def recommend(
                             result = _apply_event_filter(result, event_filter)
                     except Exception:
                         pass
+                # Apply concentration check (per-ticker, only on bullish signals)
+                if apply_concentration_check and result.get("direction") in ("STRONG BUY", "BUY"):
+                    try:
+                        from backend.concentration import check_new_trade_concentration
+                        conc_check = check_new_trade_concentration(
+                            result["ticker"],
+                            proposed_position_value=total_capital * 0.1,  # 10% per position assumed
+                            total_capital=total_capital,
+                        )
+                        result = _apply_concentration_filter(result, conc_check)
+                    except Exception:
+                        pass
                 all_results.append(result)
 
     # Separate by direction and sort
@@ -400,6 +477,7 @@ def recommend(
         "total_with_signals": len(all_results),
         "market_bias": market_bias,
         "today_market_events": today_market_events,
+        "concentration_summary": concentration_summary,
         "strong_buys": strong_buys[:20],
         "buys": buys[:20],
         "sells": sells[:20],

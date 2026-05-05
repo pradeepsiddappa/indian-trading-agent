@@ -9,6 +9,7 @@ import { QuickActions } from "@/components/dashboard/QuickActions";
 import { SectorHeatmap } from "@/components/dashboard/SectorHeatmap";
 import { FIIDIIBanner } from "@/components/dashboard/FIIDIIBanner";
 import { CalendarBanner } from "@/components/dashboard/CalendarBanner";
+import { ConcentrationWidget } from "@/components/dashboard/ConcentrationWidget";
 
 function getGreeting() {
   const hour = new Date().getHours();
@@ -48,6 +49,9 @@ export default function DashboardPage() {
 
       {/* Calendar / Events Banner */}
       <CalendarBanner />
+
+      {/* Sector Concentration Widget — auto-hides if no open positions */}
+      <ConcentrationWidget />
 
       {/* Today's Top Picks — auto-loaded */}
       <TodayPicks universe="nifty100" />

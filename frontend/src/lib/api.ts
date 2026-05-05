@@ -74,6 +74,14 @@ export const getProviders = () => fetchAPI(`/api/settings/providers`);
 // Learning Insights
 export const getLearningInsights = () => fetchAPI(`/api/insights/`);
 
+// Concentration (Sector Exposure Tracker)
+export const getConcentrationSummary = () => fetchAPI(`/api/concentration/summary`);
+export const getConcentrationAllocation = (totalCapital = 500000) =>
+  fetchAPI(`/api/concentration/allocation?total_capital=${totalCapital}`);
+export const checkTickerConcentration = (ticker: string, positionValue = 50000, totalCapital = 500000) =>
+  fetchAPI(`/api/concentration/check/${ticker}?position_value=${positionValue}&total_capital=${totalCapital}`);
+export const getOpenPositions = () => fetchAPI(`/api/concentration/positions`);
+
 // Calendar (Earnings + Economic Events)
 export const getCalendarToday = () => fetchAPI(`/api/calendar/today`);
 export const getCalendarUpcoming = (days = 7) => fetchAPI(`/api/calendar/upcoming?days=${days}`);
