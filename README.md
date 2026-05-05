@@ -41,6 +41,7 @@ This project is built on top of the excellent [TradingAgents](https://github.com
 - Learning Insights (pattern analysis on YOUR trades, no ML)
 - **Signal Performance Tracker** — measures real win rate of each recommender signal from closed trades and auto-tunes the scoring weights (closes the feedback loop)
 - **Verdict Calibration** — daily snapshot of the headline verdict + Nifty close, then 1/3/5-day forward returns measure whether GREEN/YELLOW/RED actually predict market direction
+- **Market Regime Classifier** — labels every trading day BULL / BEAR / SIDEWAYS / HIGH_VOL, tags every paper trade with the regime at entry, and reveals which signals are regime-dependent (e.g., "Near Support" might win 70% in BULL but 35% in BEAR)
 - Seasonal Backtest (no AI cost)
 - Position Size Calculator
 - P&L Tracking + "Reflect & Remember" (feed outcomes to agent memory)
@@ -438,6 +439,7 @@ Switch providers (OpenAI GPT-5.4-mini, Gemini Flash) for even cheaper analyses (
 - [x] **Sector Concentration Checker** (max 3 positions, 30% capital per sector)
 - [x] **Signal Performance Tracker** (auto-tunes recommender weights from real outcomes)
 - [x] **Verdict Calibration** (grades daily verdict against actual Nifty moves at 1/3/5d horizons)
+- [x] **Market Regime Classifier** (BULL/BEAR/SIDEWAYS/HIGH_VOL tagging on every trade + conditional signal stats)
 - [x] Strategy performance tracker
 - [x] Paper trading simulation (multi-horizon P&L tracking)
 - [x] Historical recommender backtest
