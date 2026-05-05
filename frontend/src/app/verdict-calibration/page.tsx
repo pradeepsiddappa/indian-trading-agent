@@ -189,6 +189,28 @@ export default function VerdictCalibrationPage() {
         </div>
       </div>
 
+      {/* How to use this callout */}
+      <Card className="border-blue-200 bg-blue-50/30">
+        <CardContent className="p-4">
+          <div className="flex items-start gap-3">
+            <div className="p-1.5 rounded-lg bg-blue-100 flex-shrink-0">
+              <Target className="h-5 w-5 text-blue-700" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <h3 className="font-semibold text-sm mb-2">How to use this page</h3>
+              <ol className="text-sm text-muted-foreground space-y-1.5 list-decimal list-inside">
+                <li><span className="text-foreground font-medium">Let it run:</span> Just load the Dashboard daily — snapshots happen automatically. No action needed for the first ~30 days.</li>
+                <li><span className="text-foreground font-medium">Check accuracy weekly:</span> After 30 days you'll have ~22 ripe snapshots. Look at the 5d Acc column for each verdict.</li>
+                <li><span className="text-foreground font-medium">Trust the verdicts that work:</span> If GREEN has 60%+ accuracy and positive avg return — trade with confidence on GREEN days at full size.</li>
+                <li><span className="text-foreground font-medium">Override the ones that don't:</span> If RED has &lt;50% accuracy and positive avg return — the filter is over-cautious. Loosen thresholds in <code className="text-xs bg-muted px-1 rounded">backend/daily_verdict.py</code> or simply ignore RED days.</li>
+                <li><span className="text-foreground font-medium">Watch YELLOW carefully:</span> If YELLOW's "quiet day" accuracy is high, you're correctly skipping noise. If low, the verdict is missing real opportunities — tighten its triggers.</li>
+                <li><span className="text-foreground font-medium">Sanity check via Recent Snapshots:</span> Scan the table for ✗ patterns — if RED days keep getting wrong calls during a specific period, look for what regime change happened then.</li>
+              </ol>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Top row: snapshot count + actions */}
       <Card>
         <CardContent className="p-5">

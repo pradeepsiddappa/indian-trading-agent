@@ -164,6 +164,27 @@ export default function SignalsPage() {
         </div>
       </div>
 
+      {/* How to use this callout */}
+      <Card className="border-purple-200 bg-purple-50/30">
+        <CardContent className="p-4">
+          <div className="flex items-start gap-3">
+            <div className="p-1.5 rounded-lg bg-purple-100 flex-shrink-0">
+              <Brain className="h-5 w-5 text-purple-700" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <h3 className="font-semibold text-sm mb-2">How to use this page</h3>
+              <ol className="text-sm text-muted-foreground space-y-1.5 list-decimal list-inside">
+                <li><span className="text-foreground font-medium">Wait for data:</span> Need ≥10 closed trades per signal. Track at least 30 paper trades from <a href="/recommendations" className="text-purple-700 underline">Top Picks</a> to get tunable signals.</li>
+                <li><span className="text-foreground font-medium">Read the table:</span> Look for signals with high <em>Honest WR</em> (≥55%) — these are reliably profitable. Low <em>Honest WR</em> (≤40%) signals are fooling you.</li>
+                <li><span className="text-foreground font-medium">Apply tuning:</span> Click <em>Apply Suggested Weights</em> when verdict shows <span className="text-green-700">Tune up</span> or <span className="text-red-700">Tune down</span>. Recommender uses new weights on next refresh.</li>
+                <li><span className="text-foreground font-medium">Re-tune monthly:</span> Markets change. Come back every 30 days and apply again — weights drift toward what's currently working.</li>
+                <li><span className="text-foreground font-medium">Reset if regime shifts:</span> After a major market event (crash, rate cut), defaults may beat stale tuned weights. Reset and re-collect data.</li>
+              </ol>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Summary card */}
       <Card>
         <CardContent className="p-5">
