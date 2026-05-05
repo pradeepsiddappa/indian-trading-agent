@@ -88,6 +88,156 @@ def _is_win_for_signal(signal_direction: str, pnl_5d_pct: float) -> bool:
     return False
 
 
+def compute_signal_performance_by_regime(window_days: int = 180) -> dict:
+    """Per-signal win rate split by market regime at entry.
+
+    Reveals signals whose effectiveness is regime-conditional:
+        - 'Near Major Support' might win 70% in BULL but only 35% in BEAR
+        - 'Volume Spike (Bullish)' might work everywhere except HIGH_VOL
+        - etc.
+
+    Returns:
+        {
+            "lookback_days": 180,
+            "regimes": ["BULL", "BEAR", "SIDEWAYS", "HIGH_VOL"],
+            "by_signal": [
+                {
+                    "signal_type": "Volume Spike (Bullish)",
+                    "weight_key": "volume_bullish",
+                    "by_regime": {
+                        "BULL":     {"n": 12, "wins": 9,  "win_rate": 0.75, "avg_return_5d_pct": 1.6},
+                        "BEAR":     {"n": 4,  "wins": 1,  "win_rate": 0.25, "avg_return_5d_pct": -0.8},
+                        "SIDEWAYS": {"n": 7,  "wins": 4,  "win_rate": 0.57, "avg_return_5d_pct": 0.2},
+                        "HIGH_VOL": {"n": 0,  ...},
+                    },
+                    "regime_spread": 0.50,  // max - min win rate
+                    "is_regime_dependent": true,  // spread > 0.20 with n>=5 in 2+ regimes
+                },
+                ...
+            ]
+        }
+    """
+    from backend.recommender import DEFAULT_WEIGHTS
+    from backend.db import _migrate_paper_trades_columns
+    import json
+
+    # Ensure regime_at_entry column exists (safe no-op if migration already ran)
+    _migrate_paper_trades_columns()
+
+    with get_db() as conn:
+        rows = conn.execute(
+            f"""
+            SELECT direction, signal, pnl_5d_pct, triggered_signals,
+                   entry_date, regime_at_entry
+            FROM paper_trades
+            WHERE pnl_5d_pct IS NOT NULL
+              AND triggered_signals IS NOT NULL
+              AND regime_at_entry IS NOT NULL
+              AND entry_date >= date('now', '-{int(window_days)} days')
+            """
+        ).fetchall()
+
+    REGIMES = ["BULL", "BEAR", "SIDEWAYS", "HIGH_VOL"]
+
+    # signal_key -> regime -> {wins, n, return_sum, label}
+    agg: dict[str, dict[str, dict]] = {}
+
+    for r in rows:
+        regime = r["regime_at_entry"]
+        if regime not in REGIMES:
+            continue
+        try:
+            triggered = json.loads(r["triggered_signals"]) if r["triggered_signals"] else []
+        except Exception:
+            triggered = []
+        if not isinstance(triggered, list):
+            continue
+
+        pnl = r["pnl_5d_pct"]
+        if pnl is None:
+            continue
+
+        seen_in_trade: set[str] = set()
+        for sig in triggered:
+            if not isinstance(sig, dict):
+                continue
+            sig_type = sig.get("type")
+            sig_dir = sig.get("direction")
+            if not sig_type or sig_type in seen_in_trade:
+                continue
+            seen_in_trade.add(sig_type)
+
+            key = SIGNAL_TYPE_TO_KEY.get(sig_type)
+            if not key:
+                continue
+
+            sig_bucket = agg.setdefault(key, {})
+            r_bucket = sig_bucket.setdefault(
+                regime, {"wins": 0, "n": 0, "return_sum": 0.0, "label": sig_type}
+            )
+            won = _is_win_for_signal(sig_dir, pnl)
+            r_bucket["n"] += 1
+            r_bucket["return_sum"] += pnl
+            if won:
+                r_bucket["wins"] += 1
+
+    out_signals = []
+    for key, default_w in DEFAULT_WEIGHTS.items():
+        sig_bucket = agg.get(key, {})
+        label = (next(iter(sig_bucket.values()))["label"]
+                 if sig_bucket else _key_to_label(key))
+        by_regime = {}
+        win_rates_with_n = []  # for spread calc — only regimes with n>=5
+        total_n = 0
+        for regime in REGIMES:
+            r = sig_bucket.get(regime)
+            if not r:
+                by_regime[regime] = {"n": 0, "wins": 0, "win_rate": None,
+                                     "avg_return_5d_pct": None}
+                continue
+            n = r["n"]
+            total_n += n
+            avg_ret = r["return_sum"] / n if n else 0.0
+            wr = r["wins"] / n if n else 0.0
+            by_regime[regime] = {
+                "n": n,
+                "wins": r["wins"],
+                "win_rate": round(wr, 3),
+                "avg_return_5d_pct": round(avg_ret, 3),
+            }
+            if n >= 5:
+                win_rates_with_n.append(wr)
+
+        if len(win_rates_with_n) >= 2:
+            spread = round(max(win_rates_with_n) - min(win_rates_with_n), 3)
+            is_dependent = spread > 0.20
+        else:
+            spread = None
+            is_dependent = False
+
+        if total_n == 0:
+            continue  # signal never fired in tagged trades — skip from output
+
+        out_signals.append({
+            "signal_type": label,
+            "weight_key": key,
+            "current_weight": round(default_w, 2),
+            "total_n": total_n,
+            "by_regime": by_regime,
+            "regime_spread": spread,
+            "is_regime_dependent": is_dependent,
+        })
+
+    out_signals.sort(key=lambda s: (-(s["regime_spread"] or 0), -s["total_n"]))
+
+    return {
+        "lookback_days": window_days,
+        "regimes": REGIMES,
+        "by_signal": out_signals,
+        "total_tagged_trades": len(rows),
+    }
+
+
 def compute_signal_performance(window_days: int = 90) -> dict:
     """Aggregate per-signal stats over closed paper_trades in the lookback window.
 

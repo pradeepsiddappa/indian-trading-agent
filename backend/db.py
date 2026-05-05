@@ -367,12 +367,22 @@ def add_paper_trade(data: dict) -> int:
     if triggered is not None and not isinstance(triggered, str):
         triggered = json.dumps(triggered)
 
+    # Tag the trade with today's market regime so we can later compute
+    # conditional signal performance (some signals only work in BULL, etc.)
+    regime_at_entry = data.get("regime_at_entry")
+    if regime_at_entry is None:
+        try:
+            from backend.market_regime import get_current_regime
+            regime_at_entry = get_current_regime().get("regime")
+        except Exception:
+            regime_at_entry = None
+
     with get_db() as conn:
         cursor = conn.execute(
             """INSERT INTO paper_trades
             (ticker, source, strategy, direction, signal, score, confidence,
-             success_probability, triggered_signals, entry_price, notes)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+             success_probability, triggered_signals, entry_price, notes, regime_at_entry)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
             (
                 data.get("ticker"),
                 data.get("source", "manual"),
@@ -385,6 +395,7 @@ def add_paper_trade(data: dict) -> int:
                 triggered,
                 data.get("entry_price"),
                 data.get("notes"),
+                regime_at_entry,
             ),
         )
         return cursor.lastrowid
@@ -398,6 +409,7 @@ def _migrate_paper_trades_columns():
             ("strategy", "TEXT"),
             ("confidence", "TEXT"),
             ("triggered_signals", "TEXT"),
+            ("regime_at_entry", "TEXT"),  # Market regime when trade was opened
         ]:
             if col not in existing:
                 try:

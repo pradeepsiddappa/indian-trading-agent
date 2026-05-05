@@ -11,6 +11,7 @@ import { FIIDIIBanner } from "@/components/dashboard/FIIDIIBanner";
 import { CalendarBanner } from "@/components/dashboard/CalendarBanner";
 import { ConcentrationWidget } from "@/components/dashboard/ConcentrationWidget";
 import { DailyVerdict } from "@/components/dashboard/DailyVerdict";
+import { RegimeBadge } from "@/components/dashboard/RegimeBadge";
 
 function getGreeting() {
   const hour = new Date().getHours();
@@ -44,6 +45,10 @@ export default function DashboardPage() {
 
       {/* Market Status Bar */}
       <MarketOverview />
+
+      {/* Market Regime Badge — shows current regime (Bull/Bear/Sideways/High-Vol)
+          so traders know which conditional signal weights to expect */}
+      <RegimeBadge />
 
       {/* === HEADLINE DECISION CARD ===
           Synthesizes all filters into one TRADE / SELECTIVE / STAND DOWN verdict */}

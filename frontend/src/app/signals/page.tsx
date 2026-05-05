@@ -6,6 +6,8 @@ import {
   getActiveSignalWeights,
   applySignalWeights,
   resetSignalWeights,
+  getSignalPerformanceByRegime,
+  backfillTradeRegimes,
 } from "@/lib/api";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -70,8 +72,38 @@ const helpItems = [
   },
 ];
 
+type RegimeStats = {
+  n: number;
+  wins: number;
+  win_rate: number | null;
+  avg_return_5d_pct: number | null;
+};
+type RegimeSignal = {
+  signal_type: string;
+  weight_key: string;
+  current_weight: number;
+  total_n: number;
+  by_regime: Record<string, RegimeStats>;
+  regime_spread: number | null;
+  is_regime_dependent: boolean;
+};
+type RegimePerf = {
+  lookback_days: number;
+  regimes: string[];
+  by_signal: RegimeSignal[];
+  total_tagged_trades: number;
+};
+
+const REGIME_COLORS: Record<string, string> = {
+  BULL: "text-green-700",
+  BEAR: "text-red-700",
+  SIDEWAYS: "text-amber-700",
+  HIGH_VOL: "text-purple-700",
+};
+
 export default function SignalsPage() {
   const [data, setData] = useState<Performance | null>(null);
+  const [regimeData, setRegimeData] = useState<RegimePerf | null>(null);
   const [overrides, setOverrides] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
   const [applying, setApplying] = useState(false);
@@ -80,16 +112,28 @@ export default function SignalsPage() {
   const load = async () => {
     setLoading(true);
     try {
-      const [perf, weights]: any[] = await Promise.all([
+      const [perf, weights, regime]: any[] = await Promise.all([
         getSignalPerformance(windowDays),
         getActiveSignalWeights(),
+        getSignalPerformanceByRegime(Math.max(windowDays, 180)),
       ]);
       setData(perf);
       setOverrides(weights?.overrides || {});
+      setRegimeData(regime);
     } catch (e: any) {
       toast.error(e.message || "Failed to load signal performance");
     }
     setLoading(false);
+  };
+
+  const backfillRegimes = async () => {
+    try {
+      const r: any = await backfillTradeRegimes();
+      toast.success(`Tagged ${r.trades_updated} trade(s) with regime`);
+      await load();
+    } catch (e: any) {
+      toast.error(e.message || "Backfill failed");
+    }
   };
 
   useEffect(() => {
@@ -335,6 +379,108 @@ export default function SignalsPage() {
                 })}
               </tbody>
             </table>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Regime-conditional signal performance */}
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <div>
+            <CardTitle className="text-base">Regime-Conditional Win Rates</CardTitle>
+            <p className="text-xs text-muted-foreground mt-1">
+              Same signals, split by what the market regime was when the trade opened.
+              Regime-dependent signals are flagged ⚡ — these need different weights per regime.
+            </p>
+          </div>
+          <Button onClick={backfillRegimes} size="sm" variant="outline">
+            Backfill Regimes
+          </Button>
+        </CardHeader>
+        <CardContent className="p-0">
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="bg-muted/50 border-y">
+                <tr className="text-left">
+                  <th className="px-4 py-2 font-medium">Signal</th>
+                  {(regimeData?.regimes || ["BULL", "BEAR", "SIDEWAYS", "HIGH_VOL"]).map((r) => (
+                    <th key={r} className={`px-2 py-2 font-medium text-right ${REGIME_COLORS[r]}`}>
+                      {r}
+                    </th>
+                  ))}
+                  <th className="px-2 py-2 font-medium text-right" title="Max - min win rate across regimes with n>=5">
+                    Spread
+                  </th>
+                  <th className="px-4 py-2 font-medium text-center">Note</th>
+                </tr>
+              </thead>
+              <tbody>
+                {(!regimeData || regimeData.by_signal.length === 0) && (
+                  <tr>
+                    <td colSpan={7} className="text-center py-8 text-muted-foreground text-xs">
+                      {regimeData?.total_tagged_trades === 0
+                        ? "No trades have regime tags yet — click 'Backfill Regimes' above."
+                        : "No closed trades in window."}
+                    </td>
+                  </tr>
+                )}
+                {regimeData?.by_signal.map((s) => (
+                  <tr key={s.weight_key} className="border-b hover:bg-muted/30">
+                    <td className="px-4 py-2 font-medium">
+                      {s.signal_type}
+                      {s.is_regime_dependent && (
+                        <Badge variant="outline" className="ml-2 text-xs bg-amber-50 text-amber-700 border-amber-200">
+                          ⚡ regime-dependent
+                        </Badge>
+                      )}
+                    </td>
+                    {regimeData.regimes.map((regime) => {
+                      const stats = s.by_regime[regime];
+                      if (!stats || stats.n === 0) {
+                        return (
+                          <td key={regime} className="px-2 py-2 text-right text-muted-foreground text-xs">
+                            —
+                          </td>
+                        );
+                      }
+                      const wr = stats.win_rate ?? 0;
+                      return (
+                        <td key={regime} className="px-2 py-2 text-right tabular-nums">
+                          <span className={`${wr >= 0.55 ? "text-green-700 font-semibold" : wr <= 0.40 ? "text-red-700 font-semibold" : ""}`}>
+                            {(wr * 100).toFixed(0)}%
+                          </span>
+                          <span className="text-xs text-muted-foreground ml-1">
+                            (n={stats.n})
+                          </span>
+                        </td>
+                      );
+                    })}
+                    <td className="px-2 py-2 text-right tabular-nums">
+                      {s.regime_spread != null ? (
+                        <span className={s.is_regime_dependent ? "text-amber-700 font-semibold" : "text-muted-foreground"}>
+                          {(s.regime_spread * 100).toFixed(0)}%
+                        </span>
+                      ) : (
+                        <span className="text-muted-foreground text-xs">—</span>
+                      )}
+                    </td>
+                    <td className="px-4 py-2 text-xs text-muted-foreground">
+                      {s.is_regime_dependent
+                        ? "Use only in best-performing regime"
+                        : s.regime_spread != null
+                        ? "Works across regimes"
+                        : "Need n≥5 in 2+ regimes"}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            {regimeData && regimeData.total_tagged_trades > 0 && (
+              <div className="px-4 py-2 text-xs text-muted-foreground border-t">
+                {regimeData.total_tagged_trades} tagged trades in last {regimeData.lookback_days} days.
+                Need n≥5 in at least 2 regimes for spread calculation.
+              </div>
+            )}
           </div>
         </CardContent>
       </Card>

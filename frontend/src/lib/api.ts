@@ -192,6 +192,13 @@ export const applySignalWeights = (windowDays = 90, onlyKeys?: string[]) =>
 export const resetSignalWeights = () =>
   fetchAPI(`/api/signal-performance/reset`, { method: "POST" });
 
+// Market Regime (Bull/Bear/Sideways/High-Vol classifier)
+export const getCurrentRegime = () => fetchAPI(`/api/regime/current`);
+export const backfillTradeRegimes = () =>
+  fetchAPI(`/api/regime/backfill-trades`, { method: "POST" });
+export const getSignalPerformanceByRegime = (windowDays = 180) =>
+  fetchAPI(`/api/regime/signal-performance?window_days=${windowDays}`);
+
 // Verdict Calibration (does the daily verdict actually predict Nifty?)
 export const getVerdictCalibration = (windowDays = 90) =>
   fetchAPI(`/api/verdict-calibration/?window_days=${windowDays}`);

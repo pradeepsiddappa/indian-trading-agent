@@ -414,6 +414,20 @@ Learning Insights updates with combined data
 - Frontend: `/signals` page — full per-signal table with current vs suggested weights, "Apply Suggested Weights" button, "Reset to Defaults"
 - API: `GET /api/signal-performance/?window_days=N`, `GET /active-weights`, `POST /apply`, `POST /reset`
 
+### Market Regime Classifier (NEW)
+- `backend/market_regime.py` — labels every trading day as one of:
+  - `BULL`: Nifty > 50 SMA > 200 SMA, normal vol
+  - `BEAR`: Nifty < 50 SMA < 200 SMA, normal vol
+  - `SIDEWAYS`: SMAs not aligned (mixed trend)
+  - `HIGH_VOL`: realized 20d vol > 1.5× the 120d-avg baseline (overrides trend label)
+- `paper_trades.regime_at_entry` column populated automatically on every new trade insert
+- `backend/regime_backfill.py` tags historical trades by classifying their entry_date once per unique date (cached)
+- `compute_signal_performance_by_regime()` in `signal_performance.py` splits each signal's win rate by regime — surfaces "regime-dependent" signals (spread > 20% with n≥5 in 2+ regimes)
+- Frontend:
+  - `RegimeBadge` component on Dashboard — color-coded card showing current regime + reasoning + how it affects signal reliability
+  - "Regime-Conditional Win Rates" section on `/signals` page — per-signal grid (BULL / BEAR / SIDEWAYS / HIGH_VOL columns) with spread + ⚡ flag for regime-dependent signals
+- API: `GET /api/regime/current`, `GET /api/regime/on?d=YYYY-MM-DD`, `POST /api/regime/backfill-trades`, `GET /api/regime/signal-performance`
+
 ### Verdict Calibration (NEW)
 - `backend/verdict_calibration.py` — measures whether the daily verdict actually predicts Nifty
 - `verdict_history` table in `backend/db.py` — one row per snapshot day with verdict, flags, Nifty close, forward closes at 1/3/5 trading days, and outcome classification
