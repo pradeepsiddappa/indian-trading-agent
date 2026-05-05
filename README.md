@@ -131,23 +131,36 @@ cp .env.example .env
 #   ANTHROPIC_API_KEY=sk-ant-api03-...
 ```
 
-### 3. Start the backend
+### 3. Start everything (one command)
 
 ```bash
+./start.sh
+```
+
+This script:
+- Frees ports 8000 and 3000 if anything's already running
+- Starts the backend (uvicorn) on :8000
+- Starts the frontend (Next.js) on :3000
+- Waits for both to be healthy
+- Opens [http://localhost:3000](http://localhost:3000) in your browser
+- Tails both logs in one terminal (color-coded by service)
+- Cleans up both processes on `Ctrl+C`
+
+Override ports via env vars: `BACKEND_PORT=9000 FRONTEND_PORT=3001 ./start.sh`
+
+<details>
+<summary>Or start them manually (two terminals)</summary>
+
+```bash
+# Terminal 1 — backend
 uvicorn backend.app:app --reload --port 8000
+
+# Terminal 2 — frontend
+cd frontend && npm install && npm run dev
+
+# Then open http://localhost:3000
 ```
-
-### 4. Start the frontend (in a new terminal)
-
-```bash
-cd frontend
-npm install
-npm run dev
-```
-
-### 5. Open the app
-
-Visit [http://localhost:3000](http://localhost:3000)
+</details>
 
 ---
 
