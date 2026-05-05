@@ -199,6 +199,14 @@ export const backfillTradeRegimes = () =>
 export const getSignalPerformanceByRegime = (windowDays = 180) =>
   fetchAPI(`/api/regime/signal-performance?window_days=${windowDays}`);
 
+// Shadow Trades (counterfactual: every STRONG BUY auto-tracked, regardless of user action)
+export const listShadowTrades = (windowDays = 90, onlyRipe = false) =>
+  fetchAPI(`/api/shadow-trades/?window_days=${windowDays}&only_ripe=${onlyRipe}`);
+export const getShadowComparison = (windowDays = 90) =>
+  fetchAPI(`/api/shadow-trades/comparison?window_days=${windowDays}`);
+export const refreshShadowTrades = () =>
+  fetchAPI(`/api/shadow-trades/refresh`, { method: "POST" });
+
 // Confidence Calibration (Brier score — is the recommender's stated probability honest?)
 export const getConfidenceCalibration = (windowDays = 180) =>
   fetchAPI(`/api/confidence-calibration/?window_days=${windowDays}`);

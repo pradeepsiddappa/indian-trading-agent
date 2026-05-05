@@ -197,7 +197,21 @@ def refresh_paper_trade_prices(trade_id: int = None) -> dict:
         if days_since > 10 and trade["status"] == "active":
             update_paper_trade_status(trade["id"], "expired")
 
-    return {"ok": True, "updated": updated_count, "total_active": len(trades)}
+    # Also refresh shadow trades so they stay in sync with paper trades.
+    # Best-effort, never raises.
+    shadow_result = None
+    try:
+        from backend.shadow_trades import refresh_shadow_prices
+        shadow_result = refresh_shadow_prices()
+    except Exception as e:
+        print(f"[Simulation] shadow refresh failed: {e}", flush=True)
+
+    return {
+        "ok": True,
+        "updated": updated_count,
+        "total_active": len(trades),
+        "shadow": shadow_result,
+    }
 
 
 def paper_trading_stats() -> dict:
