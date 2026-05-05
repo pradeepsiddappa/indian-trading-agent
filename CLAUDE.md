@@ -59,6 +59,7 @@ VALIDATE
   🧪 Simulation        — Paper trading + historical recommender backtest (FREE)
   🧠 Learning Insights — Pattern analysis of YOUR past trades (FREE, no ML)
   📈 Signal Performance — Per-signal win rate + auto-tune recommender (FREE)
+  🎯 Verdict Calibration — Is the daily verdict actually predictive? (FREE)
   🔬 AI Backtest       — Run AI pipeline on past dates (paid)
   📋 My Trades         — History with P&L tracking + "Teach the agent" reflection
 
@@ -412,6 +413,20 @@ Learning Insights updates with combined data
 - Suggestion formula: `new_mag = abs(current) * clamp((wilson_lower - 0.30) / 0.20, 0, 2.5)`, sign preserved, clipped to [0, 3.5]
 - Frontend: `/signals` page — full per-signal table with current vs suggested weights, "Apply Suggested Weights" button, "Reset to Defaults"
 - API: `GET /api/signal-performance/?window_days=N`, `GET /active-weights`, `POST /apply`, `POST /reset`
+
+### Verdict Calibration (NEW)
+- `backend/verdict_calibration.py` — measures whether the daily verdict actually predicts Nifty
+- `verdict_history` table in `backend/db.py` — one row per snapshot day with verdict, flags, Nifty close, forward closes at 1/3/5 trading days, and outcome classification
+- `snapshot_today()` saves today's verdict + Nifty close (idempotent — skips if already taken). Called automatically inside the `/api/daily-verdict/` route so loading the dashboard captures the snapshot
+- `backfill_outcomes()` fills in forward Nifty closes when ripe (1/3/5 trading days passed) and classifies each horizon
+- Outcome rules:
+  - GREEN: correct if Nifty return > +0.10%, wrong if < -0.10%, neutral otherwise
+  - RED: correct if Nifty return < -0.10%, wrong if > +0.10%, neutral otherwise
+  - YELLOW: correct if abs(return) <= 0.50% (a quiet day matches the call), else wrong
+- Accuracy = correct / (correct + wrong); neutrals excluded so noise doesn't pollute
+- `compute_calibration(window_days=90)` returns per-verdict counts, avg returns at each horizon, accuracy %, and recent snapshot history
+- Frontend: `/verdict-calibration` page — accuracy table by verdict + recent snapshots with per-horizon outcome icons (✓/✗/—)
+- API: `GET /api/verdict-calibration/?window_days=N`, `POST /snapshot`, `POST /backfill`
 
 ### Daily Trading Verdict (NEW)
 - `backend/daily_verdict.py` — synthesizes all 4 filters into ONE decision

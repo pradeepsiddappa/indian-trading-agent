@@ -112,6 +112,33 @@ def ensure_db():
                 updated_at TEXT DEFAULT (datetime('now'))
             );
 
+            -- Daily Verdict snapshots — measures whether the verdict actually predicted Nifty's move
+            CREATE TABLE IF NOT EXISTS verdict_history (
+                snapshot_date TEXT PRIMARY KEY,         -- YYYY-MM-DD (one row per day)
+                verdict TEXT NOT NULL,                  -- GREEN | YELLOW | RED
+                label TEXT,
+                action TEXT,
+                caution_count INTEGER,
+                favorable_count INTEGER,
+                caution_flags TEXT,                     -- JSON list
+                favorable_flags TEXT,                   -- JSON list
+                position_size_pct REAL,
+                max_trades_today INTEGER,
+                min_conviction TEXT,
+                nifty_close REAL,                       -- Nifty close on snapshot_date
+                nifty_close_1d REAL,                    -- Nifty close 1 trading day later
+                nifty_close_3d REAL,
+                nifty_close_5d REAL,
+                nifty_return_1d_pct REAL,
+                nifty_return_3d_pct REAL,
+                nifty_return_5d_pct REAL,
+                outcome_1d TEXT,                        -- predicted_correctly | predicted_wrong | neutral
+                outcome_3d TEXT,
+                outcome_5d TEXT,
+                created_at TEXT DEFAULT (datetime('now')),
+                updated_at TEXT DEFAULT (datetime('now'))
+            );
+
             -- Historical backtest of the recommendation engine
             CREATE TABLE IF NOT EXISTS recommender_backtests (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,

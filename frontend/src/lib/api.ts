@@ -192,6 +192,14 @@ export const applySignalWeights = (windowDays = 90, onlyKeys?: string[]) =>
 export const resetSignalWeights = () =>
   fetchAPI(`/api/signal-performance/reset`, { method: "POST" });
 
+// Verdict Calibration (does the daily verdict actually predict Nifty?)
+export const getVerdictCalibration = (windowDays = 90) =>
+  fetchAPI(`/api/verdict-calibration/?window_days=${windowDays}`);
+export const forceSnapshotVerdict = () =>
+  fetchAPI(`/api/verdict-calibration/snapshot`, { method: "POST" });
+export const backfillVerdictOutcomes = () =>
+  fetchAPI(`/api/verdict-calibration/backfill`, { method: "POST" });
+
 // Performance
 export const getPerformanceAll = (universe = "nifty50", lookbackDays = 60) =>
   fetchAPI(`/api/performance/all?universe=${universe}&lookback_days=${lookbackDays}`);
