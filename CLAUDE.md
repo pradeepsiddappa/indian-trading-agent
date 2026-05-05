@@ -401,15 +401,22 @@ Learning Insights updates with combined data
 
 ### Daily Trading Verdict (NEW)
 - `backend/daily_verdict.py` — synthesizes all 4 filters into ONE decision
-- Inputs: FII/DII bias, calendar events (3-day lookahead), concentration risk, live HIGH-conviction setup count
-- Output: `{verdict: GREEN/YELLOW/RED, label, action, position_size, max_trades, min_conviction}`
-- Decision rules:
-  - 2+ caution flags → RED (STAND DOWN, 0% size)
-  - 1 caution flag → YELLOW (SELECTIVE, 50-75% size, HIGH conviction only)
-  - 1+ favorable flags + 0 caution → GREEN (TRADE, full size)
-  - 2+ favorable flags → GREEN AGGRESSIVE (5 trades max)
-- Headline card at TOP of Dashboard
-- Tells user EXACTLY what to do: "Don't open new positions" / "Take 3-5 setups" / "HIGH conviction only at 50% size"
+- Inputs (each contributes a caution flag, favorable flag, or nothing):
+  1. FII/DII bias — caution if BEARISH, favorable if BULLISH (HIGH confidence amplifies)
+  2. Calendar events (next 3 days) — caution for FOMC ≤2 days, RBI ≤1 day, Budget ≤1 day, F&O expiry today, earnings ≤2 days
+  3. Sector concentration — caution if HIGH/MEDIUM risk on open positions
+  4. Live HIGH-conviction setup count (NIFTY 50 recommend) — favorable if ≥3, caution if 0
+- Decision table (caution count → favorable count → outcome):
+  - `caution ≥3` → RED skip-day (0% size, 0 trades, HIGH only)
+  - `caution = 2` → RED stand-down (0% size, 0 trades, HIGH only)
+  - `caution = 1, fav = 0` → YELLOW selective (50% size, 2 trades, HIGH only)
+  - `caution = 1, fav ≥1` → YELLOW selective (75% size, 3 trades, HIGH only)
+  - `caution = 0, fav ≥2` → GREEN aggressive (100% size, 5 trades, MEDIUM ok)
+  - `caution = 0, fav = 1` → GREEN normal (100% size, 4 trades, MEDIUM ok)
+  - `caution = 0, fav = 0` → YELLOW quiet-day (75% size, 2 trades, HIGH only)
+- Caution is weighted over favorability — code at `backend/daily_verdict.py:130-178`
+- Output shape: `{verdict, label, action, caution_flags[], favorable_flags[], recommended_position_size_pct, max_trades_today, min_conviction_required, reasoning, filter_results}`
+- Headline card at TOP of Dashboard (between Market Status and FII/DII banner)
 - API: `GET /api/daily-verdict/`
 
 ## Remaining Phases (Unimplemented)

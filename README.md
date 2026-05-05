@@ -249,20 +249,32 @@ This prevents the most common AI trading mistakes: trading against institutional
 
 ### The Daily Verdict (top of Dashboard)
 
-All 3 filters above plus a live HIGH-conviction setup count are synthesized into a **single decision** at the top of the Dashboard:
+All 3 filters above plus a live HIGH-conviction setup count are synthesized into a **single decision** at the top of the Dashboard.
 
-| Verdict | When | What You Do |
-|---------|------|-------------|
-| 🟢 **TRADE** | 1-2 favorable, 0 caution flags | Full position size, take 3-5 setups |
-| 🟡 **SELECTIVE** | 1 caution flag | HIGH conviction only, 50-75% size |
-| 🔴 **STAND DOWN** | 2+ caution flags | Skip the day or paper trade only |
+**The 4 inputs** (each contributes a caution flag, favorable flag, or nothing):
 
-The verdict shows:
-- Position size % (0-100%)
-- Max trades for the day
-- Minimum conviction required (HIGH/MEDIUM)
-- Specific action: *"Don't open new positions. Manage existing only."*
-- Caution + favorable flags listed with reasoning
+| # | Input | Source | Triggers |
+|---|-------|--------|----------|
+| 1 | FII/DII flow | live NSE via `nsepython` | Caution if FIIs net sellers · Favorable if heavy buyers |
+| 2 | Calendar events (next 3 days) | hardcoded RBI/Budget/Fed + yfinance earnings | Caution for FOMC ≤2 days, RBI ≤1 day, Budget ≤1 day, F&O expiry today |
+| 3 | Sector concentration | open paper + analysis trades | Caution if portfolio at sector limit (3 positions or 30% capital) |
+| 4 | HIGH-conviction setup count | recommender on NIFTY 50 | Favorable if ≥3 STRONG BUY+HIGH · Caution if 0 |
+
+**Decision table** (`backend/daily_verdict.py:130-178`):
+
+| Caution | Favorable | Verdict | Position Size | Max Trades | Min Conviction |
+|--------:|----------:|---------|--------------:|-----------:|----------------|
+| ≥3 | any | 🔴 RED — Skip the day | 0% | 0 | HIGH |
+| 2 | any | 🔴 RED — Stand down | 0% | 0 | HIGH |
+| 1 | 0 | 🟡 YELLOW — Selective | 50% | 2 | HIGH |
+| 1 | ≥1 | 🟡 YELLOW — Selective | 75% | 3 | HIGH |
+| 0 | ≥2 | 🟢 GREEN — Aggressive | 100% | 5 | MEDIUM |
+| 0 | 1 | 🟢 GREEN — Trade normally | 100% | 4 | MEDIUM |
+| 0 | 0 | 🟡 YELLOW — Quiet day | 75% | 2 | HIGH |
+
+Caution is weighted over favorability deliberately — losing money to an unexpected FOMC reaction is worse than missing one good day.
+
+The card shows: position size %, max trades, min conviction, the specific action (*"Don't open new positions. Manage existing only."*), and every flag with reasoning.
 
 This is the **"what do I actually do today?"** answer — eliminates daily decision paralysis.
 
