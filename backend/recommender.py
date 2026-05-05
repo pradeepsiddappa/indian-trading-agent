@@ -45,17 +45,37 @@ _ACTIVE_WEIGHTS: dict[str, float] = dict(DEFAULT_WEIGHTS)
 def _refresh_active_weights() -> None:
     """Pull tuned overrides (if any) from settings into _ACTIVE_WEIGHTS.
 
+    Three-layer merge:
+        1. DEFAULT_WEIGHTS (hardcoded baseline)
+        2. recommender_tuned_weights (Tier 1.1: global signal tuning)
+        3. recommender_regime_weights[current_regime] (Tier 4.1: conditional)
+
+    Layer 3 only applies if the user has persisted regime overrides AND the
+    classifier returns a known regime. Falls back gracefully if either is missing.
+
     Imported lazily to avoid circular import (signal_performance imports
     DEFAULT_WEIGHTS from this module).
     """
-    global _ACTIVE_WEIGHTS
+    global _ACTIVE_WEIGHTS, _ACTIVE_REGIME
     try:
-        from backend.signal_performance import get_tuned_weights
-        merged = dict(DEFAULT_WEIGHTS)
-        merged.update(get_tuned_weights())
-        _ACTIVE_WEIGHTS = merged
+        from backend.signal_performance import get_active_weights_for_regime
+        # Detect current regime (best-effort)
+        current_regime = None
+        try:
+            from backend.market_regime import get_current_regime
+            current_regime = (get_current_regime() or {}).get("regime")
+        except Exception:
+            pass
+        _ACTIVE_REGIME = current_regime
+        _ACTIVE_WEIGHTS = get_active_weights_for_regime(current_regime)
     except Exception:
         _ACTIVE_WEIGHTS = dict(DEFAULT_WEIGHTS)
+        _ACTIVE_REGIME = None
+
+
+# Tracks the regime that produced the currently-loaded weights, surfaced in
+# the recommendation response so the UI can display "weights tuned for HIGH_VOL".
+_ACTIVE_REGIME: str | None = None
 
 
 def _compute_rsi(closes, period=14):
@@ -496,6 +516,15 @@ def recommend(
     sells = sorted([r for r in all_results if r["direction"] == "SELL"], key=lambda x: x["score"])
     strong_sells = sorted([r for r in all_results if r["direction"] == "STRONG SELL"], key=lambda x: x["score"])
 
+    # Resolve which regime overrides are currently active (for transparency in the UI)
+    regime_weight_count = 0
+    try:
+        from backend.signal_performance import get_regime_weights
+        if _ACTIVE_REGIME:
+            regime_weight_count = len(get_regime_weights().get(_ACTIVE_REGIME, {}))
+    except Exception:
+        pass
+
     result = {
         "universe": universe,
         "total_analyzed": len(stocks),
@@ -503,6 +532,8 @@ def recommend(
         "market_bias": market_bias,
         "today_market_events": today_market_events,
         "concentration_summary": concentration_summary,
+        "active_regime": _ACTIVE_REGIME,
+        "regime_weight_overrides_active": regime_weight_count,
         "strong_buys": strong_buys[:20],
         "buys": buys[:20],
         "sells": sells[:20],

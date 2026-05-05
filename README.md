@@ -44,6 +44,7 @@ This project is built on top of the excellent [TradingAgents](https://github.com
 - **Market Regime Classifier** — labels every trading day BULL / BEAR / SIDEWAYS / HIGH_VOL, tags every paper trade with the regime at entry, and reveals which signals are regime-dependent (e.g., "Near Support" might win 70% in BULL but 35% in BEAR)
 - **Confidence Calibration (Brier score)** — measures whether the recommender's stated `success_probability` is honest. Reliability diagram bins predictions by probability and compares to actual win rate. Flags overconfidence/underconfidence.
 - **Shadow Trades** — every STRONG BUY (and HIGH-confidence BUY) auto-recorded as a virtual trade regardless of whether the user clicked Track. After 1/3/5/10 days, actual P&L backfills. Surfaces false negatives — winners the user wrongly skipped — and tells you whether your filtering helps or hurts.
+- **Conditional Regime Weights** — recommender automatically picks the right weight layer based on today's regime. Three-layer merge: DEFAULT → base tuned → regime-specific overrides. So a signal that wins 75% in BULL but 25% in BEAR can have different weights applied automatically depending on which regime is active.
 - Seasonal Backtest (no AI cost)
 - Position Size Calculator
 - P&L Tracking + "Reflect & Remember" (feed outcomes to agent memory)
@@ -367,7 +368,42 @@ How to use it day-to-day:
 3. For each ⚡ signal you care about, note which regime it works in.
 4. Manually skip those signals when the wrong regime is active.
 
-The recommender doesn't yet auto-apply regime-conditional weights — that's a follow-up. For now the data is surfaced for human filtering.
+**Conditional regime weights are now live** (Tier 4.1) — when you click *Apply All Regime Suggestions* on `/signals`, the recommender automatically picks per-regime overrides at runtime based on today's regime. See the next subsection.
+
+#### 🎚️ Conditional Regime Weights — three-layer merge
+
+The recommender now resolves weights at runtime through three layers:
+
+```
+1. DEFAULT_WEIGHTS              ← hardcoded baseline
+2. recommender_tuned_weights    ← Tier 1.1: global signal tuning
+3. recommender_regime_weights[current_regime]  ← Tier 4.1: conditional
+```
+
+Each layer can override the previous one. Today's regime is detected automatically (BULL / BEAR / SIDEWAYS / HIGH_VOL) and the matching layer-3 dict is applied.
+
+**When are regime overrides suggested?** Conservatively — the system only proposes a regime-specific weight when ALL of:
+- `n ≥ 5` trades observed in that regime for the signal
+- Wilson lower bound differs from 50% by more than 10%
+- Suggested weight differs from the base by more than 0.25
+
+This prevents overreaction from small samples while still surfacing genuine regime-conditional behavior.
+
+**Example flow:**
+
+```
+Today: HIGH_VOL regime
+  Base tuned weight: rsi_overbought = -1.0
+  HIGH_VOL data: 5 trades, 40% win rate (Wilson 18%)
+  → Suggested override: -1.0 → 0.0 (signal is unreliable in HIGH_VOL)
+  → After Apply: recommender ignores rsi_overbought today only
+
+Tomorrow: regime shifts to BULL
+  → recommender automatically reverts to base weight (-1.0)
+  → BULL-specific overrides (if any exist) apply instead
+```
+
+The Dashboard's Top Picks header shows the active regime + override count: `NIFTY100 · HIGH_VOL ⚡3` means 3 regime-specific overrides are active right now. Hover over the badge for details.
 
 #### ⚖️ Confidence Calibration — Brier score
 
@@ -535,6 +571,7 @@ Switch providers (OpenAI GPT-5.4-mini, Gemini Flash) for even cheaper analyses (
 - [x] **Market Regime Classifier** (BULL/BEAR/SIDEWAYS/HIGH_VOL tagging on every trade + conditional signal stats)
 - [x] **Confidence Calibration** (Brier score + reliability diagram for the recommender's success_probability)
 - [x] **Shadow Trades** (counterfactual auto-tracking of every STRONG BUY regardless of user action)
+- [x] **Conditional Regime Weights** (recommender auto-picks per-regime weight layer at runtime)
 - [x] Strategy performance tracker
 - [x] Paper trading simulation (multi-horizon P&L tracking)
 - [x] Historical recommender backtest

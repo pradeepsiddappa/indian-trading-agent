@@ -64,6 +64,19 @@ export function TodayPicks({ universe = "nifty100" }: { universe?: string }) {
               <h2 className="font-semibold text-lg">Today's Top Picks</h2>
               <p className="text-xs text-muted-foreground">
                 {lastRun ? `Updated ${lastRun.toLocaleTimeString()}` : "Loading..."} · {universe.toUpperCase()}
+                {data?.active_regime && (
+                  <>
+                    {" · "}
+                    <span title={data.regime_weight_overrides_active > 0
+                      ? `Recommender is using ${data.regime_weight_overrides_active} ${data.active_regime}-specific weight override(s)`
+                      : `${data.active_regime} regime active. Visit Signal Performance to apply regime-specific weight overrides.`}>
+                      <span className="font-medium">{data.active_regime}</span>
+                      {data.regime_weight_overrides_active > 0 && (
+                        <span className="text-purple-600 ml-1">⚡{data.regime_weight_overrides_active}</span>
+                      )}
+                    </span>
+                  </>
+                )}
               </p>
             </div>
           </div>
