@@ -212,6 +212,19 @@ export const backfillTradeRegimes = () =>
 export const getSignalPerformanceByRegime = (windowDays = 180) =>
   fetchAPI(`/api/regime/signal-performance?window_days=${windowDays}`);
 
+// Memory admin (Tier 4.2 — pruning & decay for BM25 agent memory)
+export const listMemories = () => fetchAPI(`/api/memory/`);
+export const getMemoryEntries = (name: string) => fetchAPI(`/api/memory/${name}/entries`);
+export const pruneMemory = (
+  name: string,
+  args: { max_age_days?: number; min_hits?: number; min_decay?: number; dry_run?: boolean },
+) => fetchAPI(`/api/memory/${name}/prune`, { method: "POST", body: JSON.stringify(args) });
+export const pruneAllMemories = (
+  args: { max_age_days?: number; min_hits?: number; min_decay?: number; dry_run?: boolean },
+) => fetchAPI(`/api/memory/prune-all`, { method: "POST", body: JSON.stringify(args) });
+export const deleteMemoryEntry = (name: string, index: number) =>
+  fetchAPI(`/api/memory/${name}/entry/${index}`, { method: "DELETE" });
+
 // Shadow Trades (counterfactual: every STRONG BUY auto-tracked, regardless of user action)
 export const listShadowTrades = (windowDays = 90, onlyRipe = false) =>
   fetchAPI(`/api/shadow-trades/?window_days=${windowDays}&only_ripe=${onlyRipe}`);
