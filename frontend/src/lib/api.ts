@@ -199,6 +199,10 @@ export const backfillTradeRegimes = () =>
 export const getSignalPerformanceByRegime = (windowDays = 180) =>
   fetchAPI(`/api/regime/signal-performance?window_days=${windowDays}`);
 
+// Confidence Calibration (Brier score — is the recommender's stated probability honest?)
+export const getConfidenceCalibration = (windowDays = 180) =>
+  fetchAPI(`/api/confidence-calibration/?window_days=${windowDays}`);
+
 // Verdict Calibration (does the daily verdict actually predict Nifty?)
 export const getVerdictCalibration = (windowDays = 90) =>
   fetchAPI(`/api/verdict-calibration/?window_days=${windowDays}`);

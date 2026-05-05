@@ -60,6 +60,7 @@ const navGroups: NavGroup[] = [
       { href: "/insights", label: "Learning Insights", icon: Brain, hint: "What works for YOU" },
       { href: "/signals", label: "Signal Performance", icon: TrendingUp, hint: "Auto-tune recommender weights" },
       { href: "/verdict-calibration", label: "Verdict Calibration", icon: Target, hint: "Is the daily verdict accurate?" },
+      { href: "/confidence-calibration", label: "Confidence Calibration", icon: Award, hint: "Brier score: are probabilities honest?" },
       { href: "/backtest", label: "AI Backtest", icon: FlaskConical, hint: "AI on past dates (paid)" },
       { href: "/history", label: "My Trades", icon: History, hint: "Real trades & P&L" },
     ],
