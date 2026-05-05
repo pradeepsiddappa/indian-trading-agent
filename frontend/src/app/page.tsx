@@ -10,6 +10,7 @@ import { SectorHeatmap } from "@/components/dashboard/SectorHeatmap";
 import { FIIDIIBanner } from "@/components/dashboard/FIIDIIBanner";
 import { CalendarBanner } from "@/components/dashboard/CalendarBanner";
 import { ConcentrationWidget } from "@/components/dashboard/ConcentrationWidget";
+import { DailyVerdict } from "@/components/dashboard/DailyVerdict";
 
 function getGreeting() {
   const hour = new Date().getHours();
@@ -43,6 +44,10 @@ export default function DashboardPage() {
 
       {/* Market Status Bar */}
       <MarketOverview />
+
+      {/* === HEADLINE DECISION CARD ===
+          Synthesizes all filters into one TRADE / SELECTIVE / STAND DOWN verdict */}
+      <DailyVerdict />
 
       {/* FII/DII Flow Banner */}
       <FIIDIIBanner />

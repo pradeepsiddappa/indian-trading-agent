@@ -74,6 +74,9 @@ export const getProviders = () => fetchAPI(`/api/settings/providers`);
 // Learning Insights
 export const getLearningInsights = () => fetchAPI(`/api/insights/`);
 
+// Daily Verdict (synthesized trade-or-skip decision)
+export const getDailyVerdict = () => fetchAPI(`/api/daily-verdict/`);
+
 // Concentration (Sector Exposure Tracker)
 export const getConcentrationSummary = () => fetchAPI(`/api/concentration/summary`);
 export const getConcentrationAllocation = (totalCapital = 500000) =>
