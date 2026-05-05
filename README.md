@@ -42,6 +42,7 @@ This project is built on top of the excellent [TradingAgents](https://github.com
 - **Signal Performance Tracker** — measures real win rate of each recommender signal from closed trades and auto-tunes the scoring weights (closes the feedback loop)
 - **Verdict Calibration** — daily snapshot of the headline verdict + Nifty close, then 1/3/5-day forward returns measure whether GREEN/YELLOW/RED actually predict market direction
 - **Market Regime Classifier** — labels every trading day BULL / BEAR / SIDEWAYS / HIGH_VOL, tags every paper trade with the regime at entry, and reveals which signals are regime-dependent (e.g., "Near Support" might win 70% in BULL but 35% in BEAR)
+- **Confidence Calibration (Brier score)** — measures whether the recommender's stated `success_probability` is honest. Reliability diagram bins predictions by probability and compares to actual win rate. Flags overconfidence/underconfidence.
 - Seasonal Backtest (no AI cost)
 - Position Size Calculator
 - P&L Tracking + "Reflect & Remember" (feed outcomes to agent memory)
@@ -83,6 +84,7 @@ VALIDATE
   🧠 Learning Insights — Pattern analysis of YOUR trades (FREE)
   📈 Signal Performance — Per-signal win rate + auto-tune recommender (FREE)
   🎯 Verdict Calibration — Is the daily verdict actually predictive? (FREE)
+  ⚖️ Confidence Calibration — Brier score: are probabilities honest? (FREE)
   🔬 Backtest          — AI on past dates (paid)
   📋 My Trades         — P&L tracking + agent learning
 ```
@@ -365,6 +367,35 @@ How to use it day-to-day:
 
 The recommender doesn't yet auto-apply regime-conditional weights — that's a follow-up. For now the data is surfaced for human filtering.
 
+#### ⚖️ Confidence Calibration — Brier score
+
+The recommender attaches a `success_probability` (e.g., 65%) to every pick. This page checks whether that number is *honest* — when it says 65%, do trades actually win 65% of the time?
+
+**Brier score** is the single-number measure:
+
+```
+brier = mean((predicted_prob - actual_outcome)²)
+```
+
+Lower is better. Reference points:
+
+| Brier | Quality |
+|-------|---------|
+| ≤ 0.15 | excellent |
+| ≤ 0.20 | good |
+| ≤ 0.25 | fair (always-predict-50% baseline) |
+| > 0.25 | poor — worse than random |
+
+**Reliability diagram** bins trades by predicted probability (50–60%, 60–70%, …) and shows actual win rate per bucket. Perfect calibration = bars match the bucket midpoint. Overconfidence shows as bars *below* (engine claims 70%, reality is 55%). Underconfidence is the opposite.
+
+**Verdict** compares overall predicted vs actual:
+
+- **Overconfident** (gap < -5%): mentally derate displayed probabilities. Engine says 70% with -10% gap → treat as 60%.
+- **Underconfident** (gap > +5%): trust the engine more on high-prob calls; you can size up.
+- **Well-calibrated** (|gap| ≤ 5%): the numbers are honest, use them as-is.
+
+After ~50 closed trades the picture stabilizes. Re-check monthly — calibration drifts as the engine's input distribution shifts.
+
 ---
 
 ## Project Structure
@@ -477,6 +508,7 @@ Switch providers (OpenAI GPT-5.4-mini, Gemini Flash) for even cheaper analyses (
 - [x] **Signal Performance Tracker** (auto-tunes recommender weights from real outcomes)
 - [x] **Verdict Calibration** (grades daily verdict against actual Nifty moves at 1/3/5d horizons)
 - [x] **Market Regime Classifier** (BULL/BEAR/SIDEWAYS/HIGH_VOL tagging on every trade + conditional signal stats)
+- [x] **Confidence Calibration** (Brier score + reliability diagram for the recommender's success_probability)
 - [x] Strategy performance tracker
 - [x] Paper trading simulation (multi-horizon P&L tracking)
 - [x] Historical recommender backtest

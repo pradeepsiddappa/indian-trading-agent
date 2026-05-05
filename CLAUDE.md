@@ -60,6 +60,7 @@ VALIDATE
   🧠 Learning Insights — Pattern analysis of YOUR past trades (FREE, no ML)
   📈 Signal Performance — Per-signal win rate + auto-tune recommender (FREE)
   🎯 Verdict Calibration — Is the daily verdict actually predictive? (FREE)
+  ⚖️ Confidence Calibration — Brier score: are stated probabilities honest? (FREE)
   🔬 AI Backtest       — Run AI pipeline on past dates (paid)
   📋 My Trades         — History with P&L tracking + "Teach the agent" reflection
 
@@ -413,6 +414,21 @@ Learning Insights updates with combined data
 - Suggestion formula: `new_mag = abs(current) * clamp((wilson_lower - 0.30) / 0.20, 0, 2.5)`, sign preserved, clipped to [0, 3.5]
 - Frontend: `/signals` page — full per-signal table with current vs suggested weights, "Apply Suggested Weights" button, "Reset to Defaults"
 - API: `GET /api/signal-performance/?window_days=N`, `GET /active-weights`, `POST /apply`, `POST /reset`
+
+### Confidence Calibration / Brier Score (NEW)
+- `backend/confidence_calibration.py` — measures whether recommender's `success_probability` is honest
+- Reads closed paper_trades with non-null `pnl_5d_pct` and `success_probability`
+- Brier score = mean((predicted - actual)²); win = pnl_5d_pct > 0
+- Quality bands: ≤0.15 excellent, ≤0.20 good, ≤0.25 fair (50% baseline), >0.25 poor
+- Reliability bins: [40-50%, 50-60%, 60-70%, 70-80%, 80-90%, 90-100%]; per bin shows predicted_avg, actual_win_rate, gap
+- Verdict from overall gap (actual - predicted): <-0.05 overconfident, >+0.05 underconfident, else well_calibrated
+- Improvement % vs always-predict-50% baseline (0.25 Brier) tells you if the model has real signal
+- Frontend `/confidence-calibration` page:
+  - Headline metrics (verdict, Brier, improvement %, sample size, predicted vs actual)
+  - Reliability diagram with paired blue (predicted) + gold (actual) bars per bin
+  - Per-bin breakdown table with gap column color-coded
+  - 6-step "How to use this page" callout
+- API: `GET /api/confidence-calibration/?window_days=N`
 
 ### Market Regime Classifier (NEW)
 - `backend/market_regime.py` — labels every trading day as one of:
