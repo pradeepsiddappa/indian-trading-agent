@@ -383,6 +383,28 @@ export default function SignalsPage() {
         </CardContent>
       </Card>
 
+      {/* Regime-conditional how-to callout */}
+      <Card className="border-amber-200 bg-amber-50/30">
+        <CardContent className="p-4">
+          <div className="flex items-start gap-3">
+            <div className="p-1.5 rounded-lg bg-amber-100 flex-shrink-0">
+              <span className="text-amber-700 text-lg leading-none">⚡</span>
+            </div>
+            <div className="flex-1 min-w-0">
+              <h3 className="font-semibold text-sm mb-2">How to use the regime breakdown</h3>
+              <ol className="text-sm text-muted-foreground space-y-1.5 list-decimal list-inside">
+                <li><span className="text-foreground font-medium">Watch today's regime:</span> The badge on the Dashboard shows the current regime. Most signals behave differently in HIGH_VOL vs BULL.</li>
+                <li><span className="text-foreground font-medium">Spot regime-dependent signals:</span> Any row flagged <span className="text-amber-700 font-medium">⚡ regime-dependent</span> works in some regimes but fails in others. The blanket weight in the main table is a misleading average.</li>
+                <li><span className="text-foreground font-medium">Read the spread:</span> A spread of 50% means the signal's win rate ranges by 50 percentage points across regimes — huge signal. Spread &lt;20% means it works consistently everywhere.</li>
+                <li><span className="text-foreground font-medium">Filter manually for now:</span> If "Volume Spike Bullish" wins 75% in BULL but 25% in BEAR, only act on it during BULL regimes (check the Dashboard badge before trading).</li>
+                <li><span className="text-foreground font-medium">Need data:</span> Spread is only computed when n≥5 in at least 2 regimes. Most users will start in one regime — accumulate trades, wait for the market to shift, then come back.</li>
+                <li><span className="text-foreground font-medium">Future:</span> When enough data exists, the recommender will auto-apply regime-conditional weights (skips ⚡ signals when the wrong regime is active).</li>
+              </ol>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Regime-conditional signal performance */}
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
