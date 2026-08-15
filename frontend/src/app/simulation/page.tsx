@@ -38,6 +38,7 @@ import {
   Brain,
 } from "lucide-react";
 import { toast } from "sonner";
+import { statusColors, directionBg } from "@/lib/status-colors";
 
 const simulationHelp = [
   {
@@ -63,18 +64,18 @@ const simulationHelp = [
 ];
 
 const signalColors: Record<string, string> = {
-  "STRONG BUY": "bg-green-100 text-green-800 border-green-300",
-  BUY: "bg-green-50 text-green-700 border-green-200",
-  SELL: "bg-red-50 text-red-700 border-red-200",
-  "STRONG SELL": "bg-red-100 text-red-800 border-red-300",
+  "STRONG BUY": "bg-green-100 text-green-800 border-green-300 dark:bg-green-950/40 dark:text-green-300 dark:border-green-800",
+  BUY: statusColors.bullish,
+  SELL: statusColors.bearish,
+  "STRONG SELL": "bg-red-100 text-red-800 border-red-300 dark:bg-red-950/40 dark:text-red-300 dark:border-red-800",
 };
 
 const sourceConfig: Record<string, { label: string; icon: any; color: string }> = {
-  recommendation: { label: "Recommendations", icon: Sparkles, color: "bg-yellow-50 text-yellow-700 border-yellow-200" },
-  scanner: { label: "Scanner", icon: Radar, color: "bg-orange-50 text-orange-700 border-orange-200" },
-  ai_analysis: { label: "AI Analysis", icon: Brain, color: "bg-purple-50 text-purple-700 border-purple-200" },
-  manual: { label: "Manual", icon: Target, color: "bg-gray-50 text-gray-700 border-gray-200" },
-  test: { label: "Test", icon: Target, color: "bg-blue-50 text-blue-700 border-blue-200" },
+  recommendation: { label: "Recommendations", icon: Sparkles, color: statusColors.caution },
+  scanner: { label: "Scanner", icon: Radar, color: statusColors.orange },
+  ai_analysis: { label: "AI Analysis", icon: Brain, color: statusColors.purple },
+  manual: { label: "Manual", icon: Target, color: statusColors.neutral },
+  test: { label: "Test", icon: Target, color: statusColors.info },
 };
 
 function PnLCell({ value }: { value: number | null | undefined }) {
@@ -171,9 +172,7 @@ function PaperTradeRow({ t, onClose, onDelete }: { t: any; onClose: (id: number)
                       <div
                         key={i}
                         className={`flex items-center justify-between p-2 rounded text-xs ${
-                          s.direction === "BULLISH" ? "bg-green-50 text-green-800" :
-                          s.direction === "BEARISH" ? "bg-red-50 text-red-800" :
-                          "bg-gray-50 text-gray-700"
+                          directionBg(s.direction)
                         }`}
                       >
                         <div className="flex items-center gap-2">

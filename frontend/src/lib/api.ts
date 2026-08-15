@@ -1,14 +1,70 @@
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+/**
+ * Use an explicitly configured backend for cross-origin local development. In a
+ * deployed build, an empty value keeps API and WebSocket traffic same-origin.
+ */
+function getApiBase(): string {
+  const configured = process.env.NEXT_PUBLIC_API_URL?.trim().replace(/\/$/, "");
+  if (configured) return configured;
+
+  // Keep the existing local two-process workflow usable without exposing any
+  // credential or host-specific deployment setting in the browser bundle.
+  if (typeof window !== "undefined" && ["localhost", "127.0.0.1", "::1", "[::1]"].includes(window.location.hostname)) {
+    return "http://localhost:8000";
+  }
+  return "";
+}
+
+function getWebSocketBase(): string {
+  const apiBase = getApiBase();
+  const base = apiBase || (typeof window !== "undefined" ? window.location.origin : "http://localhost:3000");
+  const url = new URL(base);
+  url.protocol = url.protocol === "https:" ? "wss:" : "ws:";
+  return url.origin;
+}
+
+function notifyAuthRequired() {
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new Event("trading-agent:auth-required"));
+  }
+}
+
+function notifyWebSocketUnavailable() {
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new Event("trading-agent:websocket-unavailable"));
+  }
+}
+
+function readCookie(name: string): string | null {
+  if (typeof document === "undefined") return null;
+  const prefix = `${encodeURIComponent(name)}=`;
+  const value = document.cookie.split("; ").find((entry) => entry.startsWith(prefix));
+  return value ? decodeURIComponent(value.slice(prefix.length)) : null;
+}
 
 async function fetchAPI<T>(path: string, options?: RequestInit): Promise<T> {
+  const apiBase = getApiBase();
   let res: Response;
   try {
-    res = await fetch(`${API_BASE}${path}`, {
+    const headers = new Headers(options?.headers);
+    if (options?.body !== undefined && options.body !== null) {
+      headers.set("Content-Type", "application/json");
+    }
+    const method = (options?.method || "GET").toUpperCase();
+    if (["POST", "PUT", "PATCH", "DELETE"].includes(method)) {
+      const csrfToken = readCookie("trading_agent_csrf");
+      if (csrfToken) headers.set("X-CSRF-Token", csrfToken);
+    }
+    res = await fetch(`${apiBase}${path}`, {
       ...options,
-      headers: { "Content-Type": "application/json", ...options?.headers },
+      credentials: "include",
+      headers,
     });
   } catch {
-    throw new Error(`Cannot connect to backend at ${API_BASE}. Is it running?`);
+    throw new Error(`Cannot connect to backend at ${apiBase}. Is it running?`);
+  }
+  if (res.status === 401) {
+    notifyAuthRequired();
+    throw new Error("Authentication required. Please sign in to continue.");
   }
   if (!res.ok) throw new Error(`API error: ${res.status} ${res.statusText}`);
   return res.json();
@@ -48,6 +104,66 @@ export const removeFromWatchlist = (ticker: string) =>
 
 // Config
 export const getConfig = () => fetchAPI(`/api/config`);
+
+// Application session. Credentials are supplied at runtime by the user and
+// are never included in the client build or persisted by the frontend.
+export type LoginCredentials = {
+  username?: string;
+  password?: string;
+  secret?: string;
+};
+export const login = (credentials: LoginCredentials | string) =>
+  fetchAPI(`/api/auth/login`, {
+    method: "POST",
+    body: JSON.stringify(typeof credentials === "string" ? { secret: credentials } : credentials),
+  });
+export const logout = () => fetchAPI(`/api/auth/logout`, { method: "POST" });
+
+// Kite + Equity Portfolio Analysis
+export const getKiteStatus = () => fetchAPI(`/api/kite/status`);
+export const saveKiteCredentials = (data: { api_key: string; api_secret: string }) =>
+  fetchAPI(`/api/kite/credentials`, { method: "PUT", body: JSON.stringify(data) });
+export const getKiteLoginUrl = () => fetchAPI(`/api/kite/login-url`);
+export const logoutKite = () => fetchAPI(`/api/kite/logout`, { method: "POST" });
+export const getEquityHoldings = () => fetchAPI(`/api/equity-portfolio/holdings`);
+export const runEquityPortfolioReview = () =>
+  fetchAPI(`/api/equity-portfolio/reviews`, { method: "POST" });
+export const getLatestEquityPortfolioReview = () =>
+  fetchAPI(`/api/equity-portfolio/reviews/latest`);
+export const getEquityPortfolioReviewHistory = (limit = 30) =>
+  fetchAPI(`/api/equity-portfolio/reviews?limit=${limit}`);
+export const getEquityPortfolioReview = (reviewId: string) =>
+  fetchAPI(`/api/equity-portfolio/reviews/${reviewId}`);
+export const sendLatestEquityPortfolioReviewTelegram = () =>
+  fetchAPI(`/api/equity-portfolio/reviews/latest/send-telegram`, { method: "POST" });
+export const sendEquityPortfolioReviewTelegram = (reviewId: string) =>
+  fetchAPI(`/api/equity-portfolio/reviews/${reviewId}/send-telegram`, { method: "POST" });
+export const getTelegramStatus = () => fetchAPI(`/api/telegram/status`);
+export const saveTelegramSettings = (data: { bot_token: string; chat_id: string; enabled?: boolean }) =>
+  fetchAPI(`/api/telegram/settings`, { method: "PUT", body: JSON.stringify(data) });
+export const deleteTelegramSettings = () => fetchAPI(`/api/telegram/settings`, { method: "DELETE" });
+export const sendTelegramTest = (text?: string) =>
+  fetchAPI(`/api/telegram/test`, { method: "POST", body: JSON.stringify({ text: text || null }) });
+
+// Positions (local store, synced from Kite on demand)
+export const getPositions = () => fetchAPI(`/api/positions`);
+export const syncPositions = () => fetchAPI(`/api/positions/sync`, { method: "POST" });
+export const addPosition = (data: {
+  tradingsymbol: string;
+  exchange?: string;
+  quantity: number;
+  average_price: number;
+  last_price?: number | null;
+  notes?: string | null;
+}) => fetchAPI(`/api/positions`, { method: "POST", body: JSON.stringify(data) });
+export const updatePosition = (exchange: string, symbol: string, data: {
+  quantity?: number;
+  average_price?: number;
+  last_price?: number | null;
+  notes?: string | null;
+}) => fetchAPI(`/api/positions/${exchange}/${symbol}`, { method: "PUT", body: JSON.stringify(data) });
+export const deletePosition = (exchange: string, symbol: string) =>
+  fetchAPI(`/api/positions/${exchange}/${symbol}`, { method: "DELETE" });
 
 // Settings — API Keys & LLM Config
 export const getApiKeys = () => fetchAPI(`/api/settings/api-keys`);
@@ -113,7 +229,7 @@ export const submitFiiDiiManual = (data: {
 export const getNewsFeed = (maxPerSource = 10) => fetchAPI(`/api/news/?max_per_source=${maxPerSource}`);
 export const getTickerNews = (ticker: string, maxItems = 15) => fetchAPI(`/api/news/ticker/${ticker}?max_items=${maxItems}`);
 export const getNewsSources = () => fetchAPI(`/api/news/sources`);
-export const saveNewsSources = (data: { rss_feeds?: any; yf_queries?: string[] }) =>
+export const saveNewsSources = (data: { rss_feeds?: unknown; yf_queries?: string[] }) =>
   fetchAPI(`/api/news/sources`, { method: "PUT", body: JSON.stringify(data) });
 
 // Strategies
@@ -270,11 +386,15 @@ export const startScan = (data: {
 export const getScanResult = (scanId: string) => fetchAPI(`/api/scanner/${scanId}`);
 export const getScannerUniverses = () => fetchAPI(`/api/scanner/universes/list`);
 
-export function connectScannerWS(scanId: string, onEvent: (event: any) => void): WebSocket {
-  const wsBase = API_BASE.replace("http", "ws");
+export function connectScannerWS<T = unknown>(scanId: string, onEvent: (event: T) => void): WebSocket {
+  const wsBase = getWebSocketBase();
   const ws = new WebSocket(`${wsBase}/api/scanner/ws/${scanId}`);
   ws.onmessage = (event) => {
-    try { onEvent(JSON.parse(event.data)); } catch {}
+    try { onEvent(JSON.parse(event.data) as T); } catch {}
+  };
+  ws.onerror = () => notifyWebSocketUnavailable();
+  ws.onclose = (event) => {
+    if (event.code === 1008 || event.code === 4401) notifyAuthRequired();
   };
   return ws;
 }
@@ -294,26 +414,34 @@ export const getBacktestResult = (backtestId: string) => fetchAPI(`/api/backtest
 export const getBacktestHistory = (limit = 20) => fetchAPI(`/api/backtest/history/list?limit=${limit}`);
 
 // WebSocket
-export function connectAnalysisWS(taskId: string, onEvent: (event: any) => void): WebSocket {
-  const wsBase = API_BASE.replace("http", "ws");
+export function connectAnalysisWS<T = unknown>(taskId: string, onEvent: (event: T) => void): WebSocket {
+  const wsBase = getWebSocketBase();
   const ws = new WebSocket(`${wsBase}/api/analysis/ws/${taskId}`);
   ws.onmessage = (event) => {
     try {
-      const data = JSON.parse(event.data);
+      const data = JSON.parse(event.data) as T;
       onEvent(data);
     } catch {}
+  };
+  ws.onerror = () => notifyWebSocketUnavailable();
+  ws.onclose = (event) => {
+    if (event.code === 1008 || event.code === 4401) notifyAuthRequired();
   };
   return ws;
 }
 
-export function connectBacktestWS(backtestId: string, onEvent: (event: any) => void): WebSocket {
-  const wsBase = API_BASE.replace("http", "ws");
+export function connectBacktestWS<T = unknown>(backtestId: string, onEvent: (event: T) => void): WebSocket {
+  const wsBase = getWebSocketBase();
   const ws = new WebSocket(`${wsBase}/api/backtest/ws/${backtestId}`);
   ws.onmessage = (event) => {
     try {
-      const data = JSON.parse(event.data);
+      const data = JSON.parse(event.data) as T;
       onEvent(data);
     } catch {}
+  };
+  ws.onerror = () => notifyWebSocketUnavailable();
+  ws.onclose = (event) => {
+    if (event.code === 1008 || event.code === 4401) notifyAuthRequired();
   };
   return ws;
 }

@@ -30,6 +30,7 @@ dependencies = [
     "typing-extensions>=4.14.0",
     "yfinance>=0.2.63",
     "python-dotenv>=1.0.0",
+    "kiteconnect>=5.0.1",
 ]
 
 [project.scripts]

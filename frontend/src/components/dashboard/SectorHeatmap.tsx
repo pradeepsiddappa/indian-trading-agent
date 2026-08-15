@@ -5,6 +5,7 @@ import { getSectorRotation } from "@/lib/api";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Loader2, LayoutGrid, RefreshCw } from "lucide-react";
+import { sectorHeatmapColor, splitStatusColor, statusColors } from "@/lib/status-colors";
 
 interface Sector {
   sector: string;
@@ -15,15 +16,8 @@ interface Sector {
 }
 
 // Convert return % to a color intensity
-function getSectorColor(returnPct: number): { bg: string; text: string; border: string } {
-  if (returnPct >= 8) return { bg: "bg-green-500", text: "text-white", border: "border-green-600" };
-  if (returnPct >= 5) return { bg: "bg-green-400", text: "text-white", border: "border-green-500" };
-  if (returnPct >= 2) return { bg: "bg-green-200", text: "text-green-900", border: "border-green-300" };
-  if (returnPct >= 0) return { bg: "bg-green-50", text: "text-green-800", border: "border-green-200" };
-  if (returnPct >= -2) return { bg: "bg-red-50", text: "text-red-800", border: "border-red-200" };
-  if (returnPct >= -5) return { bg: "bg-red-200", text: "text-red-900", border: "border-red-300" };
-  if (returnPct >= -8) return { bg: "bg-red-400", text: "text-white", border: "border-red-500" };
-  return { bg: "bg-red-500", text: "text-white", border: "border-red-600" };
+function getSectorColor(returnPct: number) {
+  return sectorHeatmapColor(returnPct);
 }
 
 export function SectorHeatmap() {
@@ -119,7 +113,7 @@ export function SectorHeatmap() {
                 <span>Weak</span>
               </div>
               <div className="flex items-center gap-1">
-                <div className="w-3 h-3 rounded bg-green-50 border border-green-200"></div>
+                <div className={`w-3 h-3 rounded ${splitStatusColor(statusColors.bullish).bg} border ${splitStatusColor(statusColors.bullish).border}`}></div>
                 <span>Flat</span>
               </div>
               <div className="flex items-center gap-1">

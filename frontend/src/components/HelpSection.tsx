@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { ChevronDown, ChevronUp, HelpCircle } from "lucide-react";
+import { infoSubtle, infoBorder } from "@/lib/status-colors";
 
 interface HelpItem {
   question: string;
@@ -19,7 +20,7 @@ export function HelpSection({ title = "Help & Guide", items }: Props) {
   const [expandedIndex, setExpandedIndex] = useState<number | null>(null);
 
   return (
-    <Card className="border-blue-100 bg-blue-50/30">
+    <Card className={infoSubtle()}>
       <button
         onClick={() => setOpen(!open)}
         className="w-full flex items-center justify-between p-4 text-left"
@@ -37,10 +38,10 @@ export function HelpSection({ title = "Help & Guide", items }: Props) {
       {open && (
         <CardContent className="pt-0 pb-4 px-4 space-y-2">
           {items.map((item, i) => (
-            <div key={i} className="border border-blue-100 rounded-lg overflow-hidden">
+            <div key={i} className={`border ${infoBorder()} rounded-lg overflow-hidden`}>
               <button
                 onClick={() => setExpandedIndex(expandedIndex === i ? null : i)}
-                className="w-full text-left p-3 flex items-center justify-between hover:bg-blue-50/50 transition-colors"
+                className="w-full text-left p-3 flex items-center justify-between hover:bg-blue-50/50 dark:hover:bg-blue-950/20 transition-colors"
               >
                 <span className="text-sm font-medium">{item.question}</span>
                 {expandedIndex === i ? (

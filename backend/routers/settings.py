@@ -1,6 +1,7 @@
 """Settings API — manage API keys and LLM provider config from the UI."""
 
 import json
+import logging
 import urllib.request
 
 from fastapi import APIRouter
@@ -16,6 +17,7 @@ from backend.settings_manager import (
 )
 
 router = APIRouter(prefix="/api/settings", tags=["settings"])
+logger = logging.getLogger(__name__)
 
 
 class ApiKeyUpdate(BaseModel):
@@ -117,5 +119,6 @@ def list_ollama_models():
             payload = json.loads(resp.read().decode("utf-8"))
         models = [m.get("name") for m in payload.get("models", []) if m.get("name")]
         return {"reachable": True, "models": models, "count": len(models)}
-    except Exception as exc:  # connection refused, timeout, malformed JSON, etc.
-        return {"reachable": False, "models": [], "error": str(exc)[:200]}
+    except Exception:
+        logger.exception("Ollama model discovery failed")
+        return {"reachable": False, "models": [], "error": "Ollama is unavailable."}

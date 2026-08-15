@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
+import { useTheme } from "next-themes";
 import { getChartData } from "@/lib/api";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -10,7 +11,15 @@ import { chartsHelp } from "@/lib/help-content";
 
 const periods = ["1mo", "3mo", "6mo", "1y", "2y"];
 
+function getChartOptions(isDark: boolean) {
+  const textColor = isDark ? "#e5e5e5" : "#333";
+  const gridColor = isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.06)";
+  const borderColor = isDark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.1)";
+  return { textColor, gridColor, borderColor };
+}
+
 export default function ChartsPage() {
+  const { resolvedTheme } = useTheme();
   const [ticker, setTicker] = useState("RELIANCE");
   const [period, setPeriod] = useState("3mo");
   const [data, setData] = useState<any[]>([]);
@@ -56,20 +65,23 @@ export default function ChartsPage() {
 
       if (disposed.current || !chartRef.current) return;
 
+      const isDark = resolvedTheme === "dark";
+      const { textColor, gridColor, borderColor } = getChartOptions(isDark);
+
       chart = lc.createChart(chartRef.current, {
         layout: {
           background: { type: lc.ColorType.Solid, color: "transparent" },
-          textColor: "#333",
+          textColor,
         },
         grid: {
-          vertLines: { color: "rgba(0,0,0,0.06)" },
-          horzLines: { color: "rgba(0,0,0,0.06)" },
+          vertLines: { color: gridColor },
+          horzLines: { color: gridColor },
         },
         width: chartRef.current.clientWidth,
         height: 500,
         crosshair: { mode: 0 },
-        timeScale: { borderColor: "rgba(0,0,0,0.1)" },
-        rightPriceScale: { borderColor: "rgba(0,0,0,0.1)" },
+        timeScale: { borderColor },
+        rightPriceScale: { borderColor },
       });
 
       if (disposed.current) {
@@ -136,7 +148,7 @@ export default function ChartsPage() {
         try { chart.remove(); } catch {}
       }
     };
-  }, [data]);
+  }, [data, resolvedTheme]);
 
   return (
     <div className="p-6 space-y-6">

@@ -144,7 +144,7 @@ function AnalysisPageInner() {
 
       {/* Live Heartbeat */}
       {analysis.status === "running" && analysis.heartbeat && (
-        <Card className="border-blue-200 bg-blue-50/50">
+        <Card className="border-blue-200 bg-blue-50/50 dark:border-blue-800 dark:bg-blue-950/20">
           <CardContent className="p-3">
             <div className="flex items-center gap-2 text-sm">
               <Loader2 className="h-3 w-3 animate-spin text-blue-500" />

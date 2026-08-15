@@ -1,7 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
+import { ThemeToggle } from "@/components/theme/ThemeToggle";
+import { logout } from "@/lib/api";
+import { toast } from "sonner";
 import {
   Home,
   Sparkles,
@@ -16,12 +19,15 @@ import {
   TrendingUp,
   Newspaper,
   Brain,
+  PieChart,
+  LogOut,
+  type LucideIcon,
 } from "lucide-react";
 
 type NavItem = {
   href: string;
   label: string;
-  icon: any;
+  icon: LucideIcon;
   hint?: string;
 };
 
@@ -49,6 +55,7 @@ const navGroups: NavGroup[] = [
     title: "ANALYZE",
     items: [
       { href: "/analysis", label: "Deep Analysis", icon: Search, hint: "AI-powered (paid)" },
+      { href: "/equity-portfolio-analysis", label: "Equity portfolio analysis", icon: PieChart, hint: "Kite holdings review" },
       { href: "/charts", label: "Charts", icon: CandlestickChart, hint: "Candlestick charts" },
     ],
   },
@@ -76,6 +83,17 @@ const navGroups: NavGroup[] = [
 
 export function Sidebar() {
   const pathname = usePathname();
+  const router = useRouter();
+
+  const signOut = async () => {
+    try {
+      await logout();
+      router.replace("/login");
+      router.refresh();
+    } catch {
+      toast.error("Unable to sign out. Please try again.");
+    }
+  };
 
   return (
     <aside className="fixed left-0 top-0 h-full w-64 bg-card border-r border-border flex flex-col z-50">
@@ -104,7 +122,7 @@ export function Sidebar() {
                   <Link
                     key={item.href}
                     href={item.href}
-                    className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors group ${
+                    className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm group ${
                       isActive
                         ? "bg-accent text-accent-foreground font-medium"
                         : "text-muted-foreground hover:text-foreground hover:bg-accent/50"
@@ -127,7 +145,18 @@ export function Sidebar() {
         ))}
       </nav>
 
-      <div className="p-4 border-t border-border">
+      <div className="p-4 border-t border-border space-y-3">
+        <div>
+          <p className="text-[10px] text-muted-foreground mb-1.5">Appearance</p>
+          <ThemeToggle />
+        </div>
+        <button
+          type="button"
+          onClick={signOut}
+          className="flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground transition-colors"
+        >
+          <LogOut className="h-3.5 w-3.5" /> Sign out
+        </button>
         <div className="text-[10px] text-muted-foreground">
           <p>Powered by Claude + LangGraph</p>
           <p className="mt-0.5">Data: yfinance (NSE)</p>

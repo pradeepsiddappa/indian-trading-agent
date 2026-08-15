@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Loader2, TrendingUp, TrendingDown, Sparkles, RefreshCw, ArrowRight, Bell, Star, FlaskConical } from "lucide-react";
 import Link from "next/link";
 import { toast } from "sonner";
+import { statusColors, splitStatusColor } from "@/lib/status-colors";
 
 export function TodayPicks({ universe = "nifty100" }: { universe?: string }) {
   const [loading, setLoading] = useState(true);
@@ -53,11 +54,11 @@ export function TodayPicks({ universe = "nifty100" }: { universe?: string }) {
     : [];
 
   return (
-    <Card className="border-yellow-200">
+    <Card className="border-yellow-200 dark:border-yellow-800">
       <CardContent className="p-5">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
-            <div className="p-1.5 rounded-lg bg-yellow-100">
+            <div className="p-1.5 rounded-lg bg-yellow-100 dark:bg-yellow-950/40">
               <Sparkles className="h-5 w-5 text-yellow-600" />
             </div>
             <div>
@@ -109,11 +110,11 @@ export function TodayPicks({ universe = "nifty100" }: { universe?: string }) {
 
         {data && topPicks.length > 0 && (
           <div className="space-y-2">
-            <p className="text-xs font-medium text-green-700 mb-2">BUY OPPORTUNITIES</p>
+            <p className="text-xs font-medium text-green-700 dark:text-green-300 mb-2">BUY OPPORTUNITIES</p>
             {topPicks.map((pick: any, i: number) => (
               <div
                 key={pick.ticker}
-                className="flex items-center justify-between p-3 rounded-lg bg-green-50/50 border border-green-100 hover:bg-green-50 transition-colors"
+                className="flex items-center justify-between p-3 rounded-lg bg-green-50/50 border border-green-100 hover:bg-green-50 dark:bg-green-950/20 dark:border-green-800/50 dark:hover:bg-green-950/40 transition-colors"
               >
                 <div className="flex items-center gap-3 min-w-0">
                   <span className="text-sm font-semibold text-muted-foreground w-5">{i + 1}.</span>
@@ -122,13 +123,13 @@ export function TodayPicks({ universe = "nifty100" }: { universe?: string }) {
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className="font-semibold">{pick.ticker}</span>
                       {watchlistTickers.includes(pick.ticker) && (
-                        <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-300 text-xs">
+                        <Badge variant="outline" className={`${splitStatusColor(statusColors.caution).bg} ${splitStatusColor(statusColors.caution).text} border-yellow-300 dark:border-yellow-800 text-xs`}>
                           <Star className="h-2.5 w-2.5 mr-0.5 fill-yellow-600" />
                           Watchlist
                         </Badge>
                       )}
                       <span className="text-sm text-muted-foreground">Rs.{pick.price}</span>
-                      <Badge variant="outline" className="bg-green-100 text-green-800 border-green-300 text-xs">
+                      <Badge variant="outline" className="bg-green-100 text-green-800 border-green-300 dark:bg-green-950/40 dark:text-green-300 dark:border-green-800 text-xs">
                         {pick.direction}
                       </Badge>
                       <Badge variant="outline" className="text-xs">
@@ -185,11 +186,11 @@ export function TodayPicks({ universe = "nifty100" }: { universe?: string }) {
 
         {data && topSells.length > 0 && (
           <div className="space-y-2 mt-4">
-            <p className="text-xs font-medium text-red-700 mb-2">AVOID / EXIT</p>
+            <p className="text-xs font-medium text-red-700 dark:text-red-300 mb-2">AVOID / EXIT</p>
             {topSells.map((pick: any) => (
               <div
                 key={pick.ticker}
-                className="flex items-center justify-between p-3 rounded-lg bg-red-50/50 border border-red-100"
+                className="flex items-center justify-between p-3 rounded-lg bg-red-50/50 border border-red-100 dark:bg-red-950/20 dark:border-red-800/50"
               >
                 <div className="flex items-center gap-3 min-w-0">
                   <TrendingDown className="h-4 w-4 text-red-600 flex-shrink-0" />
@@ -197,7 +198,7 @@ export function TodayPicks({ universe = "nifty100" }: { universe?: string }) {
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className="font-semibold">{pick.ticker}</span>
                       <span className="text-sm text-muted-foreground">Rs.{pick.price}</span>
-                      <Badge variant="outline" className="bg-red-100 text-red-800 border-red-300 text-xs">
+                      <Badge variant="outline" className="bg-red-100 text-red-800 border-red-300 dark:bg-red-950/40 dark:text-red-300 dark:border-red-800 text-xs">
                         {pick.direction}
                       </Badge>
                     </div>

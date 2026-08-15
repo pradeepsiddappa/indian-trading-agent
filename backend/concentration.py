@@ -18,7 +18,7 @@ Outputs:
 from collections import defaultdict
 from typing import Optional
 from backend.cyclical import SECTOR_MAP
-from backend.db import list_paper_trades, get_analysis_history
+from backend.db import list_paper_trades, get_analysis_history, list_positions
 
 
 # Build reverse map: ticker -> sector for quick lookup
@@ -73,6 +73,27 @@ def get_open_positions() -> list[dict]:
                 "source": "real_trade",
                 "signal": ah.get("signal"),
             })
+
+    # Local manual/Kite holdings are actual portfolio exposure and must be
+    # visible to the same concentration guard as simulated/open analyses.
+    for position in list_positions():
+        ticker = (position.get("tradingsymbol") or "").upper()
+        if not ticker:
+            continue
+        quantity = float(position.get("quantity") or 0)
+        last_price = float(position.get("last_price") or position.get("average_price") or 0)
+        current_value = float(position.get("current_value") or quantity * last_price)
+        positions.append({
+            "id": f"local-{position.get('exchange', 'NSE')}-{ticker}",
+            "ticker": ticker,
+            "sector": get_sector_for_ticker(ticker),
+            "direction": "LONG",
+            "entry_price": position.get("average_price"),
+            "entry_date": position.get("created_at"),
+            "source": "local_position",
+            "exchange": position.get("exchange", "NSE"),
+            "position_value": current_value,
+        })
 
     return positions
 

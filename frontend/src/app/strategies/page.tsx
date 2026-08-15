@@ -12,8 +12,8 @@ const strategies = [
     description: "Calculate key S1-S3 / R1-R3 levels and daily Pivot Points for any stock. Identify buy zones (near support) and sell zones (near resistance).",
     icon: Target,
     color: "text-blue-600",
-    bgColor: "bg-blue-50",
-    borderColor: "border-blue-200",
+    bgColor: "bg-blue-50 dark:bg-blue-950/40",
+    borderColor: "border-blue-200 dark:border-blue-800",
     tags: ["S/R Levels", "Pivot Points", "Intraday"],
     cost: "Free",
     href: "/strategies/support-resistance",
@@ -24,8 +24,8 @@ const strategies = [
     description: "Discover monthly seasonality, day-of-week patterns, and sector rotation cycles. Find which months a stock historically rallies or dips.",
     icon: BarChart3,
     color: "text-purple-600",
-    bgColor: "bg-purple-50",
-    borderColor: "border-purple-200",
+    bgColor: "bg-purple-50 dark:bg-purple-950/40",
+    borderColor: "border-purple-200 dark:border-purple-800",
     tags: ["Seasonality", "Sector Rotation", "Day-of-Week"],
     cost: "Free",
     href: "/strategies/cyclical",
@@ -36,8 +36,8 @@ const strategies = [
     description: "Use the Scanner to find stocks with gap ups, volume spikes, and breakouts. Then run AI analysis on the top picks.",
     icon: Zap,
     color: "text-orange-600",
-    bgColor: "bg-orange-50",
-    borderColor: "border-orange-200",
+    bgColor: "bg-orange-50 dark:bg-orange-950/40",
+    borderColor: "border-orange-200 dark:border-orange-800",
     tags: ["Gap", "Volume", "Breakout"],
     cost: "Free (scan) + API (analysis)",
     href: "/scanner",
@@ -48,8 +48,8 @@ const strategies = [
     description: "Full 10-agent AI pipeline: technicals, fundamentals, news, sentiment, bull/bear debate, risk assessment. Gets you entry/SL/target.",
     icon: TrendingUp,
     color: "text-green-600",
-    bgColor: "bg-green-50",
-    borderColor: "border-green-200",
+    bgColor: "bg-green-50 dark:bg-green-950/40",
+    borderColor: "border-green-200 dark:border-green-800",
     tags: ["AI Powered", "Entry/SL/Target", "Debate"],
     cost: "~Rs.15-25 per analysis",
     href: "/analysis",
@@ -87,7 +87,7 @@ export default function StrategiesHub() {
                           {tag}
                         </Badge>
                       ))}
-                      <Badge variant="outline" className={strategy.cost === "Free" ? "bg-green-50 text-green-700 border-green-200" : "bg-yellow-50 text-yellow-700 border-yellow-200"}>
+                      <Badge variant="outline" className={strategy.cost === "Free" ? "bg-green-50 text-green-700 border-green-200 dark:bg-green-950/40 dark:text-green-300 dark:border-green-800" : "bg-yellow-50 text-yellow-700 border-yellow-200 dark:bg-yellow-950/40 dark:text-yellow-300 dark:border-yellow-800"}>
                         {strategy.cost}
                       </Badge>
                     </div>

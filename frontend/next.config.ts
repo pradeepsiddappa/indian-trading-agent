@@ -1,7 +1,7 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  /* Keep local development and deployment configuration environment-neutral. */
 };
 
 export default nextConfig;

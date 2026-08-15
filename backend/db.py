@@ -1,4 +1,11 @@
-"""SQLite database for watchlist, analysis history, backtests, and settings."""
+"""SQLite database for application state.
+
+The database is intentionally a single-user/shared store.  It contains broker
+credentials and portfolio data for the configured local installation; it is
+not a multi-tenant account database.  ``TRADINGAGENTS_HOME`` is resolved for
+each connection so tests and isolated local instances can select their own
+state directory without re-importing this module.
+"""
 
 import sqlite3
 import os
@@ -6,11 +13,23 @@ import json
 from datetime import datetime
 from contextlib import contextmanager
 
-DB_PATH = os.path.join(os.path.expanduser("~"), ".tradingagents", "trading_agent.db")
+DEFAULT_HOME = os.path.join(os.path.expanduser("~"), ".tradingagents")
+
+
+def get_db_path() -> str:
+    """Return the configured SQLite path, honoring runtime env changes."""
+    home = os.getenv("TRADINGAGENTS_HOME", DEFAULT_HOME)
+    return os.path.join(os.path.abspath(os.path.expanduser(home)), "trading_agent.db")
+
+
+# Compatibility for callers that display the default path. Database I/O uses
+# get_db_path() so temporary test homes work even when env is set after import.
+DB_PATH = get_db_path()
 
 
 def ensure_db():
-    os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
+    db_path = get_db_path()
+    os.makedirs(os.path.dirname(db_path), exist_ok=True)
     with get_db() as conn:
         conn.executescript("""
             CREATE TABLE IF NOT EXISTS watchlist (
@@ -82,6 +101,44 @@ def ensure_db():
             CREATE TABLE IF NOT EXISTS settings (
                 key TEXT PRIMARY KEY,
                 value TEXT
+            );
+
+            -- Equity portfolio reviews are snapshots of explicitly selected
+            -- local positions or a read-only Kite holdings fetch.
+            CREATE TABLE IF NOT EXISTS equity_portfolio_reviews (
+                review_id TEXT PRIMARY KEY,
+                review_date TEXT NOT NULL,
+                holdings_json TEXT NOT NULL,
+                summary_json TEXT NOT NULL,
+                insights_json TEXT NOT NULL,
+                model_metadata_json TEXT,
+                created_at TEXT DEFAULT (datetime('now')),
+                updated_at TEXT DEFAULT (datetime('now'))
+            );
+
+            -- Manual and explicitly synced Kite positions share a symbol and
+            -- exchange key. A Kite sync never replaces a manual row.
+            CREATE TABLE IF NOT EXISTS positions (
+                tradingsymbol TEXT NOT NULL,
+                exchange TEXT NOT NULL DEFAULT 'NSE',
+                isin TEXT,
+                product TEXT,
+                quantity REAL NOT NULL DEFAULT 0,
+                t1_quantity REAL DEFAULT 0,
+                average_price REAL NOT NULL DEFAULT 0,
+                last_price REAL,
+                close_price REAL,
+                invested_value REAL,
+                current_value REAL,
+                pnl REAL,
+                pnl_pct REAL,
+                day_change REAL,
+                day_change_pct REAL,
+                source TEXT NOT NULL DEFAULT 'manual',
+                notes TEXT,
+                created_at TEXT DEFAULT (datetime('now')),
+                updated_at TEXT DEFAULT (datetime('now')),
+                PRIMARY KEY (tradingsymbol, exchange)
             );
 
             -- Paper trading: virtual trades opened from recommendations
@@ -191,7 +248,7 @@ def ensure_db():
 
 @contextmanager
 def get_db():
-    conn = sqlite3.connect(DB_PATH)
+    conn = sqlite3.connect(get_db_path(), timeout=30)
     conn.row_factory = sqlite3.Row
     try:
         yield conn
@@ -382,6 +439,194 @@ def get_all_settings() -> dict:
     with get_db() as conn:
         rows = conn.execute("SELECT key, value FROM settings").fetchall()
         return {r["key"]: r["value"] for r in rows}
+
+
+# --- Local positions (manual or explicitly synced from Kite) ---
+
+def list_positions(source: str | None = None) -> list[dict]:
+    with get_db() as conn:
+        if source:
+            rows = conn.execute(
+                "SELECT * FROM positions WHERE source = ? ORDER BY current_value DESC", (source,)
+            ).fetchall()
+        else:
+            rows = conn.execute("SELECT * FROM positions ORDER BY current_value DESC").fetchall()
+        return [dict(row) for row in rows]
+
+
+def get_position(tradingsymbol: str, exchange: str = "NSE") -> dict | None:
+    with get_db() as conn:
+        row = conn.execute(
+            "SELECT * FROM positions WHERE tradingsymbol = ? AND exchange = ?",
+            (tradingsymbol.upper(), exchange.upper()),
+        ).fetchone()
+        return dict(row) if row else None
+
+
+def _position_values(data: dict) -> tuple[str, str, tuple]:
+    symbol = (data.get("tradingsymbol") or "").strip().upper()
+    exchange = (data.get("exchange") or "NSE").strip().upper()
+    if not symbol:
+        raise ValueError("tradingsymbol is required")
+    return symbol, exchange, (
+        symbol, exchange, data.get("isin"), data.get("product"),
+        data.get("quantity", 0), data.get("t1_quantity", 0),
+        data.get("average_price", 0), data.get("last_price"), data.get("close_price"),
+        data.get("invested_value"), data.get("current_value"), data.get("pnl"),
+        data.get("pnl_pct"), data.get("day_change"), data.get("day_change_pct"),
+        data.get("source", "manual"), data.get("notes"),
+    )
+
+
+def _upsert_position_conn(conn: sqlite3.Connection, data: dict):
+    _, _, values = _position_values(data)
+    conn.execute(
+        """INSERT INTO positions
+        (tradingsymbol, exchange, isin, product, quantity, t1_quantity,
+         average_price, last_price, close_price, invested_value, current_value,
+         pnl, pnl_pct, day_change, day_change_pct, source, notes)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT(tradingsymbol, exchange) DO UPDATE SET
+            isin = COALESCE(excluded.isin, isin),
+            product = COALESCE(excluded.product, product),
+            quantity = excluded.quantity,
+            t1_quantity = excluded.t1_quantity,
+            average_price = excluded.average_price,
+            last_price = excluded.last_price,
+            close_price = excluded.close_price,
+            invested_value = excluded.invested_value,
+            current_value = excluded.current_value,
+            pnl = excluded.pnl,
+            pnl_pct = excluded.pnl_pct,
+            day_change = excluded.day_change,
+            day_change_pct = excluded.day_change_pct,
+            source = excluded.source,
+            notes = COALESCE(excluded.notes, notes),
+            updated_at = datetime('now')""",
+        values,
+    )
+
+
+def upsert_position(data: dict):
+    """Insert or update one position; callers select the source policy."""
+    with get_db() as conn:
+        _upsert_position_conn(conn, data)
+
+
+def replace_kite_positions(rows: list[dict]) -> dict:
+    """Apply one explicit Kite snapshot without deleting manual positions.
+
+    Identity includes both symbol and exchange. If a manual row already owns
+    the same identity, it is deliberately preserved and the Kite row is
+    counted as skipped because this schema has one row per symbol/exchange.
+    Kite rows absent from the new snapshot are removed only for identities
+    previously sourced from Kite.
+    """
+    ensure_db()
+    incoming: dict[tuple[str, str], dict] = {}
+    for row in rows or []:
+        symbol = (row.get("tradingsymbol") or "").strip().upper()
+        exchange = (row.get("exchange") or "NSE").strip().upper()
+        if symbol:
+            incoming[(symbol, exchange)] = row
+
+    with get_db() as conn:
+        manual_keys = {
+            (row["tradingsymbol"].upper(), row["exchange"].upper())
+            for row in conn.execute("SELECT tradingsymbol, exchange FROM positions WHERE source = 'manual'")
+        }
+        kite_keys = {
+            (row["tradingsymbol"].upper(), row["exchange"].upper())
+            for row in conn.execute("SELECT tradingsymbol, exchange FROM positions WHERE source = 'kite'")
+        }
+        applied_keys = set(incoming) - manual_keys
+        for key in applied_keys:
+            _upsert_position_conn(conn, {**incoming[key], "source": "kite"})
+        stale_keys = kite_keys - applied_keys
+        for symbol, exchange in stale_keys:
+            conn.execute(
+                "DELETE FROM positions WHERE source = 'kite' AND tradingsymbol = ? AND exchange = ?",
+                (symbol, exchange),
+            )
+
+    return {
+        "added": len(applied_keys - kite_keys),
+        "updated": len(applied_keys & kite_keys),
+        "removed": len(stale_keys),
+        "skipped_manual": len(set(incoming) & manual_keys),
+        "total": len(incoming),
+    }
+
+
+def delete_position(tradingsymbol: str, exchange: str = "NSE") -> bool:
+    with get_db() as conn:
+        cursor = conn.execute(
+            "DELETE FROM positions WHERE tradingsymbol = ? AND exchange = ?",
+            (tradingsymbol.upper(), exchange.upper()),
+        )
+        return cursor.rowcount > 0
+
+
+# --- Equity portfolio reviews ---
+
+def save_equity_portfolio_review(review: dict):
+    with get_db() as conn:
+        conn.execute(
+            """INSERT OR REPLACE INTO equity_portfolio_reviews
+            (review_id, review_date, holdings_json, summary_json, insights_json,
+             model_metadata_json, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, datetime('now'))""",
+            (
+                review["review_id"], review["review_date"],
+                json.dumps(review.get("holdings", [])),
+                json.dumps(review.get("summary", {})),
+                json.dumps(review.get("insights", {})),
+                json.dumps(review.get("model_metadata", {})),
+            ),
+        )
+
+
+def _decode_equity_portfolio_review(row: sqlite3.Row | None) -> dict | None:
+    if not row:
+        return None
+    data = dict(row)
+    for column, key, default in (
+        ("holdings_json", "holdings", []),
+        ("summary_json", "summary", {}),
+        ("insights_json", "insights", {}),
+        ("model_metadata_json", "model_metadata", {}),
+    ):
+        raw = data.pop(column, None)
+        try:
+            data[key] = json.loads(raw) if raw else default
+        except (TypeError, ValueError, json.JSONDecodeError):
+            data[key] = default
+    return data
+
+
+def get_latest_equity_portfolio_review() -> dict | None:
+    with get_db() as conn:
+        row = conn.execute(
+            "SELECT * FROM equity_portfolio_reviews ORDER BY rowid DESC LIMIT 1"
+        ).fetchone()
+        return _decode_equity_portfolio_review(row)
+
+
+def get_equity_portfolio_review(review_id: str) -> dict | None:
+    with get_db() as conn:
+        row = conn.execute(
+            "SELECT * FROM equity_portfolio_reviews WHERE review_id = ?", (review_id,)
+        ).fetchone()
+        return _decode_equity_portfolio_review(row)
+
+
+def list_equity_portfolio_reviews(limit: int = 30) -> list[dict]:
+    with get_db() as conn:
+        rows = conn.execute(
+            "SELECT * FROM equity_portfolio_reviews ORDER BY rowid DESC LIMIT ?",
+            (limit,),
+        ).fetchall()
+        return [_decode_equity_portfolio_review(row) for row in rows]
 
 
 # --- Paper Trades ---

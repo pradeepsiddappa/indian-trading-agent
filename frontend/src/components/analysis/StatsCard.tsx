@@ -50,7 +50,7 @@ export function StatsCard({ stats, duration }: { stats: Stats; duration?: number
               {(stats.tokens_in / 1000).toFixed(1)}K in / {(stats.tokens_out / 1000).toFixed(1)}K out
             </p>
           </div>
-          <div className="p-3 rounded-lg bg-green-50 border border-green-100">
+          <div className="p-3 rounded-lg bg-green-50 border border-green-100 dark:bg-green-950/40 dark:border-green-800">
             <div className="flex items-center gap-1 text-xs text-green-700 mb-1">
               <Coins className="h-3 w-3" /> Cost
             </div>

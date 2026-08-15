@@ -27,6 +27,7 @@ import {
   ExternalLink,
 } from "lucide-react";
 import { toast } from "sonner";
+import { statusColors, splitStatusColor } from "@/lib/status-colors";
 
 type Provider = {
   name: string;
@@ -252,9 +253,9 @@ export function LLMSettings() {
                 <div className="flex items-center justify-between gap-1.5">
                   <span className="text-[13px] font-semibold">{p.name}</span>
                   {local ? (
-                    <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 text-[9px] px-1.5">Local</Badge>
+                    <Badge variant="outline" className={`${splitStatusColor(statusColors.info).bg} ${splitStatusColor(statusColors.info).text} ${splitStatusColor(statusColors.info).border} text-[9px] px-1.5`}>Local</Badge>
                   ) : keyed ? (
-                    <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200 text-[9px] px-1.5">Key set</Badge>
+                    <Badge variant="outline" className={`${splitStatusColor(statusColors.bullish).bg} ${splitStatusColor(statusColors.bullish).text} ${splitStatusColor(statusColors.bullish).border} text-[9px] px-1.5`}>Key set</Badge>
                   ) : (
                     <Badge variant="outline" className="text-[9px] px-1.5">No key</Badge>
                   )}
@@ -277,12 +278,12 @@ export function LLMSettings() {
                 <span className="text-[15px] font-bold">{cur.name}</span>
                 {requiresKey(selected) ? (
                   hasKey(selected) ? (
-                    <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200 text-[10px]">Key set</Badge>
+                    <Badge variant="outline" className={`${splitStatusColor(statusColors.bullish).bg} ${splitStatusColor(statusColors.bullish).text} ${splitStatusColor(statusColors.bullish).border} text-[10px]`}>Key set</Badge>
                   ) : (
                     <Badge variant="outline" className="text-[10px]">No key</Badge>
                   )
                 ) : (
-                  <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 text-[10px]">Local</Badge>
+                  <Badge variant="outline" className={`${splitStatusColor(statusColors.info).bg} ${splitStatusColor(statusColors.info).text} ${splitStatusColor(statusColors.info).border} text-[10px]`}>Local</Badge>
                 )}
               </div>
               <div className="flex items-center gap-2">
@@ -353,7 +354,7 @@ export function LLMSettings() {
                       {testing ? <Loader2 className="h-3 w-3 animate-spin" /> : "Test"}
                     </Button>
                     {keyMeta?.configured && keyMeta?.source === "ui" && (
-                      <Button size="sm" variant="ghost" onClick={removeKey} className="text-red-600 hover:text-red-700 hover:bg-red-50">
+                      <Button size="sm" variant="ghost" onClick={removeKey} className="text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/40">
                         <Trash2 className="h-3 w-3" />
                       </Button>
                     )}
@@ -368,16 +369,16 @@ export function LLMSettings() {
                 </div>
               ) : (
                 <>
-                  <div className="flex items-center gap-2 rounded-lg bg-blue-50 border border-blue-200 px-3 py-2.5 text-xs text-blue-800">
+                  <div className={`flex items-center gap-2 rounded-lg ${statusColors.info} px-3 py-2.5 text-xs`}>
                     🖥 Runs locally — <b>no API key, no cost</b>. Models come from your machine.
                   </div>
                   <div className="flex items-center gap-2 flex-wrap text-xs">
                     {ollama.loading ? (
                       <Badge variant="outline" className="text-[11px]"><Loader2 className="h-3 w-3 animate-spin mr-1" /> checking…</Badge>
                     ) : ollama.reachable ? (
-                      <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200 text-[11px]">✓ Ollama running · {ollama.models.length} models</Badge>
+                      <Badge variant="outline" className={`${splitStatusColor(statusColors.bullish).bg} ${splitStatusColor(statusColors.bullish).text} ${splitStatusColor(statusColors.bullish).border} text-[11px]`}>✓ Ollama running · {ollama.models.length} models</Badge>
                     ) : (
-                      <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200 text-[11px]">✗ Not reachable</Badge>
+                      <Badge variant="outline" className={`${splitStatusColor(statusColors.bearish).bg} ${splitStatusColor(statusColors.bearish).text} ${splitStatusColor(statusColors.bearish).border} text-[11px]`}>✗ Not reachable</Badge>
                     )}
                     <Button size="sm" variant="outline" onClick={refreshOllama} disabled={ollama.loading}>
                       <RefreshCw className={`h-3 w-3 ${ollama.loading ? "animate-spin" : ""}`} />
@@ -385,7 +386,7 @@ export function LLMSettings() {
                     <span className="font-mono text-[11px] text-muted-foreground">localhost:11434/api/tags</span>
                   </div>
                   {!ollama.loading && !ollama.reachable && (
-                    <div className="text-[11px] text-red-700 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
+                    <div className={`text-[11px] ${statusColors.bearish} rounded-lg px-3 py-2`}>
                       ⚠ Start it with <code className="font-mono">ollama serve</code>. Showing fallback names; analyses won&apos;t run until it&apos;s up.
                     </div>
                   )}

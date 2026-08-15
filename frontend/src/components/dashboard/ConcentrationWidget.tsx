@@ -14,11 +14,13 @@ import {
   ChevronUp,
 } from "lucide-react";
 
+import { statusColors, splitStatusColor } from "@/lib/status-colors";
+
 const riskColors: Record<string, { bg: string; border: string; text: string; icon: any }> = {
-  HIGH: { bg: "bg-red-50", border: "border-red-300", text: "text-red-800", icon: AlertTriangle },
-  MEDIUM: { bg: "bg-yellow-50", border: "border-yellow-200", text: "text-yellow-800", icon: AlertTriangle },
-  LOW: { bg: "bg-green-50", border: "border-green-200", text: "text-green-800", icon: CheckCircle2 },
-  NONE: { bg: "bg-gray-50", border: "border-gray-200", text: "text-gray-700", icon: CheckCircle2 },
+  HIGH: { ...splitStatusColor(statusColors.bearish), border: "border-red-300 dark:border-red-800", icon: AlertTriangle },
+  MEDIUM: { ...splitStatusColor(statusColors.caution), icon: AlertTriangle },
+  LOW: { ...splitStatusColor(statusColors.bullish), icon: CheckCircle2 },
+  NONE: { ...splitStatusColor(statusColors.neutral), icon: CheckCircle2 },
 };
 
 const sectorColors: Record<string, string> = {
@@ -72,7 +74,7 @@ export function ConcentrationWidget() {
       <CardContent className="p-4">
         <div className="flex items-center justify-between flex-wrap gap-3">
           <div className="flex items-center gap-3">
-            <div className="p-2 rounded-lg bg-white">
+            <div className={`p-2 rounded-lg ${statusColors.surfacePanel}`}>
               <Icon className={`h-5 w-5 ${style.text}`} />
             </div>
             <div>
@@ -92,7 +94,7 @@ export function ConcentrationWidget() {
         </div>
 
         {/* Stacked bar showing sector breakdown */}
-        <div className="mt-3 flex h-3 rounded-full overflow-hidden border bg-white/40">
+        <div className={`mt-3 flex h-3 rounded-full overflow-hidden border ${statusColors.surfaceInsetLight}`}>
           {sectors.map((s: any) => (
             <div
               key={s.name}
@@ -115,7 +117,7 @@ export function ConcentrationWidget() {
                         <div className={`w-3 h-3 rounded ${sectorColors[s.name] || sectorColors.Other}`} />
                         <span className="font-medium">{s.name}</span>
                         {isConcentrated && (
-                          <Badge variant="outline" className="bg-red-100 text-red-700 border-red-300 text-xs">
+                          <Badge variant="outline" className="bg-red-100 text-red-700 border-red-300 dark:bg-red-950/40 dark:text-red-300 dark:border-red-800 text-xs">
                             OVER LIMIT
                           </Badge>
                         )}

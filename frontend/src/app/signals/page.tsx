@@ -269,7 +269,7 @@ export default function SignalsPage() {
       </div>
 
       {/* How to use this callout */}
-      <Card className="border-purple-200 bg-purple-50/30">
+      <Card className="border-purple-200 bg-purple-50/30 dark:border-purple-800 dark:bg-purple-950/20">
         <CardContent className="p-4">
           <div className="flex items-start gap-3">
             <div className="p-1.5 rounded-lg bg-purple-100 flex-shrink-0">
@@ -373,7 +373,7 @@ export default function SignalsPage() {
                       <td className="px-4 py-2 font-medium">
                         {s.signal_type}
                         {overridden && (
-                          <Badge variant="outline" className="ml-2 text-xs bg-purple-50 text-purple-700 border-purple-200">
+                          <Badge variant="outline" className="ml-2 text-xs bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-950/40 dark:text-purple-300 dark:border-purple-800">
                             tuned
                           </Badge>
                         )}
@@ -414,17 +414,17 @@ export default function SignalsPage() {
                       </td>
                       <td className="px-4 py-2">
                         {s.verdict === "TUNE_UP" && (
-                          <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200 text-xs">
+                          <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200 dark:bg-green-950/40 dark:text-green-300 dark:border-green-800 text-xs">
                             <TrendingUp className="h-3 w-3 mr-1" /> Tune up
                           </Badge>
                         )}
                         {s.verdict === "TUNE_DOWN" && (
-                          <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200 text-xs">
+                          <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200 dark:bg-red-950/40 dark:text-red-300 dark:border-red-800 text-xs">
                             <TrendingDown className="h-3 w-3 mr-1" /> Tune down
                           </Badge>
                         )}
                         {s.verdict === "KEEP" && (
-                          <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 text-xs">
+                          <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950/40 dark:text-blue-300 dark:border-blue-800 text-xs">
                             <CheckCircle2 className="h-3 w-3 mr-1" /> Keep
                           </Badge>
                         )}
@@ -444,7 +444,7 @@ export default function SignalsPage() {
       </Card>
 
       {/* Regime-conditional how-to callout */}
-      <Card className="border-amber-200 bg-amber-50/30">
+      <Card className="border-amber-200 bg-amber-50/30 dark:border-amber-800 dark:bg-amber-950/20">
         <CardContent className="p-4">
           <div className="flex items-start gap-3">
             <div className="p-1.5 rounded-lg bg-amber-100 flex-shrink-0">
@@ -511,7 +511,7 @@ export default function SignalsPage() {
                     <td className="px-4 py-2 font-medium">
                       {s.signal_type}
                       {s.is_regime_dependent && (
-                        <Badge variant="outline" className="ml-2 text-xs bg-amber-50 text-amber-700 border-amber-200">
+                        <Badge variant="outline" className="ml-2 text-xs bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800">
                           ⚡ regime-dependent
                         </Badge>
                       )}
@@ -600,7 +600,7 @@ export default function SignalsPage() {
                   <div className="flex items-center justify-between mb-2">
                     <span className={`text-sm font-semibold ${REGIME_COLORS[regime]}`}>{regime}</span>
                     {activeCount > 0 && (
-                      <Badge variant="outline" className="text-xs bg-purple-50 text-purple-700 border-purple-200">
+                      <Badge variant="outline" className="text-xs bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-950/40 dark:text-purple-300 dark:border-purple-800">
                         {activeCount} active
                       </Badge>
                     )}

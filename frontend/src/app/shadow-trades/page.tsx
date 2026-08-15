@@ -92,10 +92,10 @@ const VERDICT_STYLES: Record<string, { color: string; label: string; icon: any }
 };
 
 const REGIME_COLORS: Record<string, string> = {
-  BULL: "text-green-700 bg-green-50 border-green-200",
-  BEAR: "text-red-700 bg-red-50 border-red-200",
-  SIDEWAYS: "text-amber-700 bg-amber-50 border-amber-200",
-  HIGH_VOL: "text-purple-700 bg-purple-50 border-purple-200",
+  BULL: "text-green-700 bg-green-50 border-green-200 dark:text-green-300 dark:bg-green-950/40 dark:border-green-800",
+  BEAR: "text-red-700 bg-red-50 border-red-200 dark:text-red-300 dark:bg-red-950/40 dark:border-red-800",
+  SIDEWAYS: "text-amber-700 bg-amber-50 border-amber-200 dark:text-amber-300 dark:bg-amber-950/40 dark:border-amber-800",
+  HIGH_VOL: "text-purple-700 bg-purple-50 border-purple-200 dark:text-purple-300 dark:bg-purple-950/40 dark:border-purple-800",
 };
 
 function formatPnl(pct: number | null) {
@@ -187,7 +187,7 @@ export default function ShadowTradesPage() {
       </div>
 
       {/* How to use callout */}
-      <Card className="border-indigo-200 bg-indigo-50/30">
+      <Card className="border-indigo-200 bg-indigo-50/30 dark:border-indigo-800 dark:bg-indigo-950/20">
         <CardContent className="p-4">
           <div className="flex items-start gap-3">
             <div className="p-1.5 rounded-lg bg-indigo-100 flex-shrink-0">
@@ -297,7 +297,7 @@ export default function ShadowTradesPage() {
                     <td className="px-4 py-2 font-mono text-xs">{t.signal_date}</td>
                     <td className="px-2 py-2 font-semibold">{t.ticker}</td>
                     <td className="px-2 py-2">
-                      <Badge variant="outline" className={t.signal === "STRONG BUY" ? "bg-green-100 text-green-800 border-green-300 text-xs" : "bg-blue-50 text-blue-700 border-blue-200 text-xs"}>
+                      <Badge variant="outline" className={t.signal === "STRONG BUY" ? "bg-green-100 text-green-800 border-green-300 dark:bg-green-950/40 dark:text-green-300 dark:border-green-800 text-xs" : "bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950/40 dark:text-blue-300 dark:border-blue-800 text-xs"}>
                         {t.signal}
                       </Badge>
                     </td>
