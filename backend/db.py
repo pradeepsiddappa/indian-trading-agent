@@ -522,13 +522,23 @@ def replace_kite_positions(rows: list[dict]) -> dict:
     Kite rows absent from the new snapshot are removed only for identities
     previously sourced from Kite.
     """
-    ensure_db()
+    if not isinstance(rows, list):
+        raise ValueError("Kite holdings snapshot must be a list")
     incoming: dict[tuple[str, str], dict] = {}
-    for row in rows or []:
-        symbol = (row.get("tradingsymbol") or "").strip().upper()
-        exchange = (row.get("exchange") or "NSE").strip().upper()
-        if symbol:
-            incoming[(symbol, exchange)] = row
+    for row in rows:
+        if not isinstance(row, dict):
+            raise ValueError("Kite holdings snapshot contains an invalid row")
+        raw_symbol = row.get("tradingsymbol") or row.get("ticker")
+        raw_exchange = row.get("exchange") or "NSE"
+        if not isinstance(raw_symbol, str) or not isinstance(raw_exchange, str):
+            raise ValueError("Kite holdings snapshot contains an invalid symbol or exchange")
+        symbol = raw_symbol.strip().upper()
+        exchange = raw_exchange.strip().upper()
+        if not symbol or not exchange or (symbol, exchange) in incoming:
+            raise ValueError("Kite holdings snapshot contains a duplicate or empty identity")
+        incoming[(symbol, exchange)] = row
+
+    ensure_db()
 
     with get_db() as conn:
         manual_keys = {

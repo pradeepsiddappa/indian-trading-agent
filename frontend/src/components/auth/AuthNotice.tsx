@@ -10,10 +10,11 @@ const WEBSOCKET_UNAVAILABLE_EVENT = "trading-agent:websocket-unavailable";
 export function AuthNotice() {
   useEffect(() => {
     const handleAuthRequired = () => {
+      if (window.location.pathname === "/login") return;
       toast.error("Authentication required. Sign in to continue.", {
         action: {
           label: "Sign in",
-          onClick: () => window.location.assign("/login"),
+          onClick: () => window.location.assign(`/login?next=${encodeURIComponent(window.location.pathname)}`),
         },
       });
     };

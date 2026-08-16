@@ -78,6 +78,19 @@ class AuthenticationTests(IsolatedStateTestCase, unittest.TestCase):
         self.assertNotIn(AUTH_SECRET.lower(), response.text.lower())
         self.assertEqual(status.status_code, 200, status.text)
         self.assertTrue(status.json()["authenticated"])
+        self.assertEqual(status.json()["csrf_token"], client.cookies.get(CSRF_COOKIE))
+
+    def test_logout_revokes_a_copied_session_cookie(self):
+        with fresh_test_client() as client:
+            login(client)
+            copied_session = client.cookies.get(SESSION_COOKIE)
+            logout = client.post("/api/auth/logout", headers=csrf_headers(client))
+            client.cookies.clear()
+            client.cookies.set(SESSION_COOKIE, copied_session)
+            replay = client.get("/api/settings/api-keys")
+
+        self.assertEqual(logout.status_code, 200, logout.text)
+        self.assertEqual(replay.status_code, 401, replay.text)
 
     def test_authenticated_get_works_but_state_change_requires_csrf(self):
         with fresh_test_client() as client:
@@ -98,7 +111,7 @@ class AuthenticationTests(IsolatedStateTestCase, unittest.TestCase):
         from backend.app import app
 
         api_paths = app.openapi()["paths"]
-        exempt = {"/api/health", AUTH_LOGIN_PATH}
+        exempt = {"/api/health", AUTH_LOGIN_PATH, "/api/auth/status"}
 
         with fresh_test_client() as client:
             for path, operations in api_paths.items():
@@ -210,6 +223,23 @@ with TestClient(app) as client:
 
         self.assertEqual(valid.status_code, 200, valid.text)
         self.assertEqual(missing_username.status_code, 401, missing_username.text)
+
+    def test_public_mode_rejects_secret_only_login_when_username_is_unconfigured(self):
+        from fastapi.testclient import TestClient
+        from backend.app import app
+
+        with patch.dict(os.environ, {
+            "TRADINGAGENTS_AUTH_MODE": "public",
+            "TRADINGAGENTS_ENV": "public",
+            "TRADINGAGENTS_AUTH_SECRET": "",
+            "TRADINGAGENTS_AUTH_PASSWORD": "public-password",
+            "TRADINGAGENTS_AUTH_USERNAME": "",
+            "FRONTEND_URL": "https://portfolio.example",
+        }):
+            with TestClient(app) as client:
+                response = client.post(AUTH_LOGIN_PATH, json={"secret": "public-password"})
+
+        self.assertEqual(response.status_code, 401, response.text)
 
 
 class OAuthRedirectTests(IsolatedStateTestCase, unittest.TestCase):

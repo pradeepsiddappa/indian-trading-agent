@@ -129,6 +129,19 @@ class PositionsTests(IsolatedStateTestCase, unittest.TestCase):
             self.assertEqual(positions["RELIANCE"]["source"], "kite")
             self.assertEqual(positions["RELIANCE"]["last_price"], 115)
 
+            with patch(
+                "backend.brokers.kite.fetch_equity_holdings",
+                return_value=None,
+            ):
+                invalid_snapshot = client.post("/api/positions/sync", headers=headers)
+
+            self.assertEqual(invalid_snapshot.status_code, 502, invalid_snapshot.text)
+            preserved = {
+                p["tradingsymbol"]: p
+                for p in client.get("/api/positions").json()["positions"]
+            }
+            self.assertEqual(preserved["RELIANCE"]["last_price"], 115)
+
     def test_invalid_manual_position_is_rejected_without_network_access(self):
         with (
             fresh_test_client() as client,
@@ -161,6 +174,22 @@ class PositionsTests(IsolatedStateTestCase, unittest.TestCase):
         self.assertEqual(local[0]["position_value"], 300)
         allocation = get_sector_allocation(total_capital=1000)
         self.assertEqual(allocation["total_allocated"], 300)
+
+    def test_default_concentration_denominator_uses_local_portfolio_value(self):
+        from backend.concentration import get_sector_allocation
+
+        with fresh_test_client() as client:
+            login(client)
+            response = client.post(
+                "/api/positions",
+                json=manual_position("RELIANCE", quantity=2, last_price=150),
+                headers=csrf_headers(client),
+            )
+
+        self.assertEqual(response.status_code, 200, response.text)
+        allocation = get_sector_allocation()
+        self.assertEqual(allocation["total_capital"], 300)
+        self.assertEqual(allocation["total_allocated_pct"], 100.0)
 
 
 if __name__ == "__main__":

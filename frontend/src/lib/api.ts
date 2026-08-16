@@ -9,7 +9,10 @@ function getApiBase(): string {
   // Keep the existing local two-process workflow usable without exposing any
   // credential or host-specific deployment setting in the browser bundle.
   if (typeof window !== "undefined" && ["localhost", "127.0.0.1", "::1", "[::1]"].includes(window.location.hostname)) {
-    return "http://localhost:8000";
+    const hostname = window.location.hostname.includes(":")
+      ? `[${window.location.hostname.replace(/^\[|\]$/g, "")}]`
+      : window.location.hostname;
+    return `${window.location.protocol}//${hostname}:8000`;
   }
   return "";
 }
@@ -41,6 +44,36 @@ function readCookie(name: string): string | null {
   return value ? decodeURIComponent(value.slice(prefix.length)) : null;
 }
 
+let csrfToken: string | null = null;
+
+function rememberCsrfToken(value: unknown) {
+  if (typeof value === "string" && value) csrfToken = value;
+}
+
+async function getCsrfToken(apiBase: string): Promise<string | null> {
+  const cookieToken = readCookie("trading_agent_csrf");
+  if (cookieToken) {
+    csrfToken = cookieToken;
+    return cookieToken;
+  }
+  if (csrfToken) return csrfToken;
+
+  // The CSRF cookie belongs to the API origin and is intentionally not
+  // readable by a split-origin frontend. The authenticated status response
+  // returns the same random token so the browser can still use the secure
+  // double-submit check without weakening the cookie boundary.
+  try {
+    const response = await fetch(`${apiBase}/api/auth/status`, { credentials: "include" });
+    if (response.ok) {
+      const data = await response.json() as { csrf_token?: unknown };
+      rememberCsrfToken(data.csrf_token);
+    }
+  } catch {
+    // The actual write request will surface the connection/auth error.
+  }
+  return csrfToken;
+}
+
 async function fetchAPI<T>(path: string, options?: RequestInit): Promise<T> {
   const apiBase = getApiBase();
   let res: Response;
@@ -50,9 +83,9 @@ async function fetchAPI<T>(path: string, options?: RequestInit): Promise<T> {
       headers.set("Content-Type", "application/json");
     }
     const method = (options?.method || "GET").toUpperCase();
-    if (["POST", "PUT", "PATCH", "DELETE"].includes(method)) {
-      const csrfToken = readCookie("trading_agent_csrf");
-      if (csrfToken) headers.set("X-CSRF-Token", csrfToken);
+    if (["POST", "PUT", "PATCH", "DELETE"].includes(method) && path !== "/api/auth/login") {
+      const token = await getCsrfToken(apiBase);
+      if (token) headers.set("X-CSRF-Token", token);
     }
     res = await fetch(`${apiBase}${path}`, {
       ...options,
@@ -67,7 +100,9 @@ async function fetchAPI<T>(path: string, options?: RequestInit): Promise<T> {
     throw new Error("Authentication required. Please sign in to continue.");
   }
   if (!res.ok) throw new Error(`API error: ${res.status} ${res.statusText}`);
-  return res.json();
+  const data = await res.json() as T & { csrf_token?: unknown };
+  rememberCsrfToken(data?.csrf_token);
+  return data;
 }
 
 // Market Data
@@ -112,12 +147,14 @@ export type LoginCredentials = {
   password?: string;
   secret?: string;
 };
+export type AuthStatus = { authenticated: boolean; csrf_token?: string | null };
 export const login = (credentials: LoginCredentials | string) =>
   fetchAPI(`/api/auth/login`, {
     method: "POST",
     body: JSON.stringify(typeof credentials === "string" ? { secret: credentials } : credentials),
   });
 export const logout = () => fetchAPI(`/api/auth/logout`, { method: "POST" });
+export const getAuthStatus = () => fetchAPI<AuthStatus>(`/api/auth/status`);
 
 // Kite + Equity Portfolio Analysis
 export const getKiteStatus = () => fetchAPI(`/api/kite/status`);

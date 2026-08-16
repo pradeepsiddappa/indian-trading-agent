@@ -12,13 +12,17 @@ from __future__ import annotations
 import base64
 import hashlib
 import hmac
+import json
 import os
 import secrets
+import sqlite3
 import time
 from http.cookies import SimpleCookie
 from urllib.parse import urlsplit
 
 from starlette.responses import JSONResponse
+
+from backend.db import get_db
 
 
 PUBLIC_MODES = {"public", "production", "prod"}
@@ -26,6 +30,7 @@ SESSION_COOKIE = "trading_agent_session"
 CSRF_COOKIE = "trading_agent_csrf"
 CSRF_HEADER = "x-csrf-token"
 SESSION_TTL_SECONDS = 12 * 60 * 60
+SESSION_REVOCATIONS_SETTING = "auth_session_revocations"
 
 
 def _env_mode() -> str:
@@ -148,6 +153,82 @@ def make_session() -> str:
     return f"{_b64(payload)}.{_b64(signature)}"
 
 
+def _session_payload(value: str | None) -> tuple[int, str] | None:
+    if not value:
+        return None
+    try:
+        encoded_payload, _encoded_signature = value.split(".", 1)
+        issued_text, nonce = _unb64(encoded_payload).decode("ascii").split(".", 1)
+        issued = int(issued_text)
+        return issued, nonce
+    except (ValueError, TypeError, OverflowError, UnicodeDecodeError):
+        return None
+
+
+def _active_revocations(entries: object, now: float) -> list[dict]:
+    if not isinstance(entries, list):
+        return []
+    active = []
+    for entry in entries:
+        if not isinstance(entry, dict):
+            continue
+        try:
+            if float(entry.get("expires_at", 0)) > now and isinstance(entry.get("nonce"), str):
+                active.append(entry)
+        except (TypeError, ValueError):
+            continue
+    return active
+
+
+def _session_revoked(nonce: str) -> bool:
+    now = time.time()
+    try:
+        with get_db() as conn:
+            row = conn.execute(
+                "SELECT value FROM settings WHERE key = ?", (SESSION_REVOCATIONS_SETTING,)
+            ).fetchone()
+            entries = json.loads(row["value"] if row else "[]")
+            active = _active_revocations(entries, now)
+            if active != entries:
+                if active:
+                    conn.execute(
+                        "INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)",
+                        (SESSION_REVOCATIONS_SETTING, json.dumps(active)),
+                    )
+                else:
+                    conn.execute("DELETE FROM settings WHERE key = ?", (SESSION_REVOCATIONS_SETTING,))
+            return any(entry.get("nonce") == nonce for entry in active)
+    except (TypeError, ValueError, json.JSONDecodeError, sqlite3.Error):
+        # A malformed optional revocation record must not make every session
+        # unusable; the HMAC and TTL checks remain authoritative.
+        return False
+
+
+def revoke_session(value: str | None) -> None:
+    payload = _session_payload(value)
+    if not payload:
+        return
+    issued, nonce = payload
+    expires_at = issued + SESSION_TTL_SECONDS
+    now = time.time()
+    with get_db() as conn:
+        conn.execute("BEGIN IMMEDIATE")
+        row = conn.execute(
+            "SELECT value FROM settings WHERE key = ?", (SESSION_REVOCATIONS_SETTING,)
+        ).fetchone()
+        try:
+            entries = json.loads(row["value"] if row else "[]")
+        except (TypeError, ValueError, json.JSONDecodeError):
+            entries = []
+        active = _active_revocations(entries, now)
+        if not any(entry.get("nonce") == nonce for entry in active):
+            active.append({"nonce": nonce, "expires_at": expires_at})
+        conn.execute(
+            "INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)",
+            (SESSION_REVOCATIONS_SETTING, json.dumps(active)),
+        )
+
+
 def valid_session(value: str | None) -> bool:
     secret = auth_secret()
     if not value or not secret:
@@ -160,7 +241,7 @@ def valid_session(value: str | None) -> bool:
             return False
         issued_text, nonce = payload.decode("ascii").split(".", 1)
         issued = int(issued_text)
-        return bool(nonce) and 0 <= time.time() - issued <= SESSION_TTL_SECONDS
+        return bool(nonce) and 0 <= time.time() - issued <= SESSION_TTL_SECONDS and not _session_revoked(nonce)
     except (ValueError, TypeError, OverflowError, UnicodeDecodeError):
         return False
 
@@ -212,6 +293,8 @@ def _is_public_http(scope: dict) -> bool:
         scope.get("path") == "/api/health" and scope.get("method") == "GET"
     ) or (
         scope.get("path") == "/api/auth/login" and scope.get("method") == "POST"
+    ) or (
+        scope.get("path") == "/api/auth/status" and scope.get("method") == "GET"
     )
 
 

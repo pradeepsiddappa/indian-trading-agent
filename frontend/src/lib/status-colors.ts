@@ -87,7 +87,7 @@ export function confidenceBadge(probability: number): string {
 }
 
 export function directionBg(direction: string): string {
-  const d = direction.toUpperCase();
+  const d = String(direction || "").toUpperCase();
   if (d === "BULLISH" || d === "BUY" || d === "LONG") return "text-green-700 bg-green-50 dark:text-green-300 dark:bg-green-950/40";
   if (d === "BEARISH" || d === "SELL" || d === "SHORT") return "text-red-700 bg-red-50 dark:text-red-300 dark:bg-red-950/40";
   return "text-gray-600 bg-gray-50 dark:text-muted-foreground dark:bg-muted";

@@ -114,29 +114,16 @@ class TelegramNotificationTests(IsolatedStateTestCase, unittest.TestCase):
             "Open portfolio page",
         )
 
-    def test_run_and_send_route_sends_login_reminder_when_kite_token_missing(self):
-        from backend.brokers.kite import KiteConfigError
-
-        with (
-            fresh_test_client() as client,
-            patch(
-                "backend.routers.equity_portfolio.fetch_equity_holdings",
-                side_effect=KiteConfigError("Kite login is required for today"),
-            ),
-            patch(
-                "backend.routers.equity_portfolio.send_html_message_with_optional_buttons",
-                return_value={"ok": True, "result": {"message_id": 8}},
-            ),
-        ):
+    def test_run_and_send_route_rejects_an_empty_local_portfolio(self):
+        with fresh_test_client() as client:
             login(client)
             response = client.post(
                 "/api/equity-portfolio/reviews/run-and-send-telegram",
                 headers=csrf_headers(client),
             )
 
-        self.assertEqual(response.status_code, 200, response.text)
-        self.assertEqual(response.json()["status"], "kite_login_required")
-        self.assertEqual(response.json()["telegram"]["message_id"], 8)
+        self.assertEqual(response.status_code, 400, response.text)
+        self.assertIn("No positions stored", response.json()["detail"])
 
     def test_html_send_falls_back_without_buttons_when_telegram_rejects_url(self):
         from backend.notifications.telegram import (

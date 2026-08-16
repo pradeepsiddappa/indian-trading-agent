@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import hmac
 import json
+import math
 import os
 import secrets
 import time
@@ -35,6 +36,19 @@ def _api_key() -> str:
 
 def _api_secret() -> str:
     return (get_setting(KITE_API_SECRET) or os.getenv("KITE_API_SECRET") or "").strip()
+
+
+def _access_token() -> str:
+    return (get_setting(KITE_ACCESS_TOKEN) or os.getenv("KITE_ACCESS_TOKEN") or "").strip()
+
+
+def _access_token_date() -> str | None:
+    stored = get_setting(KITE_ACCESS_TOKEN_DATE)
+    if stored:
+        return stored
+    if os.getenv("KITE_ACCESS_TOKEN"):
+        return (os.getenv("KITE_ACCESS_TOKEN_DATE") or _today()).strip()
+    return None
 
 
 def _oauth_entries(raw: str | None) -> list[dict[str, float | str]]:
@@ -91,8 +105,8 @@ def _load_profile() -> dict | None:
 def get_kite_status() -> dict:
     api_key = _api_key()
     api_secret = _api_secret()
-    token_date = get_setting(KITE_ACCESS_TOKEN_DATE)
-    access_token = get_setting(KITE_ACCESS_TOKEN)
+    token_date = _access_token_date()
+    access_token = _access_token()
     return {
         "api_key_configured": bool(api_key),
         "api_secret_configured": bool(api_secret),
@@ -241,8 +255,8 @@ def exchange_request_token(request_token: str, state: str | None = None) -> dict
 
 
 def get_authenticated_client():
-    access_token = get_setting(KITE_ACCESS_TOKEN)
-    token_date = get_setting(KITE_ACCESS_TOKEN_DATE)
+    access_token = _access_token()
+    token_date = _access_token_date()
     if not access_token or token_date != _today():
         clear_kite_access_token()
         raise KiteConfigError("Kite login is required for today")
@@ -277,18 +291,44 @@ def _num(value: Any) -> float:
 
 
 def normalize_holdings(holdings: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    if not isinstance(holdings, list):
+        raise KiteConfigError("Kite returned an invalid holdings snapshot")
     normalized = []
+    seen: set[tuple[str, str]] = set()
     for holding in holdings or []:
-        quantity = _num(holding.get("quantity"))
-        average_price = _num(holding.get("average_price"))
-        last_price = _num(holding.get("last_price"))
-        close_price = _num(holding.get("close_price"))
+        if not isinstance(holding, dict):
+            raise KiteConfigError("Kite returned an invalid holdings row")
+        raw_symbol = holding.get("tradingsymbol") or holding.get("ticker")
+        raw_exchange = holding.get("exchange") or "NSE"
+        if not isinstance(raw_symbol, str) or not isinstance(raw_exchange, str):
+            raise KiteConfigError("Kite returned a holdings row with an invalid symbol or exchange")
+        symbol = raw_symbol.strip().upper()
+        exchange = raw_exchange.strip().upper()
+        if not symbol or not exchange:
+            raise KiteConfigError("Kite returned a holdings row without a symbol or exchange")
+        identity = (symbol, exchange)
+        if identity in seen:
+            raise KiteConfigError(f"Kite returned duplicate holding {symbol} ({exchange})")
+        seen.add(identity)
+
+        numeric_fields = ("quantity", "average_price", "last_price")
+        for field in numeric_fields:
+            value = holding.get(field)
+            try:
+                if value is None or not math.isfinite(float(value)) or float(value) < 0:
+                    raise ValueError
+            except (TypeError, ValueError):
+                raise KiteConfigError(f"Kite returned an invalid {field} for {symbol}")
+        quantity = float(holding["quantity"])
+        average_price = float(holding["average_price"])
+        last_price = float(holding["last_price"])
+        close_price = _num(holding.get("close_price", last_price))
         invested_value = average_price * quantity
         current_value = last_price * quantity
         pnl = _num(holding.get("pnl")) if holding.get("pnl") is not None else current_value - invested_value
         normalized.append({
-            "tradingsymbol": holding.get("tradingsymbol") or holding.get("ticker") or "",
-            "exchange": (holding.get("exchange") or "NSE").upper(),
+            "tradingsymbol": symbol,
+            "exchange": exchange,
             "isin": holding.get("isin"), "product": holding.get("product"),
             "quantity": quantity, "t1_quantity": _num(holding.get("t1_quantity")),
             "average_price": round(average_price, 2), "last_price": round(last_price, 2),

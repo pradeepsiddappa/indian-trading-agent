@@ -30,6 +30,7 @@ for sector_name, tickers in SECTOR_MAP.items():
 # Default limits (configurable via settings table later)
 DEFAULT_MAX_POSITIONS_PER_SECTOR = 3
 DEFAULT_MAX_PERCENT_PER_SECTOR = 30.0  # % of total portfolio capital
+DEFAULT_TOTAL_CAPITAL = 500000.0
 
 
 def get_sector_for_ticker(ticker: str) -> str:
@@ -98,7 +99,19 @@ def get_open_positions() -> list[dict]:
     return positions
 
 
-def get_sector_allocation(total_capital: float = 500000) -> dict:
+def _effective_total_capital(total_capital: float, positions: list[dict]) -> float:
+    """Use actual local holdings as the denominator when no capital is supplied."""
+    if total_capital != DEFAULT_TOTAL_CAPITAL:
+        return total_capital
+    local_value = sum(
+        float(position.get("position_value") or 0)
+        for position in positions
+        if position.get("source") == "local_position"
+    )
+    return local_value if local_value > 0 else total_capital
+
+
+def get_sector_allocation(total_capital: float = DEFAULT_TOTAL_CAPITAL) -> dict:
     """Compute current sector allocation across all open positions.
 
     Returns:
@@ -110,6 +123,7 @@ def get_sector_allocation(total_capital: float = 500000) -> dict:
         }
     """
     positions = get_open_positions()
+    total_capital = _effective_total_capital(total_capital, positions)
 
     by_sector: dict[str, list] = defaultdict(list)
     total_value = 0.0
@@ -157,7 +171,7 @@ def get_sector_allocation(total_capital: float = 500000) -> dict:
 def check_new_trade_concentration(
     ticker: str,
     proposed_position_value: Optional[float] = None,
-    total_capital: float = 500000,
+    total_capital: float = DEFAULT_TOTAL_CAPITAL,
 ) -> dict:
     """Check if adding a new trade would breach concentration limits.
 
@@ -178,6 +192,7 @@ def check_new_trade_concentration(
         }
     """
     sector = get_sector_for_ticker(ticker)
+    total_capital = _effective_total_capital(total_capital, get_open_positions())
     if not proposed_position_value:
         proposed_position_value = total_capital / 10  # default 10% per position
 

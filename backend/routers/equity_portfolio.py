@@ -5,7 +5,7 @@ from fastapi import APIRouter, HTTPException, Query
 from backend.brokers.kite import KiteAuthExpired, KiteConfigError, fetch_equity_holdings
 from backend.db import get_equity_portfolio_review, get_latest_equity_portfolio_review, list_equity_portfolio_reviews
 from backend.equity_portfolio import create_and_save_review
-from backend.positions import get_positions_view
+from backend.positions import get_positions_view, positions_are_current
 from backend.notifications.telegram import TelegramConfigError, TelegramSendError, build_kite_login_reminder, build_portfolio_review_message, get_app_url, portfolio_keyboard, send_html_message_with_optional_buttons
 
 router = APIRouter(prefix="/api/equity-portfolio", tags=["equity-portfolio"])
@@ -29,9 +29,12 @@ def _notification_error(exc: Exception) -> HTTPException:
 
 def _positions_for_review() -> list[dict]:
     """Read local positions only; Kite sync is exclusively an explicit action."""
-    positions = get_positions_view()["positions"]
+    view = get_positions_view()
+    positions = view["positions"]
     if not positions:
         raise KiteConfigError("No positions stored. Sync from Kite or add positions manually first.")
+    if not positions_are_current(view):
+        raise KiteConfigError("Stored Kite positions are stale. Sync from Kite before running a review.")
     return positions
 
 
@@ -89,7 +92,7 @@ def run_review_and_send_telegram():
     try:
         review = create_and_save_review(_positions_for_review(), enrich=True)
         return {"status": "review_sent", "review": review, "telegram": _send_review(review)}
-    except (KiteConfigError, KiteAuthExpired) as exc:
+    except KiteAuthExpired as exc:
         try:
             result = send_html_message_with_optional_buttons(
                 build_kite_login_reminder(), reply_markup=portfolio_keyboard()
@@ -97,6 +100,8 @@ def run_review_and_send_telegram():
             return {"status": "kite_login_required", "message": str(exc), "telegram": {"status": "sent", "message_id": result.get("result", {}).get("message_id")}}
         except Exception as notify_exc:
             raise _notification_error(notify_exc)
+    except KiteConfigError as exc:
+        raise _kite_error(exc)
     except HTTPException:
         raise
     except Exception as exc:

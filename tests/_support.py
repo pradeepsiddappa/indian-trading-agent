@@ -37,6 +37,8 @@ class IsolatedStateTestCase:
                 "TRADINGAGENTS_FRONTEND_URL",
                 "KITE_API_KEY",
                 "KITE_API_SECRET",
+                "KITE_ACCESS_TOKEN",
+                "KITE_ACCESS_TOKEN_DATE",
                 "CORS_ORIGINS",
             )
         }
@@ -46,6 +48,8 @@ class IsolatedStateTestCase:
         os.environ["TRADINGAGENTS_DB_PATH"] = self.db_path
         os.environ.pop("KITE_API_KEY", None)
         os.environ.pop("KITE_API_SECRET", None)
+        os.environ.pop("KITE_ACCESS_TOKEN", None)
+        os.environ.pop("KITE_ACCESS_TOKEN_DATE", None)
 
         import backend.db as db
 

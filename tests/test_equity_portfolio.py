@@ -55,6 +55,59 @@ class EquityPortfolioTests(IsolatedStateTestCase, unittest.TestCase):
         self.assertTrue(status["configured"])
         self.assertEqual(status["masked_api_key"], "****")
 
+    def test_kite_access_token_can_be_read_from_environment_for_today(self):
+        from backend.brokers.kite import get_kite_status
+
+        with patch.dict(os.environ, {
+            "KITE_API_KEY": "env-key",
+            "KITE_API_SECRET": "env-secret",
+            "KITE_ACCESS_TOKEN": "env-token",
+        }):
+            status = get_kite_status()
+
+        self.assertTrue(status["configured"])
+        self.assertTrue(status["connected_today"])
+        self.assertEqual(status["token_date"], date.today().isoformat())
+
+    def test_invalid_kite_snapshot_is_rejected_before_normalization(self):
+        from backend.brokers.kite import KiteConfigError, normalize_holdings
+
+        with self.assertRaises(KiteConfigError):
+            normalize_holdings(None)
+        with self.assertRaises(KiteConfigError):
+            normalize_holdings([{"tradingsymbol": "RELIANCE", "quantity": 1}])
+        with self.assertRaises(KiteConfigError):
+            normalize_holdings([
+                {"tradingsymbol": "RELIANCE", "quantity": 1, "average_price": 100, "last_price": 110},
+                {"tradingsymbol": "RELIANCE", "quantity": 1, "average_price": 100, "last_price": 110},
+            ])
+
+    def test_review_rejects_stale_kite_positions_before_analysis(self):
+        from backend.brokers.kite import normalize_holdings
+
+        holding = normalize_holdings([{
+            "tradingsymbol": "RELIANCE",
+            "exchange": "NSE",
+            "quantity": 10,
+            "average_price": 100,
+            "last_price": 125,
+        }])[0]
+        self.db.upsert_position({**holding, "source": "kite"})
+        self.db.set_setting(
+            "positions_last_sync_at",
+            (date.today() - timedelta(days=1)).isoformat(),
+        )
+
+        with fresh_test_client() as client:
+            login(client)
+            response = client.post(
+                "/api/equity-portfolio/reviews",
+                headers=csrf_headers(client),
+            )
+
+        self.assertEqual(response.status_code, 400, response.text)
+        self.assertIn("stale", response.json()["detail"])
+
     def test_review_calculates_summary_actions_and_persists(self):
         from backend.equity_portfolio import build_equity_portfolio_review, create_and_save_review
 

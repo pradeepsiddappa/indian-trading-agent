@@ -1,11 +1,14 @@
 """Local position tracking with explicit, read-only Kite synchronization."""
 
 from datetime import datetime, timezone
+from datetime import date
+from threading import Lock
 from typing import Any
 
 from backend.db import delete_position, get_position, get_setting, list_positions, replace_kite_positions, set_setting, upsert_position
 
 POSITIONS_LAST_SYNC = "positions_last_sync_at"
+_SYNC_LOCK = Lock()
 
 
 class PositionsError(RuntimeError):
@@ -59,11 +62,23 @@ def get_positions_view() -> dict:
 def sync_positions_from_kite() -> dict:
     """Fetch and apply a Kite snapshot only when this endpoint is called."""
     from backend.brokers.kite import fetch_equity_holdings
-    holdings = fetch_equity_holdings()
-    counts = replace_kite_positions(holdings)
-    synced_at = datetime.now(timezone.utc).isoformat(timespec="seconds")
-    set_setting(POSITIONS_LAST_SYNC, synced_at)
-    return {"status": "synced", "synced_at": synced_at, **counts, "summary": get_positions_view()["summary"]}
+    # Fetch and apply as one process-local critical section so an older,
+    # slower broker response cannot overwrite a newer snapshot last.
+    with _SYNC_LOCK:
+        holdings = fetch_equity_holdings()
+        if not isinstance(holdings, list):
+            raise PositionsError("Kite returned an invalid holdings snapshot")
+        counts = replace_kite_positions(holdings)
+        synced_at = datetime.now(timezone.utc).isoformat(timespec="seconds")
+        set_setting(POSITIONS_LAST_SYNC, synced_at)
+        return {"status": "synced", "synced_at": synced_at, **counts, "summary": get_positions_view()["summary"]}
+
+
+def positions_are_current(view: dict) -> bool:
+    """Return whether Kite-backed rows were synced during the current day."""
+    if not view.get("summary", {}).get("kite_count"):
+        return True
+    return str(view.get("last_sync") or "")[:10] == date.today().isoformat()
 
 
 def save_manual_position(data: dict) -> dict:

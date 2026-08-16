@@ -1,3 +1,5 @@
+import Script from "next/script";
+
 /** Runs before paint to apply saved theme and avoid flash / sluggish first paint. */
 export function ThemeScript() {
   const script = `
@@ -14,5 +16,9 @@ export function ThemeScript() {
 })();
 `;
 
-  return <script dangerouslySetInnerHTML={{ __html: script }} />;
+  return (
+    <Script id="theme-script" strategy="beforeInteractive">
+      {script}
+    </Script>
+  );
 }
