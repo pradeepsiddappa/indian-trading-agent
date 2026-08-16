@@ -64,6 +64,9 @@ export default function ChartsPage() {
 
   useEffect(() => {
     loadChart();
+    // The ticker field is intentionally submitted via Load/Enter; period is
+    // the auto-refresh trigger.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [period]);
 
   useEffect(() => {

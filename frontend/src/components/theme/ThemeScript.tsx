@@ -17,6 +17,9 @@ export function ThemeScript() {
 `;
 
   return (
+    // This component is rendered directly from the App Router root layout.
+    // The lint rule cannot see through the small component abstraction.
+    // eslint-disable-next-line @next/next/no-before-interactive-script-outside-document
     <Script id="theme-script" strategy="beforeInteractive">
       {script}
     </Script>
