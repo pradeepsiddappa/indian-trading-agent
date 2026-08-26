@@ -7,7 +7,7 @@ from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
-from backend.auth import CSRF_COOKIE, SESSION_COOKIE, cookie_secure, make_session, public_mode, revoke_session, secret_matches, valid_session
+from backend.auth import CSRF_COOKIE, SESSION_COOKIE, auth_required, cookie_secure, make_session, public_mode, revoke_session, secret_matches, valid_session
 
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
@@ -66,7 +66,7 @@ def logout(request: Request):
 @router.get("/status")
 def status(request: Request):
     """Return session state and the non-secret CSRF token for split origins."""
-    authenticated = valid_session(request.cookies.get(SESSION_COOKIE))
+    authenticated = not auth_required() or valid_session(request.cookies.get(SESSION_COOKIE))
     return {
         "authenticated": authenticated,
         "csrf_token": request.cookies.get(CSRF_COOKIE) if authenticated else None,

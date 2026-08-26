@@ -44,11 +44,45 @@ class AuthenticationTests(IsolatedStateTestCase, unittest.TestCase):
                 self.assertEqual(response.status_code, 200, response.text)
                 self.assertEqual(response.headers.get("access-control-allow-origin"), origin)
 
-    def test_missing_credentials_are_rejected_before_protected_handlers(self):
+    def test_local_mode_with_a_secret_still_requires_authentication(self):
         with fresh_test_client() as client:
+            status = client.get("/api/auth/status")
             response = client.get("/api/settings/api-keys")
 
+        self.assertFalse(status.json()["authenticated"])
         self.assertIn(response.status_code, (401, 403))
+
+    def test_local_mode_without_a_secret_leaves_the_app_open(self):
+        from fastapi.testclient import TestClient
+        from backend.app import app
+
+        with patch.dict(os.environ, {
+            "TRADINGAGENTS_AUTH_MODE": "local",
+            "TRADINGAGENTS_ENV": "local",
+            "TRADINGAGENTS_AUTH_SECRET": "",
+            "TRADINGAGENTS_AUTH_PASSWORD": "",
+            "TRADINGAGENTS_AUTH_USERNAME": "",
+            "TRADINGAGENTS_LOCAL_AUTH_SECRET": "",
+            "FRONTEND_URL": "http://localhost:3000",
+        }):
+            with TestClient(app) as client:
+                status = client.get("/api/auth/status")
+                protected = client.get("/api/settings/api-keys")
+                write = client.post(
+                    "/api/positions",
+                    json={
+                        "tradingsymbol": "OPENMODE",
+                        "quantity": 1,
+                        "average_price": 100,
+                    },
+                )
+                with client.websocket_connect("/api/analysis/ws/open-mode") as websocket:
+                    websocket.close()
+
+        self.assertEqual(status.status_code, 200, status.text)
+        self.assertEqual(status.json(), {"authenticated": True, "csrf_token": None})
+        self.assertEqual(protected.status_code, 200, protected.text)
+        self.assertEqual(write.status_code, 200, write.text)
 
     def test_invalid_credentials_are_rejected(self):
         with fresh_test_client() as client:
@@ -140,6 +174,7 @@ from fastapi.testclient import TestClient
 from backend.app import app
 with TestClient(app) as client:
     assert client.get('/api/health').status_code == 200
+    assert client.get('/api/auth/status').json()['authenticated'] is False
     assert client.get('/api/settings/api-keys').status_code in (401, 403)
 """
         env = os.environ.copy()

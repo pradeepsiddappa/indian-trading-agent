@@ -131,7 +131,22 @@ cp .env.example .env
 #   ANTHROPIC_API_KEY=sk-ant-api03-...
 ```
 
-### 3. Start everything (one command)
+### 3. Configure browser authentication (optional locally)
+
+Local mode is open by default when no browser-auth secret is configured, so a
+fresh clone can open without a login or a credential in `.env`. To protect a
+local instance, set `TRADINGAGENTS_LOCAL_AUTH_SECRET`; the login page accepts
+that value as the password/secret. You may instead configure both
+`TRADINGAGENTS_AUTH_USERNAME` and `TRADINGAGENTS_AUTH_PASSWORD`.
+
+Before exposing the app publicly, set `TRADINGAGENTS_AUTH_MODE=public`,
+`FRONTEND_URL` to the exact HTTPS frontend origin, and an explicit username and
+password. Public/production mode always requires authentication and fails
+closed when those credentials or the frontend URL are missing. The Kite
+integration is read-only and order execution is not exposed by this
+application.
+
+### 4. Start everything (one command)
 
 ```bash
 ./start.sh
@@ -147,20 +162,6 @@ This script:
 - Cleans up both processes on `Ctrl+C`
 
 Override ports via env vars: `BACKEND_PORT=9000 FRONTEND_PORT=3001 ./start.sh`
-
-### Browser authentication
-
-The app protects its API and WebSocket endpoints with a single-user session
-before the frontend can use them. In local mode, set
-`TRADINGAGENTS_LOCAL_AUTH_SECRET` in `.env`; the login page accepts that value
-as the password/secret. There is no built-in default credential. You may instead configure
-`TRADINGAGENTS_AUTH_USERNAME` and `TRADINGAGENTS_AUTH_PASSWORD`.
-
-Before exposing the app publicly, set `TRADINGAGENTS_AUTH_MODE=public`,
-`FRONTEND_URL` to the exact HTTPS frontend origin, and an explicit username and
-password. Public/production mode fails closed when those credentials or the
-frontend URL are missing. The Kite integration is read-only and order
-execution is not exposed by this application.
 
 <details>
 <summary>Or start them manually (two terminals)</summary>

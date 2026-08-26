@@ -1,10 +1,12 @@
 """Application authentication and request-boundary security.
 
 This is a single-user application boundary, not an account/authorization
-system. A shared secret establishes one signed session cookie. The secret is
-read only from the process environment and is never persisted in SQLite or
-returned to the frontend. Browser state changes authenticated by that cookie
-also require an allowed Origin and a matching CSRF token.
+system. Local browser authentication is opt-in; public deployments always
+require an explicitly configured credential. When enabled, a shared secret
+establishes one signed session cookie. The secret is read only from the
+process environment and is never persisted in SQLite or returned to the
+frontend. Browser state changes authenticated by that cookie also require an
+allowed Origin and a matching CSRF token.
 """
 
 from __future__ import annotations
@@ -40,6 +42,11 @@ def _env_mode() -> str:
 
 def public_mode() -> bool:
     return _env_mode() in PUBLIC_MODES
+
+
+def auth_required() -> bool:
+    """Return whether this deployment has opted into browser authentication."""
+    return public_mode() or bool(auth_secret())
 
 
 def _origin(value: str, require_https: bool = False) -> str:
@@ -310,6 +317,13 @@ class AuthMiddleware:
 
     async def __call__(self, scope, receive, send):
         if scope["type"] not in {"http", "websocket"} or not _is_api(scope):
+            await self.app(scope, receive, send)
+            return
+
+        # Local installations are open by default. Setting any local auth
+        # secret opts into the full session, CSRF, and origin boundary; public
+        # mode always requires it and remains fail-closed when misconfigured.
+        if not auth_required():
             await self.app(scope, receive, send)
             return
 
