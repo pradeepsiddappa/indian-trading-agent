@@ -15,6 +15,7 @@ import { scannerHelp } from "@/lib/help-content";
 import { NextStep } from "@/components/NextStep";
 import { Sparkles } from "lucide-react";
 import Link from "next/link";
+import { iconBadge, infoSubtle } from "@/lib/status-colors";
 
 export default function ScannerPage() {
   const [universe, setUniverse] = useState("nifty50");
@@ -125,7 +126,7 @@ export default function ScannerPage() {
 
       {/* Progress / Status */}
       {logs.length > 0 && (
-        <Card className={status === "running" ? "border-blue-200 bg-blue-50/30" : ""}>
+        <Card className={status === "running" ? infoSubtle() : ""}>
           <CardContent className="p-3">
             <div className="flex items-center gap-2 text-sm">
               {status === "running" && <Loader2 className="h-3 w-3 animate-spin text-blue-500" />}
@@ -145,13 +146,13 @@ export default function ScannerPage() {
             <Badge variant="outline" className="px-3 py-1">
               Scanned: {results.scanned}/{results.total_stocks} stocks
             </Badge>
-            <Badge variant="outline" className="px-3 py-1 bg-orange-50 text-orange-700 border-orange-200">
+            <Badge variant="outline" className={`px-3 py-1 ${iconBadge("orange")} border border-orange-200 dark:border-orange-800`}>
               Gaps: {gapResults.length}
             </Badge>
-            <Badge variant="outline" className="px-3 py-1 bg-blue-50 text-blue-700 border-blue-200">
+            <Badge variant="outline" className={`px-3 py-1 ${iconBadge("info")} border border-blue-200 dark:border-blue-800`}>
               Volume Spikes: {volumeResults.length}
             </Badge>
-            <Badge variant="outline" className="px-3 py-1 bg-purple-50 text-purple-700 border-purple-200">
+            <Badge variant="outline" className={`px-3 py-1 ${iconBadge("purple")} border border-purple-200 dark:border-purple-800`}>
               Breakouts: {breakoutResults.length}
             </Badge>
           </div>
@@ -237,7 +238,7 @@ export default function ScannerPage() {
                             </TableCell>
                             <TableCell className="text-right font-sans">₹{r.price}</TableCell>
                             <TableCell>
-                              <Badge variant="outline" className={r.filled ? "bg-yellow-50 text-yellow-700" : "bg-green-50 text-green-700"}>
+                              <Badge variant="outline" className={r.filled ? iconBadge("caution") : iconBadge("bullish")}>
                                 {r.filled ? "Filled" : "Open"}
                               </Badge>
                             </TableCell>
@@ -343,7 +344,7 @@ export default function ScannerPage() {
                             <TableCell className="text-right font-sans text-green-600">+{r.breakout_pct}%</TableCell>
                             <TableCell className="text-right font-sans">{r.volume_ratio}x</TableCell>
                             <TableCell>
-                              <Badge variant="outline" className={r.volume_confirmed ? "bg-green-50 text-green-700" : "bg-yellow-50 text-yellow-700"}>
+                              <Badge variant="outline" className={r.volume_confirmed ? iconBadge("bullish") : iconBadge("caution")}>
                                 {r.volume_confirmed ? "Yes" : "Weak"}
                               </Badge>
                             </TableCell>

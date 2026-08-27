@@ -83,7 +83,7 @@ export function TickerSearch({ value, onChange, placeholder, disabled, className
         className={`font-sans ${className || ""}`}
       />
       {showDropdown && (
-        <div className="absolute z-50 w-full min-w-[300px] mt-1 bg-white border border-border rounded-lg shadow-lg max-h-72 overflow-auto">
+        <div className="absolute z-50 w-full min-w-[300px] mt-1 bg-popover border border-border rounded-lg shadow-lg max-h-72 overflow-auto">
           {results.map((r) => (
             <button
               key={r.ticker}

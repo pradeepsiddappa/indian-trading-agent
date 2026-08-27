@@ -1,8 +1,11 @@
 import type { Metadata } from "next";
 import { Open_Sans } from "next/font/google";
 import "./globals.css";
-import { Sidebar } from "@/components/layout/Sidebar";
-import { Toaster } from "sonner";
+import { ThemeProvider } from "@/components/theme/ThemeProvider";
+import { ThemedToaster } from "@/components/theme/ThemedToaster";
+import { ThemeScript } from "@/components/theme/ThemeScript";
+import { AppShell } from "@/components/theme/AppShell";
+import { AuthNotice } from "@/components/auth/AuthNotice";
 
 const openSans = Open_Sans({
   variable: "--font-open-sans",
@@ -24,13 +27,17 @@ export default function RootLayout({
     <html
       lang="en"
       className={`${openSans.variable} h-full antialiased`}
+      suppressHydrationWarning
     >
+      <head>
+        <ThemeScript />
+      </head>
       <body className="min-h-full flex">
-        <Sidebar />
-        <main className="flex-1 ml-64 min-h-screen bg-background">
-          {children}
-        </main>
-        <Toaster position="bottom-right" />
+        <ThemeProvider>
+          <AppShell>{children}</AppShell>
+          <ThemedToaster />
+          <AuthNotice />
+        </ThemeProvider>
       </body>
     </html>
   );

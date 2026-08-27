@@ -70,9 +70,9 @@ const helpItems = [
 
 const QUALITY_STYLES: Record<string, string> = {
   excellent: "bg-green-100 text-green-800 border-green-300",
-  good: "bg-green-50 text-green-700 border-green-200",
-  fair: "bg-amber-50 text-amber-700 border-amber-300",
-  poor: "bg-red-50 text-red-700 border-red-300",
+  good: "bg-green-50 text-green-700 border-green-200 dark:bg-green-950/40 dark:text-green-300 dark:border-green-800",
+  fair: "bg-amber-50 text-amber-700 border-amber-300 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800",
+  poor: "bg-red-50 text-red-700 border-red-300 dark:bg-red-950/40 dark:text-red-300 dark:border-red-800",
   no_data: "bg-muted text-muted-foreground border",
 };
 
@@ -146,11 +146,11 @@ export default function ConfidenceCalibrationPage() {
       </div>
 
       {/* How to use callout */}
-      <Card className="border-cyan-200 bg-cyan-50/30">
+      <Card className="border-cyan-200 bg-cyan-50/30 dark:border-cyan-800 dark:bg-cyan-950/20">
         <CardContent className="p-4">
           <div className="flex items-start gap-3">
-            <div className="p-1.5 rounded-lg bg-cyan-100 flex-shrink-0">
-              <Gauge className="h-5 w-5 text-cyan-700" />
+            <div className="p-1.5 rounded-lg bg-cyan-100 dark:bg-cyan-950/40 flex-shrink-0">
+              <Gauge className="h-5 w-5 text-cyan-700 dark:text-cyan-300" />
             </div>
             <div className="flex-1 min-w-0">
               <h3 className="font-semibold text-sm mb-2">How to use this page</h3>

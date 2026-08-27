@@ -67,7 +67,7 @@ export default function HistoryPage() {
           <p className="text-sm text-muted-foreground">Past analyses with P&L tracking and agent learning</p>
         </div>
         {memoryStats && memoryStats.total > 0 && (
-          <Card className="border-blue-200 bg-blue-50/30">
+          <Card className="border-blue-200 bg-blue-50/30 dark:border-blue-800 dark:bg-blue-950/20">
             <CardContent className="px-4 py-3 flex items-center gap-3">
               <Brain className="h-5 w-5 text-blue-600" />
               <div>

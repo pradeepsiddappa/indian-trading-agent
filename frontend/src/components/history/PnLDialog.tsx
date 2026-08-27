@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Loader2, Brain } from "lucide-react";
 import { toast } from "sonner";
+import { pnlPanel, pnlText, infoSubtle } from "@/lib/status-colors";
 
 interface Props {
   open: boolean;
@@ -118,9 +119,9 @@ export function PnLDialog({ open, onClose, taskId, ticker, signal, onSaved }: Pr
           </div>
 
           {effectivePnl !== null && (
-            <div className={`p-3 rounded-lg ${effectivePnl >= 0 ? "bg-green-50 border border-green-200" : "bg-red-50 border border-red-200"}`}>
+            <div className={`p-3 rounded-lg ${pnlPanel(effectivePnl >= 0)}`}>
               <p className="text-xs text-muted-foreground">Effective P&L</p>
-              <p className={`text-xl font-bold ${effectivePnl >= 0 ? "text-green-700" : "text-red-700"}`}>
+              <p className={`text-xl font-bold ${pnlText(effectivePnl >= 0)}`}>
                 {effectivePnl >= 0 ? "+" : ""}{effectivePnl.toFixed(2)}%
               </p>
               {isShort && pnlPct !== null && (
@@ -132,7 +133,7 @@ export function PnLDialog({ open, onClose, taskId, ticker, signal, onSaved }: Pr
           )}
 
           {/* Reflect toggle */}
-          <label className="flex items-start gap-3 p-3 rounded-lg border border-blue-100 bg-blue-50/30 cursor-pointer">
+          <label className={`flex items-start gap-3 p-3 rounded-lg border ${infoSubtle()} cursor-pointer`}>
             <input
               type="checkbox"
               checked={reflect}

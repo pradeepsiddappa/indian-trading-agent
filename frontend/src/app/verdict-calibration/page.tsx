@@ -85,9 +85,9 @@ const helpItems = [
 const VERDICT_ORDER = ["GREEN", "YELLOW", "RED"];
 
 const verdictStyles: Record<string, string> = {
-  GREEN: "bg-green-50 text-green-700 border-green-300",
-  YELLOW: "bg-yellow-50 text-yellow-700 border-yellow-300",
-  RED: "bg-red-50 text-red-700 border-red-300",
+  GREEN: "bg-green-50 text-green-700 border-green-300 dark:bg-green-950/40 dark:text-green-300 dark:border-green-800",
+  YELLOW: "bg-yellow-50 text-yellow-700 border-yellow-300 dark:bg-yellow-950/40 dark:text-yellow-300 dark:border-yellow-800",
+  RED: "bg-red-50 text-red-700 border-red-300 dark:bg-red-950/40 dark:text-red-300 dark:border-red-800",
 };
 
 function OutcomeIcon({ outcome }: { outcome: string | null }) {
@@ -190,11 +190,11 @@ export default function VerdictCalibrationPage() {
       </div>
 
       {/* How to use this callout */}
-      <Card className="border-blue-200 bg-blue-50/30">
+      <Card className="border-blue-200 bg-blue-50/30 dark:border-blue-800 dark:bg-blue-950/20">
         <CardContent className="p-4">
           <div className="flex items-start gap-3">
-            <div className="p-1.5 rounded-lg bg-blue-100 flex-shrink-0">
-              <Target className="h-5 w-5 text-blue-700" />
+            <div className="p-1.5 rounded-lg bg-blue-100 dark:bg-blue-950/40 flex-shrink-0">
+              <Target className="h-5 w-5 text-blue-700 dark:text-blue-300" />
             </div>
             <div className="flex-1 min-w-0">
               <h3 className="font-semibold text-sm mb-2">How to use this page</h3>

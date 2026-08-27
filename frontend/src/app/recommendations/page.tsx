@@ -12,6 +12,7 @@ import { Loader2, TrendingUp, TrendingDown, Sparkles, ChevronDown, ChevronUp, Ta
 import Link from "next/link";
 import { toast } from "sonner";
 import { NextStep } from "@/components/NextStep";
+import { statusColors, splitStatusColor, confidenceBadge, directionBg } from "@/lib/status-colors";
 
 const recommendationsHelp = [
   {
@@ -45,16 +46,16 @@ const recommendationsHelp = [
 ];
 
 const ratingStyles: Record<string, { color: string; bg: string; border: string; icon: any }> = {
-  "STRONG BUY": { color: "text-green-700", bg: "bg-green-100", border: "border-green-300", icon: TrendingUp },
-  "BUY": { color: "text-green-600", bg: "bg-green-50", border: "border-green-200", icon: TrendingUp },
-  "SELL": { color: "text-red-600", bg: "bg-red-50", border: "border-red-200", icon: TrendingDown },
-  "STRONG SELL": { color: "text-red-700", bg: "bg-red-100", border: "border-red-300", icon: TrendingDown },
+  "STRONG BUY": { color: "text-green-700 dark:text-green-300", bg: "bg-green-100 dark:bg-green-950/40", border: "border-green-300 dark:border-green-800", icon: TrendingUp },
+  "BUY": { ...splitStatusColor(statusColors.bullish), color: "text-green-600 dark:text-green-300", icon: TrendingUp },
+  "SELL": { ...splitStatusColor(statusColors.bearish), color: "text-red-600 dark:text-red-300", icon: TrendingDown },
+  "STRONG SELL": { color: "text-red-700 dark:text-red-300", bg: "bg-red-100 dark:bg-red-950/40", border: "border-red-300 dark:border-red-800", icon: TrendingDown },
 };
 
 const confidenceStyles: Record<string, string> = {
-  HIGH: "bg-blue-100 text-blue-800 border-blue-300",
-  MEDIUM: "bg-yellow-50 text-yellow-700 border-yellow-200",
-  LOW: "bg-gray-50 text-gray-600 border-gray-200",
+  HIGH: "bg-blue-100 text-blue-800 border-blue-300 dark:bg-blue-950/40 dark:text-blue-300 dark:border-blue-800",
+  MEDIUM: statusColors.caution,
+  LOW: statusColors.neutral,
 };
 
 function RecommendationCard({ rec }: { rec: any }) {
@@ -81,7 +82,7 @@ function RecommendationCard({ rec }: { rec: any }) {
                   {rec.confidence} confidence
                 </Badge>
                 {rec.success_probability && (
-                  <Badge variant="outline" className={rec.success_probability >= 70 ? "bg-green-100 text-green-800 border-green-300" : rec.success_probability >= 60 ? "bg-yellow-50 text-yellow-700 border-yellow-200" : "bg-gray-50 text-gray-600 border-gray-200"}>
+                  <Badge variant="outline" className={confidenceBadge(rec.success_probability)}>
                     {rec.success_probability}% estimated success
                   </Badge>
                 )}
@@ -145,7 +146,7 @@ function RecommendationCard({ rec }: { rec: any }) {
           <div className="mt-4 pt-4 border-t space-y-2">
             <p className="text-xs font-medium text-muted-foreground mb-2">WHY THIS RECOMMENDATION:</p>
             {rec.signals.map((s: any, i: number) => {
-              const dirColor = s.direction === "BULLISH" ? "text-green-700 bg-green-50" : s.direction === "BEARISH" ? "text-red-700 bg-red-50" : "text-gray-600 bg-gray-50";
+              const dirColor = directionBg(s.direction);
               return (
                 <div key={i} className={`flex items-center justify-between p-2 rounded text-sm ${dirColor}`}>
                   <div className="flex items-center gap-2">

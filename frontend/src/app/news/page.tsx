@@ -151,7 +151,7 @@ export default function NewsPage() {
                     <div className="flex items-start justify-between gap-3">
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-1 flex-wrap">
-                          <Badge variant="outline" className={a.source_type === "rss" ? "bg-orange-50 text-orange-700 border-orange-200 text-xs" : "bg-blue-50 text-blue-700 border-blue-200 text-xs"}>
+                          <Badge variant="outline" className={a.source_type === "rss" ? "bg-orange-50 text-orange-700 border-orange-200 dark:bg-orange-950/40 dark:text-orange-300 dark:border-orange-800 text-xs" : "bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950/40 dark:text-blue-300 dark:border-blue-800 text-xs"}>
                             <Rss className="h-2.5 w-2.5 mr-1" />
                             {a.source}
                           </Badge>

@@ -2,10 +2,12 @@
 
 import { useEffect, useState } from "react";
 import { getConfig } from "@/lib/api";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { LLMSettings } from "@/components/settings/LLMSettings";
+import { ThemeToggle } from "@/components/theme/ThemeToggle";
+import { statusColors } from "@/lib/status-colors";
 
 export default function SettingsPage() {
   const [config, setConfig] = useState<Record<string, any> | null>(null);
@@ -61,6 +63,16 @@ export default function SettingsPage() {
         <h1 className="text-2xl font-bold">Settings</h1>
         <p className="text-sm text-muted-foreground">Manage API keys, LLM provider, and view current configuration</p>
       </div>
+
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-lg">Appearance</CardTitle>
+          <CardDescription>Choose light, dark, or system theme. Preference is saved automatically.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <ThemeToggle />
+        </CardContent>
+      </Card>
 
       {/* Unified Models & Keys — provider chips + inline keys + set-default */}
       <LLMSettings />
@@ -162,9 +174,9 @@ export default function SettingsPage() {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-            <div className="p-3 rounded-lg bg-green-50 border border-green-200">
-              <p className="text-xs font-medium text-green-800">FREE Features (no API cost)</p>
-              <ul className="text-xs text-green-700 mt-1 space-y-0.5">
+            <div className={`p-3 rounded-lg ${statusColors.bullish}`}>
+              <p className="text-xs font-medium">FREE Features (no API cost)</p>
+              <ul className="text-xs mt-1 space-y-0.5 opacity-90">
                 <li>Support/Resistance levels</li>
                 <li>Pivot Points</li>
                 <li>Monthly Seasonality</li>
@@ -175,17 +187,17 @@ export default function SettingsPage() {
                 <li>Charts</li>
               </ul>
             </div>
-            <div className="p-3 rounded-lg bg-yellow-50 border border-yellow-200">
-              <p className="text-xs font-medium text-yellow-800">Paid Features (API cost)</p>
-              <ul className="text-xs text-yellow-700 mt-1 space-y-0.5">
+            <div className={`p-3 rounded-lg ${statusColors.caution}`}>
+              <p className="text-xs font-medium">Paid Features (API cost)</p>
+              <ul className="text-xs mt-1 space-y-0.5 opacity-90">
                 <li>AI Analysis (~Rs.15-25 each)</li>
                 <li>AI Backtest (~Rs.15-25 per date)</li>
               </ul>
             </div>
-            <div className="p-3 rounded-lg bg-blue-50 border border-blue-200">
-              <p className="text-xs font-medium text-blue-800">How to Switch Provider</p>
-              <p className="text-xs text-blue-700 mt-1">
-                Edit <code className="bg-blue-100 px-1 rounded">tradingagents/default_config.py</code> and change <code className="bg-blue-100 px-1 rounded">llm_provider</code> to &quot;openai&quot; or &quot;google&quot;. Set the corresponding API key in <code className="bg-blue-100 px-1 rounded">.env</code>.
+            <div className={`p-3 rounded-lg ${statusColors.info}`}>
+              <p className="text-xs font-medium">How to Switch Provider</p>
+              <p className="text-xs mt-1 opacity-90">
+                Edit <code className="bg-blue-100 dark:bg-blue-900/50 px-1 rounded">tradingagents/default_config.py</code> and change <code className="bg-blue-100 dark:bg-blue-900/50 px-1 rounded">llm_provider</code> to &quot;openai&quot; or &quot;google&quot;. Set the corresponding API key in <code className="bg-blue-100 dark:bg-blue-900/50 px-1 rounded">.env</code>.
               </p>
             </div>
           </div>

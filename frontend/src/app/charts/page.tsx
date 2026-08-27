@@ -1,6 +1,8 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
+import { useTheme } from "next-themes";
+import type { CandlestickData, HistogramData, IChartApi } from "lightweight-charts";
 import { getChartData } from "@/lib/api";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -10,22 +12,49 @@ import { chartsHelp } from "@/lib/help-content";
 
 const periods = ["1mo", "3mo", "6mo", "1y", "2y"];
 
+type ChartPoint = {
+  time: string;
+  open: number;
+  high: number;
+  low: number;
+  close: number;
+  volume: number;
+};
+
+type ChartResponse = { data?: unknown };
+
+function isChartPoint(value: unknown): value is ChartPoint {
+  if (!value || typeof value !== "object") return false;
+  const row = value as Record<string, unknown>;
+  return typeof row.time === "string"
+    && ["open", "high", "low", "close", "volume"].every(
+      (field) => typeof row[field] === "number" && Number.isFinite(row[field]),
+    );
+}
+
+function getChartOptions(isDark: boolean) {
+  const textColor = isDark ? "#e5e5e5" : "#333";
+  const gridColor = isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.06)";
+  const borderColor = isDark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.1)";
+  return { textColor, gridColor, borderColor };
+}
+
 export default function ChartsPage() {
+  const { resolvedTheme } = useTheme();
   const [ticker, setTicker] = useState("RELIANCE");
   const [period, setPeriod] = useState("3mo");
-  const [data, setData] = useState<any[]>([]);
+  const [data, setData] = useState<ChartPoint[]>([]);
   const [loading, setLoading] = useState(false);
   const chartRef = useRef<HTMLDivElement>(null);
-  const chartInstance = useRef<any>(null);
-  const disposed = useRef(false);
+  const chartInstance = useRef<IChartApi | null>(null);
 
   const loadChart = useCallback(async (symbol?: string) => {
     const t = symbol || ticker;
     if (!t.trim()) return;
     setLoading(true);
     try {
-      const result: any = await getChartData(t.trim(), period);
-      setData(result.data || []);
+      const result = await getChartData(t.trim(), period) as ChartResponse;
+      setData(Array.isArray(result.data) ? result.data.filter(isChartPoint) : []);
     } catch {
       setData([]);
     } finally {
@@ -35,12 +64,15 @@ export default function ChartsPage() {
 
   useEffect(() => {
     loadChart();
+    // The ticker field is intentionally submitted via Load/Enter; period is
+    // the auto-refresh trigger.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [period]);
 
   useEffect(() => {
     if (!chartRef.current || data.length === 0) return;
 
-    disposed.current = false;
+    let disposed = false;
 
     // Cleanup previous
     if (chartInstance.current) {
@@ -49,30 +81,33 @@ export default function ChartsPage() {
     }
 
     // Dynamic import to avoid SSR issues
-    let chart: any = null;
+    let chart: IChartApi | null = null;
 
     (async () => {
       const lc = await import("lightweight-charts");
 
-      if (disposed.current || !chartRef.current) return;
+      if (disposed || !chartRef.current) return;
+
+      const isDark = resolvedTheme === "dark";
+      const { textColor, gridColor, borderColor } = getChartOptions(isDark);
 
       chart = lc.createChart(chartRef.current, {
         layout: {
           background: { type: lc.ColorType.Solid, color: "transparent" },
-          textColor: "#333",
+          textColor,
         },
         grid: {
-          vertLines: { color: "rgba(0,0,0,0.06)" },
-          horzLines: { color: "rgba(0,0,0,0.06)" },
+          vertLines: { color: gridColor },
+          horzLines: { color: gridColor },
         },
         width: chartRef.current.clientWidth,
         height: 500,
         crosshair: { mode: 0 },
-        timeScale: { borderColor: "rgba(0,0,0,0.1)" },
-        rightPriceScale: { borderColor: "rgba(0,0,0,0.1)" },
+        timeScale: { borderColor },
+        rightPriceScale: { borderColor },
       });
 
-      if (disposed.current) {
+      if (disposed) {
         try { chart.remove(); } catch {}
         return;
       }
@@ -87,7 +122,7 @@ export default function ChartsPage() {
       });
 
       candleSeries.setData(
-        data.map((d: any) => ({
+        data.map((d): CandlestickData<string> => ({
           time: d.time,
           open: d.open,
           high: d.high,
@@ -107,7 +142,7 @@ export default function ChartsPage() {
       });
 
       volumeSeries.setData(
-        data.map((d: any) => ({
+        data.map((d): HistogramData<string> => ({
           time: d.time,
           value: d.volume,
           color: d.close >= d.open ? "#22c55e40" : "#ef444440",
@@ -126,7 +161,7 @@ export default function ChartsPage() {
     window.addEventListener("resize", handleResize);
 
     return () => {
-      disposed.current = true;
+      disposed = true;
       window.removeEventListener("resize", handleResize);
       if (chartInstance.current) {
         try { chartInstance.current.remove(); } catch {}
@@ -136,7 +171,7 @@ export default function ChartsPage() {
         try { chart.remove(); } catch {}
       }
     };
-  }, [data]);
+  }, [data, resolvedTheme]);
 
   return (
     <div className="p-6 space-y-6">

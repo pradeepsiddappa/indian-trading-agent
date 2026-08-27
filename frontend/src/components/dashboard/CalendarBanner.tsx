@@ -15,20 +15,21 @@ import {
   ChevronUp,
   Loader2,
 } from "lucide-react";
+import { statusColors, splitStatusColor, infoSubtle } from "@/lib/status-colors";
 
 const eventStyles: Record<string, { bg: string; border: string; text: string; icon: any; label: string }> = {
-  RBI_POLICY: { bg: "bg-purple-50", border: "border-purple-200", text: "text-purple-800", icon: Building, label: "RBI Policy" },
-  BUDGET: { bg: "bg-orange-50", border: "border-orange-200", text: "text-orange-800", icon: AlertTriangle, label: "Union Budget" },
-  FOMC: { bg: "bg-blue-50", border: "border-blue-200", text: "text-blue-800", icon: Globe, label: "Fed FOMC" },
-  FNO_EXPIRY: { bg: "bg-yellow-50", border: "border-yellow-200", text: "text-yellow-800", icon: Calendar, label: "F&O Expiry" },
-  earnings: { bg: "bg-green-50", border: "border-green-200", text: "text-green-800", icon: TrendingUp, label: "Earnings" },
+  RBI_POLICY: { ...splitStatusColor(statusColors.purple), icon: Building, label: "RBI Policy" },
+  BUDGET: { ...splitStatusColor(statusColors.orange), icon: AlertTriangle, label: "Union Budget" },
+  FOMC: { ...splitStatusColor(statusColors.info), icon: Globe, label: "Fed FOMC" },
+  FNO_EXPIRY: { ...splitStatusColor(statusColors.caution), icon: Calendar, label: "F&O Expiry" },
+  earnings: { ...splitStatusColor(statusColors.bullish), icon: TrendingUp, label: "Earnings" },
 };
 
 const impactColors: Record<string, string> = {
-  VERY_HIGH: "bg-red-100 text-red-800 border-red-300",
-  HIGH: "bg-orange-100 text-orange-800 border-orange-300",
-  MEDIUM: "bg-yellow-100 text-yellow-800 border-yellow-300",
-  LOW: "bg-gray-100 text-gray-700 border-gray-200",
+  VERY_HIGH: "bg-red-100 text-red-800 border-red-300 dark:bg-red-950/40 dark:text-red-300 dark:border-red-800",
+  HIGH: "bg-orange-100 text-orange-800 border-orange-300 dark:bg-orange-950/40 dark:text-orange-300 dark:border-orange-800",
+  MEDIUM: "bg-yellow-100 text-yellow-800 border-yellow-300 dark:bg-yellow-950/40 dark:text-yellow-300 dark:border-yellow-800",
+  LOW: "bg-gray-100 text-gray-700 border-gray-200 dark:bg-muted dark:text-muted-foreground dark:border-border",
 };
 
 function formatDateRelative(dateStr: string): string {
@@ -82,11 +83,11 @@ export function CalendarBanner() {
   ];
 
   return (
-    <Card className={hasHighImpactToday ? "border-red-300 bg-red-50/50" : "border-blue-200 bg-blue-50/30"}>
+    <Card className={hasHighImpactToday ? "border-red-300 bg-red-50/50 dark:border-red-800 dark:bg-red-950/20" : infoSubtle()}>
       <CardContent className="p-4">
         <div className="flex items-center justify-between flex-wrap gap-3">
           <div className="flex items-center gap-3">
-            <div className="p-2 rounded-lg bg-white">
+            <div className={`p-2 rounded-lg ${statusColors.surfacePanel}`}>
               {hasHighImpactToday ? (
                 <AlertTriangle className="h-5 w-5 text-red-700" />
               ) : (

@@ -12,6 +12,7 @@ import { HelpSection } from "@/components/HelpSection";
 import { Loader2, TrendingUp, TrendingDown, Zap, ArrowUpRight, Volume2, Target, Award, AlertTriangle, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import { NextStep } from "@/components/NextStep";
+import { iconBadge, cautionSubtle } from "@/lib/status-colors";
 
 const performanceHelp = [
   {
@@ -44,10 +45,10 @@ const strategyIcons: Record<string, any> = {
 };
 
 const strategyColors: Record<string, string> = {
-  gap: "text-orange-600 bg-orange-50 border-orange-200",
-  volume: "text-blue-600 bg-blue-50 border-blue-200",
-  breakout: "text-green-600 bg-green-50 border-green-200",
-  sr_bounce: "text-purple-600 bg-purple-50 border-purple-200",
+  gap: iconBadge("orange") + " border border-orange-200 dark:border-orange-800",
+  volume: iconBadge("info") + " border border-blue-200 dark:border-blue-800",
+  breakout: iconBadge("bullish") + " border border-green-200 dark:border-green-800",
+  sr_bounce: iconBadge("purple") + " border border-purple-200 dark:border-purple-800",
 };
 
 const strategyNames: Record<string, string> = {
@@ -58,11 +59,11 @@ const strategyNames: Record<string, string> = {
 };
 
 function getRatingLabel(winRate: number, avgReturn: number): { label: string; color: string } {
-  if (winRate >= 60 && avgReturn > 1) return { label: "EXCELLENT", color: "bg-green-100 text-green-800 border-green-300" };
-  if (winRate >= 55 && avgReturn > 0.5) return { label: "GOOD", color: "bg-green-50 text-green-700 border-green-200" };
-  if (winRate >= 50 && avgReturn > 0) return { label: "MARGINAL", color: "bg-yellow-50 text-yellow-700 border-yellow-200" };
-  if (winRate < 45 || avgReturn < -0.5) return { label: "AVOID", color: "bg-red-50 text-red-700 border-red-200" };
-  return { label: "WEAK", color: "bg-gray-50 text-gray-600 border-gray-200" };
+  if (winRate >= 60 && avgReturn > 1) return { label: "EXCELLENT", color: "bg-green-100 text-green-800 border-green-300 dark:bg-green-950/40 dark:text-green-300 dark:border-green-800" };
+  if (winRate >= 55 && avgReturn > 0.5) return { label: "GOOD", color: "bg-green-50 text-green-700 border-green-200 dark:bg-green-950/40 dark:text-green-300 dark:border-green-800" };
+  if (winRate >= 50 && avgReturn > 0) return { label: "MARGINAL", color: "bg-yellow-50 text-yellow-700 border-yellow-200 dark:bg-yellow-950/40 dark:text-yellow-300 dark:border-yellow-800" };
+  if (winRate < 45 || avgReturn < -0.5) return { label: "AVOID", color: "bg-red-50 text-red-700 border-red-200 dark:bg-red-950/40 dark:text-red-300 dark:border-red-800" };
+  return { label: "WEAK", color: "bg-gray-50 text-gray-600 border-gray-200 dark:bg-muted dark:text-muted-foreground dark:border-border" };
 }
 
 export default function PerformancePage() {
@@ -168,7 +169,7 @@ export default function PerformancePage() {
 
       {/* Best Strategy Highlight */}
       {bestStrategy && (
-        <Card className="border-yellow-200 bg-yellow-50/50">
+        <Card className={cautionSubtle()}>
           <CardContent className="p-4">
             <div className="flex items-center gap-3">
               <Award className="h-6 w-6 text-yellow-600" />
@@ -283,7 +284,7 @@ export default function PerformancePage() {
                             <TableCell className="font-medium">{t.ticker}</TableCell>
                             <TableCell className="text-sm text-muted-foreground">{t.date}</TableCell>
                             <TableCell>
-                              <Badge variant="outline" className={t.direction === "LONG" ? "bg-green-50 text-green-700" : "bg-red-50 text-red-700"}>
+                              <Badge variant="outline" className={t.direction === "LONG" ? iconBadge("bullish") : iconBadge("bearish")}>
                                 {t.direction}
                               </Badge>
                             </TableCell>

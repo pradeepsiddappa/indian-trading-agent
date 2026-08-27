@@ -4,6 +4,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Sparkles, Search, History, ArrowRight } from "lucide-react";
 import Link from "next/link";
+import { iconBadge } from "@/lib/status-colors";
 
 const steps = [
   {
@@ -13,7 +14,7 @@ const steps = [
     cta: "See Top Picks",
     href: "/recommendations",
     icon: Sparkles,
-    color: "text-yellow-600 bg-yellow-50",
+    color: iconBadge("caution"),
     cost: "FREE",
   },
   {
@@ -23,7 +24,7 @@ const steps = [
     cta: "Deep Analysis",
     href: "/analysis",
     icon: Search,
-    color: "text-blue-600 bg-blue-50",
+    color: iconBadge("info"),
     cost: "Rs.15-25 each",
   },
   {
@@ -33,7 +34,7 @@ const steps = [
     cta: "My Trades",
     href: "/history",
     icon: History,
-    color: "text-green-600 bg-green-50",
+    color: iconBadge("bullish"),
     cost: "FREE",
   },
 ];

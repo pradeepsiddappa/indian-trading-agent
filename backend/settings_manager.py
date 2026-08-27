@@ -7,8 +7,11 @@ API keys can be set via:
 Keys stored in DB are loaded into os.environ at startup so langchain clients pick them up.
 """
 
+import logging
 import os
 from backend.db import get_setting, set_setting, get_all_settings
+
+logger = logging.getLogger(__name__)
 
 
 # Mapping of provider → environment variable name used by langchain clients
@@ -160,8 +163,9 @@ def test_api_key(provider: str, key: str | None = None) -> dict:
         else:
             return {"ok": False, "error": f"Testing not implemented for {provider}"}
 
-    except Exception as e:
-        return {"ok": False, "error": str(e)}
+    except Exception:
+        logger.exception("API-key provider test failed for %s", provider)
+        return {"ok": False, "error": "Provider test failed; check backend logs."}
 
 
 def get_llm_config() -> dict:

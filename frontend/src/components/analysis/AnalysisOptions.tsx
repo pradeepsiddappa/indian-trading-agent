@@ -72,7 +72,7 @@ export function AnalysisOptions({
           <Badge variant="outline" className="text-xs">
             {analysts.length} agents · Depth {depth} · {language}
           </Badge>
-          <Badge variant="outline" className="text-xs bg-yellow-50 text-yellow-700 border-yellow-200">
+          <Badge variant="outline" className="text-xs bg-yellow-50 text-yellow-700 border-yellow-200 dark:bg-yellow-950/40 dark:text-yellow-300 dark:border-yellow-800">
             ~Rs.{estCost}
           </Badge>
         </div>

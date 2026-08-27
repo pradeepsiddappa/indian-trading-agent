@@ -15,6 +15,7 @@ import {
   ChevronDown,
   ChevronUp,
 } from "lucide-react";
+import { statusColors } from "@/lib/status-colors";
 
 const verdictStyles: Record<string, {
   bg: string;
@@ -24,23 +25,23 @@ const verdictStyles: Record<string, {
   pillBg: string;
 }> = {
   GREEN: {
-    bg: "bg-gradient-to-br from-green-50 to-emerald-50",
-    border: "border-green-300",
-    text: "text-green-800",
+    bg: "!bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-950/50 dark:to-emerald-950/40",
+    border: "border-green-300 dark:border-green-800",
+    text: "text-green-800 dark:text-green-300",
     icon: TrendingUp,
     pillBg: "bg-green-600",
   },
   YELLOW: {
-    bg: "bg-gradient-to-br from-yellow-50 to-amber-50",
-    border: "border-yellow-300",
-    text: "text-yellow-900",
+    bg: "!bg-gradient-to-br from-yellow-50 to-amber-50 dark:from-yellow-950/50 dark:to-amber-950/40",
+    border: "border-yellow-300 dark:border-yellow-800",
+    text: "text-yellow-900 dark:text-yellow-300",
     icon: AlertTriangle,
     pillBg: "bg-yellow-600",
   },
   RED: {
-    bg: "bg-gradient-to-br from-red-50 to-rose-50",
-    border: "border-red-300",
-    text: "text-red-900",
+    bg: "!bg-gradient-to-br from-red-50 to-rose-50 dark:from-red-950/50 dark:to-rose-950/40",
+    border: "border-red-300 dark:border-red-800",
+    text: "text-red-900 dark:text-red-300",
     icon: ShieldX,
     pillBg: "bg-red-600",
   },
@@ -104,7 +105,7 @@ export function DailyVerdict() {
         </div>
 
         {/* Action — what to do */}
-        <div className={`mt-4 p-3 rounded-lg bg-white/60 ${style.text}`}>
+        <div className={`mt-4 p-3 rounded-lg ${statusColors.surfaceInset} ${style.text}`}>
           <p className="font-medium leading-relaxed">{verdict.action}</p>
         </div>
 
@@ -113,7 +114,7 @@ export function DailyVerdict() {
           {/* Caution flags */}
           {verdict.caution_flags?.length > 0 && (
             <div>
-              <p className="text-xs font-semibold text-red-700 mb-1.5">CAUTION</p>
+              <p className="text-xs font-semibold text-red-700 dark:text-red-300 mb-1.5">CAUTION</p>
               <div className="space-y-1">
                 {verdict.caution_flags.map((f: string, i: number) => (
                   <div key={i} className="flex items-start gap-1.5 text-sm">
@@ -128,7 +129,7 @@ export function DailyVerdict() {
           {/* Favorable flags */}
           {verdict.favorable_flags?.length > 0 && (
             <div>
-              <p className="text-xs font-semibold text-green-700 mb-1.5">FAVORABLE</p>
+              <p className="text-xs font-semibold text-green-700 dark:text-green-300 mb-1.5">FAVORABLE</p>
               <div className="space-y-1">
                 {verdict.favorable_flags.map((f: string, i: number) => (
                   <div key={i} className="flex items-start gap-1.5 text-sm">
@@ -155,15 +156,15 @@ export function DailyVerdict() {
         {expanded && (
           <div className="mt-3 pt-3 border-t border-current/10 space-y-3 text-sm">
             <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-              <div className="p-2 rounded bg-white/40">
+              <div className={`p-2 rounded ${statusColors.surfaceInsetLight}`}>
                 <p className="text-xs text-muted-foreground">Min Conviction Required</p>
                 <p className="font-semibold">{verdict.min_conviction_required}</p>
               </div>
-              <div className="p-2 rounded bg-white/40">
+              <div className={`p-2 rounded ${statusColors.surfaceInsetLight}`}>
                 <p className="text-xs text-muted-foreground">Caution Flags</p>
                 <p className="font-semibold">{verdict.caution_flags?.length || 0}</p>
               </div>
-              <div className="p-2 rounded bg-white/40">
+              <div className={`p-2 rounded ${statusColors.surfaceInsetLight}`}>
                 <p className="text-xs text-muted-foreground">Favorable Flags</p>
                 <p className="font-semibold">{verdict.favorable_flags?.length || 0}</p>
               </div>

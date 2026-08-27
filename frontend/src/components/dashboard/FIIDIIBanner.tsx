@@ -16,12 +16,13 @@ import {
   ChevronDown,
   ChevronUp,
 } from "lucide-react";
+import { statusColors, splitStatusColor, pnlText, cautionSubtle } from "@/lib/status-colors";
 
 const biasColors: Record<string, { bg: string; border: string; text: string; icon: any }> = {
-  BULLISH: { bg: "bg-green-50", border: "border-green-200", text: "text-green-800", icon: TrendingUp },
-  BEARISH: { bg: "bg-red-50", border: "border-red-200", text: "text-red-800", icon: TrendingDown },
-  MIXED: { bg: "bg-yellow-50", border: "border-yellow-200", text: "text-yellow-800", icon: Minus },
-  NEUTRAL: { bg: "bg-gray-50", border: "border-gray-200", text: "text-gray-700", icon: Minus },
+  BULLISH: { ...splitStatusColor(statusColors.bullish), icon: TrendingUp },
+  BEARISH: { ...splitStatusColor(statusColors.bearish), icon: TrendingDown },
+  MIXED: { ...splitStatusColor(statusColors.caution), icon: Minus },
+  NEUTRAL: { ...splitStatusColor(statusColors.neutral), icon: Minus },
 };
 
 function formatCr(value: number | null | undefined): string {
@@ -75,13 +76,13 @@ export function FIIDIIBanner() {
     );
   }
 
-  if (!bias || !bias.today_fii_net) {
+  if (!bias || bias.today_fii_net == null) {
     return (
-      <Card className="border-yellow-200 bg-yellow-50/30">
+      <Card className={cautionSubtle()}>
         <CardContent className="p-4 flex items-center justify-between">
           <div className="flex items-center gap-2 text-sm">
-            <AlertCircle className="h-4 w-4 text-yellow-700" />
-            <span className="text-yellow-800">FII/DII data unavailable. NSE may be blocking requests right now.</span>
+            <AlertCircle className={`h-4 w-4 ${splitStatusColor(statusColors.caution).text}`} />
+            <span className={splitStatusColor(statusColors.caution).text}>FII/DII data unavailable. NSE may be blocking requests right now.</span>
           </div>
           <Button size="sm" variant="outline" onClick={handleRefresh} disabled={refreshing}>
             {refreshing ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <RefreshCw className="h-3 w-3 mr-1" />}
@@ -103,14 +104,14 @@ export function FIIDIIBanner() {
       <CardContent className="p-4">
         <div className="flex items-center justify-between flex-wrap gap-3">
           <div className="flex items-center gap-3">
-            <div className="p-2 rounded-lg bg-white">
+            <div className={`p-2 rounded-lg ${statusColors.surfacePanel}`}>
               <Building2 className={`h-5 w-5 ${style.text}`} />
             </div>
             <div>
               <p className="text-xs text-muted-foreground">Institutional Flow ({bias.data_date})</p>
               <div className="flex items-center gap-2 flex-wrap">
-                <span className="font-semibold text-sm">FII: <span className={fiiToday >= 0 ? "text-green-700" : "text-red-700"}>{formatCr(fiiToday)}</span></span>
-                <span className="font-semibold text-sm">DII: <span className={diiToday >= 0 ? "text-green-700" : "text-red-700"}>{formatCr(diiToday)}</span></span>
+                <span className="font-semibold text-sm">FII: <span className={pnlText(fiiToday >= 0)}>{formatCr(fiiToday)}</span></span>
+                <span className="font-semibold text-sm">DII: <span className={pnlText(diiToday >= 0)}>{formatCr(diiToday)}</span></span>
                 <Badge variant="outline" className={`${style.text} border-current`}>
                   <Icon className="h-3 w-3 mr-1" />
                   {bias.bias} ({bias.confidence})
@@ -133,16 +134,16 @@ export function FIIDIIBanner() {
           <div className="mt-3 pt-3 border-t border-current/10 space-y-2 text-sm">
             <p className={style.text}>{bias.reasoning}</p>
             <div className="grid grid-cols-2 gap-3 mt-2">
-              <div className="p-2 rounded bg-white/60">
+              <div className={`p-2 rounded ${statusColors.surfaceInset}`}>
                 <p className="text-xs text-muted-foreground">Today's FII Net</p>
-                <p className={`font-semibold ${fiiToday >= 0 ? "text-green-700" : "text-red-700"}`}>
+                <p className={`font-semibold ${pnlText(fiiToday >= 0)}`}>
                   {formatCr(fiiToday)}
                 </p>
                 <p className="text-xs text-muted-foreground">5-day: {formatCr(bias.fii_5d_net)}</p>
               </div>
-              <div className="p-2 rounded bg-white/60">
+              <div className={`p-2 rounded ${statusColors.surfaceInset}`}>
                 <p className="text-xs text-muted-foreground">Today's DII Net</p>
-                <p className={`font-semibold ${diiToday >= 0 ? "text-green-700" : "text-red-700"}`}>
+                <p className={`font-semibold ${pnlText(diiToday >= 0)}`}>
                   {formatCr(diiToday)}
                 </p>
                 <p className="text-xs text-muted-foreground">5-day: {formatCr(bias.dii_5d_net)}</p>

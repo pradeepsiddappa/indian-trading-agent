@@ -131,7 +131,22 @@ cp .env.example .env
 #   ANTHROPIC_API_KEY=sk-ant-api03-...
 ```
 
-### 3. Start everything (one command)
+### 3. Configure browser authentication (optional locally)
+
+Local mode is open by default when no browser-auth secret is configured, so a
+fresh clone can open without a login or a credential in `.env`. To protect a
+local instance, set `TRADINGAGENTS_LOCAL_AUTH_SECRET`; the login page accepts
+that value as the password/secret. You may instead configure both
+`TRADINGAGENTS_AUTH_USERNAME` and `TRADINGAGENTS_AUTH_PASSWORD`.
+
+Before exposing the app publicly, set `TRADINGAGENTS_AUTH_MODE=public`,
+`FRONTEND_URL` to the exact HTTPS frontend origin, and an explicit username and
+password. Public/production mode always requires authentication and fails
+closed when those credentials or the frontend URL are missing. The Kite
+integration is read-only and order execution is not exposed by this
+application.
+
+### 4. Start everything (one command)
 
 ```bash
 ./start.sh

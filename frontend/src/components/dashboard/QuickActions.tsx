@@ -5,6 +5,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Radar, Target, CandlestickChart, Award, FlaskConical, Calculator } from "lucide-react";
 import Link from "next/link";
 import { PositionSizeCalculator } from "@/components/PositionSizeCalculator";
+import { iconBadge } from "@/lib/status-colors";
 
 const quickLinks = [
   {
@@ -12,35 +13,35 @@ const quickLinks = [
     label: "Scan Market",
     description: "Gap, Volume, Breakout",
     icon: Radar,
-    color: "text-orange-600 bg-orange-50",
+    color: iconBadge("orange"),
   },
   {
     href: "/strategies",
     label: "Strategies",
     description: "S/R, Cyclical patterns",
     icon: Target,
-    color: "text-purple-600 bg-purple-50",
+    color: iconBadge("purple"),
   },
   {
     href: "/charts",
     label: "Charts",
     description: "Candlestick charts",
     icon: CandlestickChart,
-    color: "text-blue-600 bg-blue-50",
+    color: iconBadge("info"),
   },
   {
     href: "/performance",
     label: "Performance",
     description: "Strategy win rates",
     icon: Award,
-    color: "text-green-600 bg-green-50",
+    color: iconBadge("bullish"),
   },
   {
     href: "/backtest",
     label: "Backtest",
     description: "Historical testing",
     icon: FlaskConical,
-    color: "text-indigo-600 bg-indigo-50",
+    color: iconBadge("indigo"),
   },
 ];
 
@@ -69,7 +70,7 @@ export function QuickActions() {
               onClick={() => setCalcOpen(true)}
               className="p-3 rounded-lg border border-border hover:border-primary/30 hover:bg-accent/30 transition-colors cursor-pointer text-left"
             >
-              <div className="p-1.5 rounded-lg text-teal-600 bg-teal-50 inline-flex mb-2">
+              <div className={`p-1.5 rounded-lg ${iconBadge("teal")} inline-flex mb-2`}>
                 <Calculator className="h-4 w-4" />
               </div>
               <p className="font-medium text-sm">Position Size</p>

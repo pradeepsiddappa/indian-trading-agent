@@ -13,7 +13,8 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 from backend.db import ensure_db
-from backend.routers import market_data, analysis, watchlist, backtest, strategies, scanner, performance, recommender, settings as settings_router, news as news_router, simulation as simulation_router, insights as insights_router, fii_dii as fii_dii_router, calendar as calendar_router, concentration as concentration_router, daily_verdict as daily_verdict_router, signal_performance as signal_performance_router, verdict_calibration as verdict_calibration_router, regime as regime_router, confidence_calibration as confidence_calibration_router, shadow_trades as shadow_trades_router, memory as memory_router
+from backend.auth import AuthMiddleware, allowed_origins
+from backend.routers import market_data, analysis, watchlist, backtest, strategies, scanner, performance, recommender, settings as settings_router, news as news_router, simulation as simulation_router, insights as insights_router, fii_dii as fii_dii_router, calendar as calendar_router, concentration as concentration_router, daily_verdict as daily_verdict_router, signal_performance as signal_performance_router, verdict_calibration as verdict_calibration_router, regime as regime_router, confidence_calibration as confidence_calibration_router, shadow_trades as shadow_trades_router, memory as memory_router, auth as auth_router, kite as kite_router, equity_portfolio as equity_portfolio_router, positions as positions_router, telegram as telegram_router
 from backend.settings_manager import load_api_keys_into_env, apply_llm_config_to_default
 
 
@@ -36,12 +37,18 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://localhost:3001", "http://127.0.0.1:3000", "http://127.0.0.1:3001"],
+    allow_origins=allowed_origins(),
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allow_headers=["Content-Type", "Authorization", "X-CSRF-Token"],
 )
 
+# This middleware covers every /api HTTP route and every /api WebSocket route.
+# WebSocket failures are sent as a close frame before endpoint code can accept
+# the connection, so analysis/backtest/scanner streams cannot bypass auth.
+app.add_middleware(AuthMiddleware)
+
+app.include_router(auth_router.router)
 app.include_router(market_data.router)
 app.include_router(analysis.router)
 app.include_router(watchlist.router)
@@ -64,6 +71,10 @@ app.include_router(regime_router.router)
 app.include_router(confidence_calibration_router.router)
 app.include_router(shadow_trades_router.router)
 app.include_router(memory_router.router)
+app.include_router(kite_router.router)
+app.include_router(equity_portfolio_router.router)
+app.include_router(positions_router.router)
+app.include_router(telegram_router.router)
 
 
 @app.get("/api/health")

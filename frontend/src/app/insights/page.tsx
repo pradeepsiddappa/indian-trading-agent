@@ -24,6 +24,7 @@ import {
   MinusCircle,
 } from "lucide-react";
 import { toast } from "sonner";
+import { statusColors, splitStatusColor, infoSubtle } from "@/lib/status-colors";
 
 const insightsHelp = [
   {
@@ -55,12 +56,12 @@ const categoryIcons: Record<string, any> = {
 };
 
 const typeStyles: Record<string, { bg: string; border: string; text: string; icon: any }> = {
-  strength: { bg: "bg-green-50", border: "border-green-300", text: "text-green-800", icon: CheckCircle2 },
-  positive: { bg: "bg-green-50", border: "border-green-200", text: "text-green-700", icon: TrendingUp },
-  neutral: { bg: "bg-gray-50", border: "border-gray-200", text: "text-gray-700", icon: MinusCircle },
-  caution: { bg: "bg-yellow-50", border: "border-yellow-300", text: "text-yellow-800", icon: AlertTriangle },
-  weakness: { bg: "bg-red-50", border: "border-red-300", text: "text-red-800", icon: TrendingDown },
-  insufficient: { bg: "bg-gray-50", border: "border-gray-200", text: "text-gray-500", icon: Info },
+  strength: { ...splitStatusColor(statusColors.bullish), border: "border-green-300 dark:border-green-800", icon: CheckCircle2 },
+  positive: { ...splitStatusColor(statusColors.bullish), icon: TrendingUp },
+  neutral: { ...splitStatusColor(statusColors.neutral), icon: MinusCircle },
+  caution: { ...splitStatusColor(statusColors.caution), border: "border-yellow-300 dark:border-yellow-800", icon: AlertTriangle },
+  weakness: { ...splitStatusColor(statusColors.bearish), border: "border-red-300 dark:border-red-800", icon: TrendingDown },
+  insufficient: { ...splitStatusColor(statusColors.neutral), text: "text-gray-500 dark:text-muted-foreground", icon: Info },
 };
 
 function InsightCard({ insight }: { insight: any }) {
@@ -73,7 +74,7 @@ function InsightCard({ insight }: { insight: any }) {
       <CardContent className="p-4">
         <div className="flex items-start justify-between gap-3 mb-2">
           <div className="flex items-center gap-2">
-            <div className="p-1.5 rounded-lg bg-white">
+            <div className={`p-1.5 rounded-lg ${statusColors.surfacePanel}`}>
               <CategoryIcon className="h-4 w-4 text-muted-foreground" />
             </div>
             <div>
@@ -171,7 +172,7 @@ export default function InsightsPage() {
           <p className="text-sm text-muted-foreground">Pattern analysis of your trading history</p>
         </div>
 
-        <Card className="border-blue-200 bg-blue-50/30">
+        <Card className={infoSubtle()}>
           <CardContent className="p-8 text-center">
             <Info className="h-8 w-8 mx-auto text-blue-600 mb-3" />
             <p className="text-sm font-medium mb-2">{data?.message || "Need more trade data"}</p>
@@ -259,7 +260,7 @@ export default function InsightsPage() {
 
       {/* Key Findings */}
       {data.summary.key_findings.length > 0 && (
-        <Card className="border-blue-200 bg-blue-50/30">
+        <Card className={infoSubtle()}>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm flex items-center gap-2">
               <Sparkles className="h-4 w-4 text-blue-600" /> Key Findings

@@ -13,6 +13,7 @@ import { HelpSection } from "@/components/HelpSection";
 import { Loader2, BarChart3, TrendingUp, TrendingDown, ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { toast } from "sonner";
+import { statusColors, splitStatusColor } from "@/lib/status-colors";
 
 function generateInsight(data: any): string {
   if (!data || !data.months || data.months.length === 0) return "";
@@ -225,11 +226,11 @@ function generateEntryExitWindows(data: any): { windows: EntryExitWindow[]; summ
 }
 
 const signalColors: Record<string, string> = {
-  BULLISH: "bg-green-50 text-green-700 border-green-200",
-  BEARISH: "bg-red-50 text-red-700 border-red-200",
-  NEUTRAL: "bg-gray-50 text-gray-600 border-gray-200",
-  STRONG: "bg-green-100 text-green-800 border-green-300",
-  WEAK: "bg-red-100 text-red-800 border-red-300",
+  BULLISH: statusColors.bullish,
+  BEARISH: statusColors.bearish,
+  NEUTRAL: statusColors.neutral,
+  STRONG: "bg-green-100 text-green-800 border-green-300 dark:bg-green-950/40 dark:text-green-300 dark:border-green-800",
+  WEAK: "bg-red-100 text-red-800 border-red-300 dark:bg-red-950/40 dark:text-red-300 dark:border-red-800",
 };
 
 const cyclicalHelp = [
@@ -381,7 +382,7 @@ export default function CyclicalPage() {
 
                 {/* Insight */}
                 {generateInsight(monthlyData) && (
-                  <div className="p-4 rounded-lg bg-blue-50 border border-blue-200 space-y-2">
+                  <div className={`p-4 rounded-lg ${statusColors.info} space-y-2`}>
                     <p className="text-sm font-semibold text-blue-800 flex items-center gap-2">
                       <BarChart3 className="h-4 w-4" /> Pattern Insight
                     </p>
@@ -400,7 +401,7 @@ export default function CyclicalPage() {
                     <div className="space-y-3">
                       {/* Current Action */}
                       {analysis.summary && (
-                        <div className="p-4 rounded-lg bg-amber-50 border border-amber-200">
+                        <div className={`p-4 rounded-lg ${statusColors.amber}`}>
                           <p className="text-sm font-semibold text-amber-800 mb-2">What To Do Now</p>
                           {analysis.summary.split("\n\n").map((line, i) => (
                             <p key={i} className="text-sm text-amber-700 leading-relaxed">{line}</p>
@@ -411,7 +412,7 @@ export default function CyclicalPage() {
                       {/* Windows */}
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                         {analysis.windows.map((w, i) => (
-                          <div key={i} className={`p-4 rounded-lg border ${w.type === "entry" ? "bg-green-50 border-green-200" : "bg-red-50 border-red-200"}`}>
+                          <div key={i} className={`p-4 rounded-lg border ${w.type === "entry" ? statusColors.bullish : statusColors.bearish}`}>
                             <div className="flex items-center justify-between mb-2">
                               <div className="flex items-center gap-2">
                                 {w.type === "entry" ? <TrendingUp className="h-4 w-4 text-green-600" /> : <TrendingDown className="h-4 w-4 text-red-600" />}
@@ -449,10 +450,10 @@ export default function CyclicalPage() {
                   </TableHeader>
                   <TableBody>
                     {(monthlyData.months || []).map((m: any) => (
-                      <TableRow key={m.month} className={m.month === new Date().getMonth() + 1 ? "bg-blue-50" : ""}>
+                      <TableRow key={m.month} className={m.month === new Date().getMonth() + 1 ? "bg-blue-50 dark:bg-blue-950/20" : ""}>
                         <TableCell className="font-medium">
                           {m.month_name}
-                          {m.month === new Date().getMonth() + 1 && <Badge className="ml-2 bg-blue-100 text-blue-700 text-xs">Current</Badge>}
+                          {m.month === new Date().getMonth() + 1 && <Badge className="ml-2 bg-blue-100 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300 text-xs">Current</Badge>}
                         </TableCell>
                         <TableCell className={`text-right ${m.avg_return_pct >= 0 ? "text-green-600" : "text-red-600"}`}>
                           {m.avg_return_pct >= 0 ? "+" : ""}{m.avg_return_pct}%
@@ -480,7 +481,7 @@ export default function CyclicalPage() {
               <CardContent>
                 <div className="grid grid-cols-5 gap-3">
                   {(dowData.days || []).map((d: any) => (
-                    <Card key={d.day} className={d.avg_return_pct >= 0 ? "border-green-200 bg-green-50/50" : "border-red-200 bg-red-50/50"}>
+                    <Card key={d.day} className={d.avg_return_pct >= 0 ? "border-green-200 bg-green-50/50 dark:border-green-800 dark:bg-green-950/20" : "border-red-200 bg-red-50/50 dark:border-red-800 dark:bg-red-950/20"}>
                       <CardContent className="p-3 text-center">
                         <p className="font-medium text-sm">{d.day_name}</p>
                         <p className={`text-lg font-bold ${d.avg_return_pct >= 0 ? "text-green-600" : "text-red-600"}`}>
@@ -493,7 +494,7 @@ export default function CyclicalPage() {
                 </div>
                 {/* Day-of-week insight */}
                 {generateDowInsight(dowData) && (
-                  <div className="mt-3 p-4 rounded-lg bg-blue-50 border border-blue-200 space-y-2">
+                  <div className={`mt-3 p-4 rounded-lg ${statusColors.info} space-y-2`}>
                     <p className="text-sm font-semibold text-blue-800">Day-of-Week Insight</p>
                     {generateDowInsight(dowData).split("\n\n").map((line, i) => (
                       <p key={i} className="text-sm text-blue-700 leading-relaxed">{line}</p>
@@ -569,7 +570,7 @@ export default function CyclicalPage() {
                               {t.pnl_pct >= 0 ? "+" : ""}{t.pnl_pct}%
                             </TableCell>
                             <TableCell>
-                              <Badge variant="outline" className={t.result === "win" ? "bg-green-50 text-green-700" : "bg-red-50 text-red-700"}>
+                              <Badge variant="outline" className={t.result === "win" ? splitStatusColor(statusColors.bullish).bg + " " + splitStatusColor(statusColors.bullish).text : splitStatusColor(statusColors.bearish).bg + " " + splitStatusColor(statusColors.bearish).text}>
                                 {t.result}
                               </Badge>
                             </TableCell>
