@@ -537,13 +537,27 @@ Learning Insights updates with combined data
 - Headline card at TOP of Dashboard (between Market Status and FII/DII banner)
 - API: `GET /api/daily-verdict/`
 
+## Recently Added (Auth, Kite, Portfolio, Notifications)
+
+Shipped after the initial feature set (see git history / PR #4):
+
+- **Browser authentication** (`backend/auth.py`, `backend/routers/auth.py`, `/login`) — single-user HMAC-signed session cookie (12h, revocable on logout), CSRF double-submit + Origin allowlist, WebSocket auth. **Optional for local** (open by default when no secret is set), **required + fail-closed for public** (`TRADINGAGENTS_AUTH_MODE=public`). Secret is env-only (`TRADINGAGENTS_LOCAL_AUTH_SECRET`, or `TRADINGAGENTS_AUTH_USERNAME`/`_PASSWORD`) — never stored in SQLite. Central `AuthMiddleware` wraps all `/api/*` HTTP + WS traffic in `app.py`.
+- **Zerodha Kite read-only integration** (`backend/brokers/kite.py`, `backend/routers/kite.py`) — OAuth login flow, daily access token, `holdings()` fetch, credential masking. **Read-only: no order placement, and no margin fetch yet.** `kiteconnect` dep, lazy-imported.
+- **Equity portfolio analysis** (`backend/equity_portfolio.py`, `backend/routers/equity_portfolio.py`, `/equity-portfolio-analysis`) — P&L, actions, sector allocation, concentration warnings, winners/losers, persisted review history.
+- **Local positions tracking** (`backend/positions.py`, `backend/routers/positions.py`) — manual exchange-aware CRUD + explicit, manual-preserving Kite sync; feeds concentration checks.
+- **Telegram notifications** (`backend/notifications/telegram.py`, `backend/routers/telegram.py`) — test + portfolio-review alerts with safe local-URL button fallback.
+- **Dark mode** — light/dark/system theme via `next-themes` (`ThemeToggle`, status tokens in `lib/status-colors.ts`).
+- **Ollama local LLM provider** — added to `PROVIDERS_INFO` (no API key/cost); `GET /api/settings/ollama/models` live-fetches installed models from `localhost:11434`.
+- **Yahoo-powered ticker search** — `GET /api/market-data/search` now uses `yfinance`'s `Search` (always current, NSE-filtered). `stock_list.py` is only a small curated offline fallback; **no NSE data bundled or fetched**.
+- **Test suite** (`tests/`) — 46 `unittest` cases (auth/CSRF/OAuth-replay/WS-origin, equity portfolio, positions, Telegram). Run: `python -m unittest discover -s tests`.
+
 ## Remaining Phases (Unimplemented)
 
 ### Pre-Kite Hardening
 - ✅ Sector concentration checker — prevents over-exposure to single sector
 - ✅ Daily Verdict synthesizer — single trade-or-skip decision
-- **Phase 4a: Kite read-only sync** — live portfolio + margin visibility (no order risk)
-- **Phase 4b: Kite order placement** — one-click bracket orders with safety checks
+- ✅ **Phase 4a: Kite read-only sync** — live portfolio/holdings (order-free). ⚠️ Margin visibility still pending.
+- **Phase 4b: Kite order placement** — one-click bracket orders with safety checks (NOT implemented; Kite stays read-only)
 
 ### Future Big Features
 - **Options/Futures Phase 3** — Derivatives analyst, option chains, Greeks, PCR, lot sizes
@@ -555,5 +569,4 @@ Learning Insights updates with combined data
 - Promoter activity tracker (NSE bulk/block deals)
 - Comparative analysis (side-by-side stock comparison)
 - Export analysis reports as PDF
-- Dark mode toggle
 - Multi-stock batch analysis queue

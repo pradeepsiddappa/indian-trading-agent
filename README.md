@@ -652,11 +652,20 @@ Switch providers (OpenAI GPT-5.4-mini, Gemini Flash) for even cheaper analyses (
 - [x] API key management via UI
 - [x] Multi-LLM provider support
 - [x] Cost tracking per analysis
+- [x] **Browser authentication** (single-user session + CSRF; optional local, required/fail-closed public)
+- [x] **Zerodha Kite read-only portfolio sync** (OAuth, daily session, holdings)
+- [x] **Equity portfolio analysis** (P&L, actions, sector allocation, concentration, persisted history)
+- [x] **Local positions tracking** (manual CRUD + manual-preserving Kite sync)
+- [x] **Telegram alerts** for portfolio reviews
+- [x] **Dark mode** (light / dark / system theme)
+- [x] **Ollama** local LLM provider (no API key / cost)
+- [x] **Yahoo-powered ticker search** (live; replaces the bundled NSE list)
+- [x] **Automated test suite** (46 tests: auth, portfolio, positions, Telegram)
 
 ### Pre-Kite Hardening
 - [x] Sector concentration checker
 - [x] Daily Verdict synthesizer
-- [ ] Phase 4a: Zerodha Kite read-only sync (live portfolio + margin)
+- [x] Phase 4a: Zerodha Kite read-only sync (live portfolio/holdings) — margin visibility still pending
 - [ ] Phase 4b: One-click order placement with bracket SL/target
 
 ### Future
@@ -666,7 +675,6 @@ Switch providers (OpenAI GPT-5.4-mini, Gemini Flash) for even cheaper analyses (
 - [ ] Comparative analysis (side-by-side stock comparison)
 - [ ] Trade journal with notes
 - [ ] Mobile responsive UI
-- [ ] Dark mode toggle
 - [ ] Export analyses as PDF
 - [ ] Daily email/Telegram briefing
 
