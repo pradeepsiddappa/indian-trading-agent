@@ -177,6 +177,28 @@ cd frontend && npm install && npm run dev
 ```
 </details>
 
+### 5. Connect your Zerodha Kite portfolio (optional, read-only)
+
+The Kite integration pulls your **holdings** for portfolio analysis. It is
+strictly read-only — no orders, no fund transfers.
+
+1. Create a Kite Connect app at [developers.kite.trade](https://developers.kite.trade/apps).
+2. Set the app's **Redirect URL** to the **backend** callback (not the frontend):
+
+   ```
+   http://localhost:8000/api/kite/callback
+   ```
+
+   ⚠️ This must be the backend host/port + `/api/kite/callback`, and match
+   **exactly** (scheme, host, port, path). If you run the backend on a different
+   port, use that port. For a public deployment use your HTTPS backend origin,
+   e.g. `https://api.yourhost.com/api/kite/callback`.
+3. In the app, open **Equity Portfolio Analysis**, paste your **API key** and
+   **API secret**, then click **Connect Kite**. Log in on Kite's page; you'll be
+   redirected back and your holdings will load.
+
+Kite access tokens are issued per day, so you re-connect once each trading day.
+
 ---
 
 ## How It Works

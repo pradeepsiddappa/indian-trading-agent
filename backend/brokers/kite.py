@@ -217,7 +217,13 @@ def get_login_url() -> str:
     url = _new_client().login_url()
     parts = urlsplit(url)
     query = dict(parse_qsl(parts.query, keep_blank_values=True))
-    query["state"] = state
+    # Kite Connect does NOT echo an arbitrary top-level `state` param back to the
+    # redirect URL — it only returns `request_token` (plus action/status). Custom
+    # values must ride along in `redirect_params`, a URL-encoded query string that
+    # Kite decodes and appends to the redirect URL. Carry the CSRF state there so
+    # the callback receives it as a normal `state` param. (Passing it top-level
+    # silently dropped it, failing every real callback with invalid_oauth_state.)
+    query["redirect_params"] = urlencode({"state": state})
     return urlunsplit((parts.scheme, parts.netloc, parts.path, urlencode(query), parts.fragment))
 
 

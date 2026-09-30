@@ -292,9 +292,53 @@ class OAuthRedirectTests(IsolatedStateTestCase, unittest.TestCase):
             response = client.get("/api/kite/login-url")
         self.assertEqual(response.status_code, 200, response.text)
         login_url = response.json()["login_url"]
-        state = parse_qs(urlsplit(login_url).query).get("state", [None])[0]
+        # Kite ignores a bare `state` param; it only echoes values passed via
+        # `redirect_params`, which it URL-decodes into top-level query params on
+        # the redirect. Model that real round-trip: pull the state back out of
+        # redirect_params so it can be replayed as the callback's `state`.
+        redirect_params = parse_qs(urlsplit(login_url).query).get("redirect_params", [""])[0]
+        state = parse_qs(redirect_params).get("state", [None])[0]
         self.assertTrue(state)
         return state
+
+    def test_login_url_delivers_state_via_redirect_params_not_bare_param(self):
+        # Regression for the Kite callback failure (issue #7): Kite Connect drops
+        # an arbitrary top-level `state` and only echoes back values nested in
+        # `redirect_params`. A bare `state` never round-trips, so every real
+        # callback failed with invalid_oauth_state.
+        with fresh_test_client() as client:
+            login(client)
+            with patch(
+                "backend.routers.kite.get_login_url",
+                return_value="https://kite.example/connect/login?api_key=test-key",
+            ):
+                response = client.get("/api/kite/login-url")
+            self.assertEqual(response.status_code, 200, response.text)
+            query = parse_qs(urlsplit(response.json()["login_url"]).query)
+
+        self.assertNotIn("state", query, "state must not ride as a top-level param Kite drops")
+        self.assertIn("redirect_params", query, "state must ride in redirect_params Kite echoes")
+        self.assertTrue(parse_qs(query["redirect_params"][0]).get("state", [None])[0])
+
+    def test_get_login_url_embeds_state_in_redirect_params(self):
+        # Covers the production brokers-layer path (unpatched get_login_url).
+        from backend.brokers import kite as kite_module
+
+        class _StubClient:
+            def login_url(self):
+                return "https://kite.zerodha.com/connect/login?v=3&api_key=test-key"
+
+        with fresh_test_client():
+            with (
+                patch.object(kite_module, "_api_secret", return_value="secret"),
+                patch.object(kite_module, "_new_client", return_value=_StubClient()),
+            ):
+                url = kite_module.get_login_url()
+
+        query = parse_qs(urlsplit(url).query)
+        self.assertNotIn("state", query)
+        self.assertIn("redirect_params", query)
+        self.assertTrue(parse_qs(query["redirect_params"][0]).get("state", [None])[0])
 
     def test_callback_uses_configured_https_frontend_url_not_host_header(self):
         configured = "https://portfolio.example/equity-portfolio-analysis"
@@ -364,15 +408,7 @@ class OAuthRedirectTests(IsolatedStateTestCase, unittest.TestCase):
     def test_oauth_state_is_single_use_and_replay_is_rejected(self):
         with fresh_test_client() as client:
             login(client)
-            with patch(
-                "backend.routers.kite.get_login_url",
-                return_value="https://kite.example/connect/login?api_key=test-key",
-            ):
-                login_url_response = client.get("/api/kite/login-url")
-            self.assertEqual(login_url_response.status_code, 200, login_url_response.text)
-            login_url = login_url_response.json()["login_url"]
-            state = parse_qs(urlsplit(login_url).query).get("state", [None])[0]
-            self.assertTrue(state)
+            state = self._oauth_state(client)
 
             with patch(
                 "backend.routers.kite.exchange_request_token",
