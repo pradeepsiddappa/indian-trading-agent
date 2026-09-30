@@ -6,6 +6,8 @@ import {
   deletePosition,
   getPositions,
   syncPositions,
+  syncUpstoxPositions,
+  syncKotakNeoPositions,
   updatePosition,
 } from "@/lib/api";
 import { Card, CardContent } from "@/components/ui/card";
@@ -31,6 +33,7 @@ import {
   Trash2,
 } from "lucide-react";
 import { statusColors } from "@/lib/status-colors";
+import { BrokerLogo } from "@/components/brokers/BrokerLogos";
 
 export type Position = {
   tradingsymbol: string;
@@ -59,6 +62,8 @@ type PositionsSummary = {
   day_pnl_pct: number;
   manual_count: number;
   kite_count: number;
+  upstox_count?: number;
+  kotak_neo_count?: number;
 };
 
 type PositionsView = {
@@ -114,13 +119,19 @@ const emptyForm: FormState = {
   notes: "",
 };
 
-export function PositionsPanel({ kiteConnected, onPositionCountChange }: {
+export function PositionsPanel({ kiteConnected, upstoxConnected, kotakNeoConnected, onPositionCountChange }: {
   kiteConnected: boolean;
+  upstoxConnected?: boolean;
+  kotakNeoConnected?: boolean;
   onPositionCountChange?: (count: number) => void;
 }) {
   const [view, setView] = useState<PositionsView | null>(null);
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
+  const [syncingUpstox, setSyncingUpstox] = useState(false);
+  const [syncingKotak, setSyncingKotak] = useState(false);
+  const [syncingAll, setSyncingAll] = useState(false);
+  const [sourceFilter, setSourceFilter] = useState<string>("all");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<Position | null>(null);
   const [form, setForm] = useState<FormState>(emptyForm);
@@ -141,7 +152,6 @@ export function PositionsPanel({ kiteConnected, onPositionCountChange }: {
 
   useEffect(() => {
     load();
-    // The loader is intentionally stable for this mount; refreshes call it explicitly.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -163,6 +173,79 @@ export function PositionsPanel({ kiteConnected, onPositionCountChange }: {
       toast.error(e instanceof Error ? e.message : "Kite sync failed");
     } finally {
       setSyncing(false);
+    }
+  };
+
+  const handleUpstoxSync = async () => {
+    setSyncingUpstox(true);
+    try {
+      const result = (await syncUpstoxPositions()) as {
+        added: number;
+        updated: number;
+        removed: number;
+        skipped_manual?: number;
+      };
+      toast.success(
+        `Synced from Upstox — ${result.added} added, ${result.updated} updated, ${result.removed} removed` +
+        (result.skipped_manual ? `; ${result.skipped_manual} manual position(s) preserved` : "")
+      );
+      await load();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Upstox sync failed");
+    } finally {
+      setSyncingUpstox(false);
+    }
+  };
+
+  const handleKotakNeoSync = async () => {
+    setSyncingKotak(true);
+    try {
+      const result = (await syncKotakNeoPositions()) as {
+        added: number;
+        updated: number;
+        removed: number;
+        skipped_manual?: number;
+      };
+      toast.success(
+        `Synced from Kotak Neo — ${result.added} added, ${result.updated} updated, ${result.removed} removed` +
+        (result.skipped_manual ? `; ${result.skipped_manual} manual position(s) preserved` : "")
+      );
+      await load();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Kotak Neo sync failed");
+    } finally {
+      setSyncingKotak(false);
+    }
+  };
+
+  const handleSyncAll = async () => {
+    setSyncingAll(true);
+    let kiteSuccess = false;
+    let upstoxSuccess = false;
+    let kotakSuccess = false;
+    try {
+      if (kiteConnected) {
+        await syncPositions();
+        kiteSuccess = true;
+      }
+      if (upstoxConnected) {
+        await syncUpstoxPositions();
+        upstoxSuccess = true;
+      }
+      if (kotakNeoConnected) {
+        await syncKotakNeoPositions();
+        kotakSuccess = true;
+      }
+      toast.success(
+        `Multi-Broker Sync Complete — ${
+          [kiteSuccess && "Kite", upstoxSuccess && "Upstox", kotakSuccess && "Kotak Neo"].filter(Boolean).join(" & ") || "No brokers connected"
+        }`
+      );
+      await load();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Multi-broker sync encountered an error");
+    } finally {
+      setSyncingAll(false);
     }
   };
 
@@ -252,7 +335,16 @@ export function PositionsPanel({ kiteConnected, onPositionCountChange }: {
   }
 
   const summary = view?.summary;
-  const positions = view?.positions || [];
+  const rawPositions = view?.positions || [];
+
+  const positions = rawPositions.filter((p) => {
+    if (sourceFilter === "all") return true;
+    if (sourceFilter === "kite") return p.source === "kite";
+    if (sourceFilter === "upstox") return p.source === "upstox";
+    if (sourceFilter === "kotak_neo") return p.source === "kotak_neo";
+    if (sourceFilter === "manual") return p.source === "manual" || p.source === "local_position";
+    return true;
+  });
 
   return (
     <div className="space-y-4">
@@ -268,20 +360,46 @@ export function PositionsPanel({ kiteConnected, onPositionCountChange }: {
           <Button variant="outline" size="sm" onClick={openAdd}>
             <Plus className="h-3 w-3 mr-1" /> Add Position
           </Button>
-          <Button size="sm" onClick={handleSync} disabled={!kiteConnected || syncing}>
+          {(kiteConnected || upstoxConnected || kotakNeoConnected) && (
+            <Button size="sm" onClick={handleSyncAll} disabled={syncingAll || syncing || syncingUpstox || syncingKotak}>
+              {syncingAll ? (
+                <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+              ) : (
+                <RefreshCw className="h-3 w-3 mr-1" />
+              )}
+              Sync All Brokers
+            </Button>
+          )}
+          <Button size="sm" variant="outline" onClick={handleSync} disabled={!kiteConnected || syncing}>
             {syncing ? (
               <Loader2 className="h-3 w-3 mr-1 animate-spin" />
             ) : (
               <RefreshCw className="h-3 w-3 mr-1" />
             )}
-            Sync from Kite
+            Kite
+          </Button>
+          <Button size="sm" variant="outline" onClick={handleUpstoxSync} disabled={!upstoxConnected || syncingUpstox}>
+            {syncingUpstox ? (
+              <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+            ) : (
+              <RefreshCw className="h-3 w-3 mr-1" />
+            )}
+            Upstox
+          </Button>
+          <Button size="sm" variant="outline" onClick={handleKotakNeoSync} disabled={!kotakNeoConnected || syncingKotak}>
+            {syncingKotak ? (
+              <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+            ) : (
+              <RefreshCw className="h-3 w-3 mr-1" />
+            )}
+            Kotak Neo
           </Button>
         </div>
       </div>
 
-      {!kiteConnected && (
+      {(!kiteConnected && !upstoxConnected && !kotakNeoConnected) && (
         <p className="text-xs text-muted-foreground">
-          Kite is not connected for today — sync is disabled, but your stored positions remain available below.
+          Brokers are not connected for today — sync is disabled, but your stored positions remain available below.
         </p>
       )}
 
@@ -292,7 +410,7 @@ export function PositionsPanel({ kiteConnected, onPositionCountChange }: {
               <p className="text-xs text-muted-foreground">Current Value</p>
               <p className="text-2xl font-bold">{money(summary.total_current)}</p>
               <p className="text-xs text-muted-foreground">
-                {summary.total_positions} positions ({summary.kite_count} kite, {summary.manual_count} manual)
+                {summary.total_positions} positions ({summary.kite_count} kite, {summary.upstox_count || 0} upstox, {summary.kotak_neo_count || 0} kotak, {summary.manual_count} manual)
               </p>
             </CardContent>
           </Card>
@@ -319,6 +437,46 @@ export function PositionsPanel({ kiteConnected, onPositionCountChange }: {
         </div>
       )}
 
+      {/* Broker Source Filter Bar */}
+      <div className="flex items-center gap-2 border-b pb-2">
+        <span className="text-xs font-medium text-muted-foreground mr-1">Filter Source:</span>
+        <Button
+          variant={sourceFilter === "all" ? "default" : "ghost"}
+          size="xs"
+          onClick={() => setSourceFilter("all")}
+        >
+          All ({rawPositions.length})
+        </Button>
+        <Button
+          variant={sourceFilter === "kite" ? "default" : "ghost"}
+          size="xs"
+          onClick={() => setSourceFilter("kite")}
+        >
+          Zerodha Kite ({summary?.kite_count || 0})
+        </Button>
+        <Button
+          variant={sourceFilter === "upstox" ? "default" : "ghost"}
+          size="xs"
+          onClick={() => setSourceFilter("upstox")}
+        >
+          Upstox ({summary?.upstox_count || 0})
+        </Button>
+        <Button
+          variant={sourceFilter === "kotak_neo" ? "default" : "ghost"}
+          size="xs"
+          onClick={() => setSourceFilter("kotak_neo")}
+        >
+          Kotak Neo ({summary?.kotak_neo_count || 0})
+        </Button>
+        <Button
+          variant={sourceFilter === "manual" ? "default" : "ghost"}
+          size="xs"
+          onClick={() => setSourceFilter("manual")}
+        >
+          Manual ({summary?.manual_count || 0})
+        </Button>
+      </div>
+
       <Card>
         <CardContent className="p-0">
           <Table>
@@ -341,7 +499,7 @@ export function PositionsPanel({ kiteConnected, onPositionCountChange }: {
                 <TableRow>
                   <TableCell colSpan={10} className="text-center py-10 text-muted-foreground">
                     No positions stored yet.
-                    {kiteConnected ? " Sync from Kite to import your holdings." : " Add one manually or connect Kite to sync."}
+                    {kiteConnected || upstoxConnected || kotakNeoConnected ? " Sync from connected broker to import your holdings." : " Add one manually or connect a broker to sync."}
                   </TableCell>
                 </TableRow>
               ) : (
@@ -351,9 +509,26 @@ export function PositionsPanel({ kiteConnected, onPositionCountChange }: {
                     <TableCell>
                       <Badge
                         variant="outline"
-                        className={p.source === "kite" ? statusColors.info : statusColors.neutral}
+                        className={`inline-flex items-center gap-1.5 ${
+                          p.source === "kite"
+                            ? statusColors.info
+                            : p.source === "upstox"
+                            ? statusColors.orange
+                            : p.source === "kotak_neo"
+                            ? statusColors.caution
+                            : statusColors.neutral
+                        }`}
                       >
-                        {p.source === "kite" ? "KITE" : "MANUAL"}
+                        {p.source && p.source !== "manual" ? (
+                          <BrokerLogo brokerKey={p.source} className="h-3 w-3" />
+                        ) : null}
+                        {p.source === "kite"
+                          ? "KITE"
+                          : p.source === "upstox"
+                          ? "UPSTOX"
+                          : p.source === "kotak_neo"
+                          ? "KOTAK NEO"
+                          : "MANUAL"}
                       </Badge>
                     </TableCell>
                     <TableCell className="text-right">{p.quantity}</TableCell>

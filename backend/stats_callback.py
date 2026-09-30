@@ -18,8 +18,12 @@ MODEL_COSTS = {
     "gpt-4.1": {"input": 2.50, "output": 10.0},
     "gpt-4.1-mini": {"input": 0.15, "output": 0.60},
     # Google
+    "gemini-3.8-pro": {"input": 1.25, "output": 5.0},
+    "gemini-3.5-pro": {"input": 1.25, "output": 5.0},
     "gemini-3.1-pro": {"input": 1.25, "output": 5.0},
     "gemini-3-pro": {"input": 1.25, "output": 5.0},
+    "gemini-3.8-flash": {"input": 0.075, "output": 0.30},
+    "gemini-3.5-flash": {"input": 0.075, "output": 0.30},
     "gemini-2.5-flash": {"input": 0.075, "output": 0.30},
     "gemini-2-flash": {"input": 0.10, "output": 0.40},
 }

@@ -167,12 +167,34 @@ export const login = (credentials: LoginCredentials | string) =>
 export const logout = () => fetchAPI(`/api/auth/logout`, { method: "POST" });
 export const getAuthStatus = () => fetchAPI<AuthStatus>(`/api/auth/status`);
 
-// Kite + Equity Portfolio Analysis
+// Kite + Upstox + Kotak Neo + Equity Portfolio Analysis
 export const getKiteStatus = () => fetchAPI(`/api/kite/status`);
 export const saveKiteCredentials = (data: { api_key: string; api_secret: string }) =>
   fetchAPI(`/api/kite/credentials`, { method: "PUT", body: JSON.stringify(data) });
 export const getKiteLoginUrl = () => fetchAPI(`/api/kite/login-url`);
 export const logoutKite = () => fetchAPI(`/api/kite/logout`, { method: "POST" });
+
+export const getUpstoxStatus = () => fetchAPI(`/api/upstox/status`);
+export const saveUpstoxCredentials = (data: { api_key: string; api_secret: string }) =>
+  fetchAPI(`/api/upstox/credentials`, { method: "PUT", body: JSON.stringify(data) });
+export const getUpstoxLoginUrl = () => fetchAPI(`/api/upstox/login-url`);
+export const logoutUpstox = () => fetchAPI(`/api/upstox/logout`, { method: "POST" });
+
+export const getKotakNeoStatus = () => fetchAPI(`/api/kotak-neo/status`);
+export const saveKotakNeoCredentials = (data: {
+  consumer_key: string;
+  consumer_secret: string;
+  mobile_number: string;
+  pan_or_dob?: string;
+}) => fetchAPI(`/api/kotak-neo/credentials`, { method: "PUT", body: JSON.stringify(data) });
+export const loginKotakNeo = (data: { mpin_or_password: string; session_token?: string }) =>
+  fetchAPI(`/api/kotak-neo/login`, { method: "POST", body: JSON.stringify(data) });
+export const logoutKotakNeo = () => fetchAPI(`/api/kotak-neo/logout`, { method: "POST" });
+
+export const getMarketDataVendorStatus = () => fetchAPI(`/api/market-data/vendor`);
+export const saveMarketDataVendorSetting = (vendor: string) =>
+  fetchAPI(`/api/market-data/vendor`, { method: "PUT", body: JSON.stringify({ vendor }) });
+
 export const getEquityHoldings = () => fetchAPI(`/api/equity-portfolio/holdings`);
 export const runEquityPortfolioReview = () =>
   fetchAPI(`/api/equity-portfolio/reviews`, { method: "POST" });
@@ -193,9 +215,17 @@ export const deleteTelegramSettings = () => fetchAPI(`/api/telegram/settings`, {
 export const sendTelegramTest = (text?: string) =>
   fetchAPI(`/api/telegram/test`, { method: "POST", body: JSON.stringify({ text: text || null }) });
 
-// Positions (local store, synced from Kite on demand)
+// Institutional & Insider Tracker
+export const getInstitutionalSummary = () => fetchAPI(`/api/institutional/summary`);
+export const getBulkDeals = () => fetchAPI(`/api/institutional/bulk-deals`);
+export const getPromoterActivity = () => fetchAPI(`/api/institutional/promoter-activity`);
+export const getDeliveryStats = (ticker: string) => fetchAPI(`/api/institutional/delivery/${ticker}`);
+
+// Positions (local store, synced from Kite/Upstox/Kotak Neo on demand)
 export const getPositions = () => fetchAPI(`/api/positions`);
 export const syncPositions = () => fetchAPI(`/api/positions/sync`, { method: "POST" });
+export const syncUpstoxPositions = () => fetchAPI(`/api/positions/sync-upstox`, { method: "POST" });
+export const syncKotakNeoPositions = () => fetchAPI(`/api/positions/sync-kotak-neo`, { method: "POST" });
 export const addPosition = (data: {
   tradingsymbol: string;
   exchange?: string;
