@@ -9,7 +9,7 @@ aiosqlite==0.22.1
 annotated-doc==0.0.4
 annotated-types==0.7.0
 anthropic==0.94.0
-anyio==4.13.0
+anyio==4.14.2
 attrs==26.1.0
 backtrader==1.9.78.123
 beautifulsoup4==4.14.3
