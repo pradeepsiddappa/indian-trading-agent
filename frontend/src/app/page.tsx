@@ -8,6 +8,7 @@ import { WorkflowGuide } from "@/components/dashboard/WorkflowGuide";
 import { QuickActions } from "@/components/dashboard/QuickActions";
 import { SectorHeatmap } from "@/components/dashboard/SectorHeatmap";
 import { FIIDIIBanner } from "@/components/dashboard/FIIDIIBanner";
+import { InstitutionalTrackerPanel } from "@/components/dashboard/InstitutionalTrackerPanel";
 import { CalendarBanner } from "@/components/dashboard/CalendarBanner";
 import { ConcentrationWidget } from "@/components/dashboard/ConcentrationWidget";
 import { DailyVerdict } from "@/components/dashboard/DailyVerdict";

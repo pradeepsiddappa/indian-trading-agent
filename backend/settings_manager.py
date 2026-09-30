@@ -44,8 +44,8 @@ PROVIDERS_INFO = {
         "name": "Google Gemini",
         "key_format": "AIza...",
         "signup_url": "https://aistudio.google.com/app/apikey",
-        "models_deep": ["gemini-3.1-pro", "gemini-3-pro"],
-        "models_quick": ["gemini-2.5-flash", "gemini-2-flash"],
+        "models_deep": ["gemini-3.8-pro", "gemini-3.5-pro", "gemini-3.1-pro"],
+        "models_quick": ["gemini-3.8-flash", "gemini-3.5-flash", "gemini-3-flash-preview"],
     },
     "ollama": {
         "name": "Ollama (Local)",
@@ -133,7 +133,7 @@ def test_api_key(provider: str, key: str | None = None) -> dict:
     try:
         if provider == "anthropic":
             from anthropic import Anthropic
-            client = Anthropic(api_key=key)
+            client = Anthropic(api_key=key, timeout=8.0)
             resp = client.messages.create(
                 model="claude-haiku-4-5-20251001",
                 max_tokens=10,
@@ -143,7 +143,7 @@ def test_api_key(provider: str, key: str | None = None) -> dict:
 
         elif provider == "openai":
             from openai import OpenAI
-            client = OpenAI(api_key=key)
+            client = OpenAI(api_key=key, timeout=8.0)
             resp = client.chat.completions.create(
                 model="gpt-5.4-mini",
                 max_tokens=10,
@@ -153,12 +153,29 @@ def test_api_key(provider: str, key: str | None = None) -> dict:
 
         elif provider == "google":
             from google import genai
-            client = genai.Client(api_key=key)
-            resp = client.models.generate_content(
-                model="gemini-2.5-flash",
-                contents="Say hi",
-            )
-            return {"ok": True, "model": "gemini-2.5-flash", "message": "API key works!"}
+            client = genai.Client(api_key=key, http_options={"timeout": 12000})
+            test_model = "gemini-3.8-flash"
+            try:
+                resp = client.models.generate_content(
+                    model=test_model,
+                    contents="Say hi",
+                )
+            except Exception as e:
+                if "404" in str(e) or "NOT_FOUND" in str(e) or "no longer available" in str(e):
+                    # Try listing models dynamically
+                    models = [
+                        m.name.replace("models/", "")
+                        for m in client.models.list()
+                        if hasattr(m, "name") and "gemini" in m.name.lower()
+                    ]
+                    test_model = models[0] if models else "gemini-3.5-flash"
+                    resp = client.models.generate_content(
+                        model=test_model,
+                        contents="Say hi",
+                    )
+                else:
+                    raise e
+            return {"ok": True, "model": test_model, "message": "API key works!"}
 
         else:
             return {"ok": False, "error": f"Testing not implemented for {provider}"}
@@ -168,14 +185,35 @@ def test_api_key(provider: str, key: str | None = None) -> dict:
         return {"ok": False, "error": "Provider test failed; check backend logs."}
 
 
+OBSOLETE_MODELS = {
+    "gemini-2.5-flash",
+    "gemini-2.5-flash-lite",
+    "gemini-2.5-pro",
+    "gemini-2-flash",
+    "gemini-1.5-flash",
+    "gemini-1.5-pro",
+}
+
+
+def sanitize_model_name(model: str | None, kind: str = "quick") -> str:
+    """Sanitize obsolete model names to active working models so unusable models are never loaded."""
+    if not model or model.lower() in OBSOLETE_MODELS:
+        return "gemini-3.8-flash" if kind == "quick" else "gemini-3.8-pro"
+    return model
+
+
 def get_llm_config() -> dict:
     """Get current LLM provider and model config (from DB or defaults)."""
     from tradingagents.default_config import DEFAULT_CONFIG
 
+    provider = get_setting("llm_provider") or DEFAULT_CONFIG["llm_provider"]
+    deep = sanitize_model_name(get_setting("deep_think_llm") or DEFAULT_CONFIG["deep_think_llm"], kind="deep")
+    quick = sanitize_model_name(get_setting("quick_think_llm") or DEFAULT_CONFIG["quick_think_llm"], kind="quick")
+
     return {
-        "llm_provider": get_setting("llm_provider") or DEFAULT_CONFIG["llm_provider"],
-        "deep_think_llm": get_setting("deep_think_llm") or DEFAULT_CONFIG["deep_think_llm"],
-        "quick_think_llm": get_setting("quick_think_llm") or DEFAULT_CONFIG["quick_think_llm"],
+        "llm_provider": provider,
+        "deep_think_llm": deep,
+        "quick_think_llm": quick,
     }
 
 
@@ -184,9 +222,9 @@ def save_llm_config(provider: str | None = None, deep_model: str | None = None, 
     if provider is not None:
         set_setting("llm_provider", provider)
     if deep_model is not None:
-        set_setting("deep_think_llm", deep_model)
+        set_setting("deep_think_llm", sanitize_model_name(deep_model, kind="deep"))
     if quick_model is not None:
-        set_setting("quick_think_llm", quick_model)
+        set_setting("quick_think_llm", sanitize_model_name(quick_model, kind="quick"))
 
 
 def apply_llm_config_to_default():

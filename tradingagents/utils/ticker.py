@@ -33,6 +33,12 @@ class InvalidTickerError(ValueError):
     """Raised when a symbol contains characters no real ticker uses."""
 
 
+SYMBOL_ALIASES = {
+    "TATAMOTORS": "TMPV",
+    "TATAMTRDVR": "TMPV",
+}
+
+
 def normalize_ticker(symbol: str, exchange: str = "NSE") -> str:
     """Normalize a ticker symbol for yfinance queries.
 
@@ -52,6 +58,8 @@ def normalize_ticker(symbol: str, exchange: str = "NSE") -> str:
             "..") that no real ticker uses.
     """
     symbol = symbol.strip().upper()
+    if symbol in SYMBOL_ALIASES:
+        symbol = SYMBOL_ALIASES[symbol]
 
     # Check if it's a known index
     if symbol in POPULAR_INDICES:

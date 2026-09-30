@@ -431,6 +431,30 @@ class OAuthRedirectTests(IsolatedStateTestCase, unittest.TestCase):
         self.assertEqual(replay_query["kite"], ["error"])
         exchange.assert_called_once_with("request-123")
 
+    def test_callback_succeeds_when_zerodha_omits_state_param_if_valid_pending_state_exists(self):
+        with fresh_test_client() as client:
+            login(client)
+            with patch(
+                "backend.routers.kite.get_login_url",
+                return_value="https://kite.example/connect/login?api_key=test-key",
+            ):
+                login_url_response = client.get("/api/kite/login-url")
+            self.assertEqual(login_url_response.status_code, 200, login_url_response.text)
+
+            with patch(
+                "backend.routers.kite.exchange_request_token",
+                return_value={"connected_today": True},
+            ) as exchange:
+                # Zerodha Connect redirects without state param: ?request_token=...&action=login&status=success
+                zerodha_callback = client.get(
+                    "/api/kite/callback?request_token=request-789&action=login&status=success",
+                    follow_redirects=False,
+                )
+
+        location = self._location(zerodha_callback)
+        self.assertEqual(parse_qs(urlsplit(location).query)["kite"], ["connected"])
+        exchange.assert_called_once_with("request-789")
+
     def test_invalid_oauth_state_does_not_consume_pending_state(self):
         from backend.brokers.kite import consume_oauth_state, create_oauth_state
 

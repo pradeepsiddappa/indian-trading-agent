@@ -361,22 +361,34 @@ def _summarize_trades(trades: list[dict], hold_days: list[int], strategy_name: s
     }
 
 
+_PERFORMANCE_CACHE: dict = {}
+
+
 def measure_all_strategies(
     universe: str = "nifty50",
     lookback_days: int = 60,
     hold_days: list[int] = [1, 3, 5],
 ) -> dict:
-    """Run performance measurement for all strategies."""
-    results = {}
+    """Run performance measurement for all strategies. Caches result for 10 min to avoid Nginx timeouts."""
+    cache_key = f"{universe}_{lookback_days}_{','.join(map(str, hold_days))}"
+    now = datetime.now()
+    if cache_key in _PERFORMANCE_CACHE:
+        cached_time, data = _PERFORMANCE_CACHE[cache_key]
+        if (now - cached_time).total_seconds() < 600:
+            return data
 
+    results = {}
     results["gap"] = measure_gap_strategy(universe, lookback_days, hold_days=hold_days)
     results["volume"] = measure_volume_strategy(universe, lookback_days, hold_days=hold_days)
     results["breakout"] = measure_breakout_strategy(universe, lookback_days, hold_days=hold_days)
     results["sr_bounce"] = measure_sr_bounce_strategy(universe, lookback_days, hold_days=hold_days)
 
-    return {
+    out = {
         "universe": universe,
         "lookback_days": lookback_days,
         "hold_days": hold_days,
         "strategies": results,
     }
+    _PERFORMANCE_CACHE[cache_key] = (now, out)
+    return out
+

@@ -32,6 +32,31 @@ def _yahoo_nse_search(query: str) -> list:
     return results
 
 
+from pydantic import BaseModel
+
+from backend.market_data_provider import (
+    fetch_quote,
+    get_vendor_status,
+    set_vendor_setting,
+)
+
+
+class VendorSettingRequest(BaseModel):
+    vendor: str
+
+
+@router.get("/vendor")
+def get_market_data_vendor():
+    """Get market data vendor setting, active provider, and broker session states."""
+    return get_vendor_status()
+
+
+@router.put("/vendor")
+def update_market_data_vendor(req: VendorSettingRequest):
+    """Set market data vendor ('auto', 'yfinance', 'kite', 'upstox', 'kotak_neo')."""
+    return set_vendor_setting(req.vendor)
+
+
 @router.get("/search")
 def search_stocks(q: str = Query("", description="Search query — ticker or company name")):
     """Typeahead search via Yahoo Finance — no local stock list, always current.
@@ -53,37 +78,11 @@ def search_stocks(q: str = Query("", description="Search query — ticker or com
 
 @router.get("/quote/{ticker}")
 def get_quote(ticker: str):
-    """Get real-time quote for a ticker."""
-    symbol = normalize_ticker(ticker)
-    t = yf.Ticker(symbol)
-    info = t.info
-
-    hist = t.history(period="2d")
-    if hist.empty:
-        return {"error": f"No data found for {symbol}"}
-
-    current = hist.iloc[-1]
-    prev_close = info.get("previousClose") or (hist.iloc[-2]["Close"] if len(hist) > 1 else current["Close"])
-    price = current["Close"]
-    change = price - prev_close
-    change_pct = (change / prev_close * 100) if prev_close else 0
-
-    return {
-        "ticker": symbol,
-        "name": info.get("shortName", symbol),
-        "price": round(price, 2),
-        "change": round(change, 2),
-        "change_percent": round(change_pct, 2),
-        "volume": int(current.get("Volume", 0)),
-        "high": round(current["High"], 2),
-        "low": round(current["Low"], 2),
-        "open": round(current["Open"], 2),
-        "prev_close": round(prev_close, 2),
-        "market_cap": info.get("marketCap"),
-        "pe_ratio": info.get("trailingPE"),
-        "fifty_two_week_high": info.get("fiftyTwoWeekHigh"),
-        "fifty_two_week_low": info.get("fiftyTwoWeekLow"),
-    }
+    """Get real-time quote for a ticker using the configured/resolved vendor."""
+    try:
+        return fetch_quote(ticker)
+    except Exception as e:
+        return {"error": f"Failed to fetch quote for {ticker}: {str(e)}"}
 
 
 @router.get("/chart/{ticker}")

@@ -1,0 +1,167 @@
+name: Autonomous AI Developer Agent
+
+on:
+  repository_dispatch:
+    types: [jira_ticket_assigned]
+  workflow_dispatch:
+    inputs:
+      issue_key:
+        description: 'Jira Issue Key (e.g. KAN-1)'
+        required: true
+        default: 'KAN-1'
+
+jobs:
+  build-and-fix:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install google-genai atlassian-python-api requests
+
+      - name: Execute Autonomous Developer Agent
+        env:
+          ANTIGRAVITY_API_KEY: ${{ secrets.ANTIGRAVITY_API_KEY }}
+          JIRA_API_TOKEN: ${{ secrets.JIRA_API_TOKEN }}
+          JIRA_EMAIL: ${{ secrets.JIRA_EMAIL }}
+          JIRA_DOMAIN: ${{ secrets.JIRA_DOMAIN }}
+          JIRA_ISSUE_KEY: ${{ github.event.client_payload.issue_key || inputs.issue_key }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          python - << 'EOF'
+          import os
+          import sys
+          import time
+          import subprocess
+          from google import genai
+          from atlassian import Jira
+
+          def generate_ai_response(ai_client, prompt):
+              models_to_try = [
+                  "gemini-2.5-flash",
+                  "gemini-2.5-pro",
+                  "gemini-1.5-flash"
+              ]
+              
+              for model in models_to_try:
+                  print(f"Attempting response generation with model: {model}...")
+                  for attempt in range(1, 4):
+                      try:
+                          chat = ai_client.chats.create(model=model)
+                          response = chat.send_message(prompt)
+                          if response and response.text:
+                              print(f"Successfully generated response using model: {model}")
+                              return response.text
+                      except Exception as e:
+                          print(f"Attempt {attempt} for {model} failed: {e}")
+                          if "503" in str(e) or "UNAVAILABLE" in str(e):
+                              time.sleep(4 * attempt)
+                          else:
+                              break
+              
+              raise Exception("All models failed due to high server demand.")
+
+          def main():
+              issue_key = os.environ.get("JIRA_ISSUE_KEY")
+              if not issue_key:
+                  print("Error: No JIRA_ISSUE_KEY provided.")
+                  sys.exit(1)
+
+              print(f"=== Starting Autonomous Agent for Jira Ticket: {issue_key} ===")
+
+              # 1. Initialize Jira Client
+              jira_domain = os.environ["JIRA_DOMAIN"].replace("https://", "").replace("http://", "").strip("/")
+              jira_url = f"https://{jira_domain}"
+              
+              jira = Jira(
+                  url=jira_url,
+                  username=os.environ["JIRA_EMAIL"],
+                  password=os.environ["JIRA_API_TOKEN"],
+                  cloud=True
+              )
+
+              # 2. Fetch Jira Issue Details
+              print("Fetching issue details from Jira...")
+              issue = jira.issue(issue_key)
+              summary = issue['fields']['summary']
+              description = issue['fields'].get('description', 'No description provided.')
+              print(f"Summary: {summary}")
+
+              # 3. Initialize Gemini AI Client & Generate Content
+              ai_client = genai.Client(api_key=os.environ["ANTIGRAVITY_API_KEY"])
+              
+              prompt = f"""
+              You are an expert autonomous software engineer.
+              Your task is to analyze a Jira requirement and provide code changes or instructions.
+
+              Jira Issue Key: {issue_key}
+              Summary: {summary}
+              Description: {description}
+
+              Review the repository files and generate a brief implementation plan and code updates.
+              """
+
+              print("Generating AI resolution plan...")
+              ai_output = generate_ai_response(ai_client, prompt)
+              print("AI Plan Generated Successfully.")
+
+              # 4. Create Git Branch & Commit Changes
+              branch_name = f"feature/{issue_key.lower()}"
+              print(f"Creating git branch: {branch_name}")
+              
+              subprocess.run(["git", "config", "user.name", "Antigravity-AI-Bot"], check=True)
+              subprocess.run(["git", "config", "user.email", "bot@antigravity.ai"], check=True)
+              subprocess.run(["git", "checkout", "-b", branch_name], check=True)
+
+              with open("AI_EXECUTION_LOG.md", "w") as f:
+                  f.write(f"# Resolution Report for {issue_key}\n\n{ai_output}")
+
+              subprocess.run(["git", "add", "."], check=True)
+              subprocess.run(["git", "commit", "-m", f"feat({issue_key}): {summary}"], check=True)
+              
+              print("Pushing branch to GitHub...")
+              repo_url = f"https://x-access-token:{os.environ['GITHUB_TOKEN']}@github.com/{os.environ['GITHUB_REPOSITORY']}.git"
+              subprocess.run(["git", "push", repo_url, branch_name, "--force"], check=True)
+
+              # 5. Create Pull Request
+              print("Creating GitHub Pull Request...")
+              pr_cmd = [
+                  "gh", "pr", "create",
+                  "--title", f"[{issue_key}] {summary}",
+                  "--body", f"Automated PR created by AI Developer Agent.\n\n### AI Summary:\n{ai_output[:1000]}...",
+                  "--head", branch_name,
+                  "--base", "main"
+              ]
+              subprocess.run(pr_cmd, check=False)
+
+              # 6. Post Comment & Transition Jira Ticket
+              comment_body = f"🤖 **AI Agent Work Completed**\n\nBranch: `{branch_name}`\nSummary of Resolution:\n{ai_output[:800]}...\n\n*A Pull Request has been opened on GitHub.*"
+              jira.issue_add_comment(issue_key, comment_body)
+              print("Updated Jira ticket with completion comment.")
+
+              transitions = jira.get_issue_transitions(issue_key)
+              for t in transitions:
+                  if t['name'].lower() in ['in review', 'in progress', 'done']:
+                      jira.transition_issue(issue_key, t['id'])
+                      print(f"Transitioned Jira ticket status to: {t['name']}")
+                      break
+
+              print("=== Workflow Finished Successfully ===")
+
+          if __name__ == "__main__":
+              main()
+          EOF

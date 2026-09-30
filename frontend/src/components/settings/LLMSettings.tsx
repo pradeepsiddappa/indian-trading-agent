@@ -118,12 +118,21 @@ export function LLMSettings() {
   const modelsDirty =
     isDefault && (sel.deep !== saved.deep_think_llm || sel.quick !== saved.quick_think_llm);
 
+  const OBSOLETE_MODELS = new Set([
+    "gemini-2.5-flash",
+    "gemini-2.5-flash-lite",
+    "gemini-2.5-pro",
+    "gemini-2-flash",
+    "gemini-1.5-flash",
+    "gemini-1.5-pro",
+  ]);
+
   const optionsFor = (kind: "deep" | "quick"): string[] => {
     let base: string[];
     if (selected === "ollama" && ollama.reachable && ollama.models.length) base = ollama.models;
     else base = (kind === "deep" ? cur?.models_deep : cur?.models_quick) || [];
     const current = kind === "deep" ? sel.deep : sel.quick;
-    return Array.from(new Set([current, ...base].filter(Boolean)));
+    return Array.from(new Set([current, ...base].filter((m) => m && !OBSOLETE_MODELS.has(m))));
   };
 
   const setModel = (kind: "deep" | "quick", val: string) =>

@@ -168,10 +168,8 @@ def create_oauth_state() -> str:
     return state
 
 
-def consume_oauth_state(state: str | None) -> bool:
+def consume_oauth_state(state: str | None = None) -> bool:
     """Atomically validate and delete the currently outstanding OAuth state."""
-    if not state:
-        return False
     with get_db() as conn:
         # SQLite's default deferred transaction allows two concurrent readers
         # to observe the same state before either DELETE is committed. Take a
@@ -185,6 +183,30 @@ def consume_oauth_state(state: str | None) -> bool:
             conn.execute("DELETE FROM settings WHERE key = ?", (KITE_OAUTH_STATE,))
             return False
         now = time.time()
+
+        if state is None:
+            # Zerodha Kite Connect callback does not return custom 'state' query parameters.
+            # Consume the most recent fresh pending state initiated by this app within the TTL window.
+            fresh_entries = [
+                e for e in entries if 0 <= now - float(e["issued_at"]) <= OAUTH_STATE_TTL_SECONDS
+            ]
+            if not fresh_entries:
+                conn.execute("DELETE FROM settings WHERE key = ?", (KITE_OAUTH_STATE,))
+                return False
+            latest = max(fresh_entries, key=lambda e: float(e["issued_at"]))
+            remaining = [
+                e for e in entries
+                if e["state"] != latest["state"] and 0 <= now - float(e["issued_at"]) <= OAUTH_STATE_TTL_SECONDS
+            ]
+            if remaining:
+                conn.execute(
+                    "UPDATE settings SET value = ? WHERE key = ?",
+                    (json.dumps(remaining), KITE_OAUTH_STATE),
+                )
+            else:
+                conn.execute("DELETE FROM settings WHERE key = ?", (KITE_OAUTH_STATE,))
+            return True
+
         matched = False
         valid = False
         remaining = []

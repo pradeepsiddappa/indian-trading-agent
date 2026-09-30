@@ -1,5 +1,6 @@
 """Settings API — manage API keys and LLM provider config from the UI."""
 
+import os
 import json
 import logging
 import urllib.request
@@ -82,8 +83,29 @@ def update_llm_settings(data: LLMConfigUpdate):
 
 @router.get("/providers")
 def list_providers():
-    """List available LLM providers with their supported models."""
-    return PROVIDERS_INFO
+    """List available LLM providers with their active supported models."""
+    from backend.db import get_setting
+    from backend.settings_manager import OBSOLETE_MODELS
+    info = json.loads(json.dumps(PROVIDERS_INFO))
+
+    api_key_google = get_setting("api_key_google") or os.environ.get("GOOGLE_API_KEY")
+    if api_key_google:
+        try:
+            from tradingagents.llm_clients.google_client import get_google_live_models
+            live = get_google_live_models(api_key_google)
+            if live.get("quick"):
+                info["google"]["models_quick"] = [m for m in live["quick"] if m not in OBSOLETE_MODELS]
+            if live.get("deep"):
+                info["google"]["models_deep"] = [m for m in live["deep"] if m not in OBSOLETE_MODELS]
+        except Exception:
+            pass
+
+    # Ensure obsolete models are filtered out for all providers
+    for p_id in info:
+        info[p_id]["models_quick"] = [m for m in info[p_id].get("models_quick", []) if m not in OBSOLETE_MODELS]
+        info[p_id]["models_deep"] = [m for m in info[p_id].get("models_deep", []) if m not in OBSOLETE_MODELS]
+
+    return info
 
 
 def _ollama_host() -> str:
@@ -122,3 +144,18 @@ def list_ollama_models():
     except Exception:
         logger.exception("Ollama model discovery failed")
         return {"reachable": False, "models": [], "error": "Ollama is unavailable."}
+
+
+@router.get("/google/models")
+def list_google_models():
+    """List live available Google Gemini models directly from Google GenAI API or catalog."""
+    from backend.db import get_setting
+    api_key = get_setting("api_key_google") or os.environ.get("GOOGLE_API_KEY")
+    from tradingagents.llm_clients.google_client import get_google_live_models
+    res = get_google_live_models(api_key)
+    return {
+        "reachable": True,
+        "quick_models": res.get("quick", []),
+        "deep_models": res.get("deep", []),
+    }
+
