@@ -61,79 +61,40 @@ def _get_nse_session() -> requests.Session:
 
 
 def fetch_from_nse() -> Optional[dict]:
-    """Fetch latest FII/DII data from NSE via nsepython library.
-
-    Returns:
-        Dict with date, fii_buy/sell/net, dii_buy/sell/net — or None if failed.
-    """
+    """Fetch latest FII/DII data directly from NSE API endpoint."""
     try:
-        # Optional integration — nsepython is GPL-licensed and is NOT a declared
-        # dependency; imported lazily so the app never hard-requires GPL code.
-        from nsepython import nse_fiidii
-
-        raw = nse_fiidii()
-
-        # nse_fiidii returns a stringified table — parse it
-        entries = []
-        if isinstance(raw, str):
-            lines = [l for l in raw.strip().split("\n") if l.strip()]
-            if len(lines) < 2:
-                return None
-
-            # Skip header line, parse data rows like:
-            # "0      DII  30-Apr-2026  18252.89  14765.79    3487.1"
-            for line in lines[1:]:
-                parts = line.split()
-                # Drop leading index if it's a digit
-                if parts and parts[0].isdigit():
-                    parts = parts[1:]
-                if len(parts) < 5:
-                    continue
-                try:
-                    cat = parts[0]
-                    date_str = parts[1]
-                    buy_val = float(parts[2])
-                    sell_val = float(parts[3])
-                    net_val = float(parts[4])
-                    entries.append({
-                        "category": cat,
-                        "date": date_str,
-                        "buyValue": buy_val,
-                        "sellValue": sell_val,
-                        "netValue": net_val,
-                    })
-                except (ValueError, IndexError):
-                    continue
-        elif hasattr(raw, "to_dict"):
-            entries = raw.to_dict("records")
-        elif isinstance(raw, list):
-            entries = raw
-        else:
+        url = "https://www.nseindia.com/api/fiidiiTradeReact"
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+            "Accept": "application/json, text/plain, */*",
+            "Referer": "https://www.nseindia.com/reports/fii-dii",
+        }
+        resp = requests.get(url, headers=headers, timeout=10)
+        if resp.status_code != 200:
+            return None
+        data = resp.json()
+        if not isinstance(data, list):
             return None
 
-        if not entries:
-            return None
-
-        result = {"fii_buy": 0, "fii_sell": 0, "fii_net": 0, "dii_buy": 0, "dii_sell": 0, "dii_net": 0}
+        result = {"fii_buy": 0.0, "fii_sell": 0.0, "fii_net": 0.0, "dii_buy": 0.0, "dii_sell": 0.0, "dii_net": 0.0}
         date_str = None
-
-        for entry in entries:
-            cat = (entry.get("category") or "").upper()
-            buy = float(entry.get("buyValue", 0) or 0)
-            sell = float(entry.get("sellValue", 0) or 0)
-            net = float(entry.get("netValue", 0) or 0)
-            d = entry.get("date")
+        for item in data:
+            cat = str(item.get("category", "")).upper()
+            buy = float(str(item.get("buyValue", 0)).replace(",", "") or 0)
+            sell = float(str(item.get("sellValue", 0)).replace(",", "") or 0)
+            net = float(str(item.get("netValue", 0)).replace(",", "") or 0)
+            d = item.get("date")
             if d and not date_str:
                 date_str = d
 
             if "FII" in cat or "FPI" in cat:
-                result["fii_buy"] = buy
-                result["fii_sell"] = sell
-                result["fii_net"] = net
+                result["fii_buy"] = round(buy, 2)
+                result["fii_sell"] = round(sell, 2)
+                result["fii_net"] = round(net, 2)
             elif "DII" in cat:
-                result["dii_buy"] = buy
-                result["dii_sell"] = sell
-                result["dii_net"] = net
+                result["dii_buy"] = round(buy, 2)
+                result["dii_sell"] = round(sell, 2)
+                result["dii_net"] = round(net, 2)
 
         if date_str:
             try:
@@ -147,25 +108,51 @@ def fetch_from_nse() -> Optional[dict]:
         result["source"] = "nse"
         return result
     except Exception as e:
-        print(f"[FII/DII] NSE fetch failed: {e}", flush=True)
+        print(f"[FII/DII] NSE direct fetch failed: {e}", flush=True)
         return None
 
 
 def fetch_from_moneycontrol() -> Optional[dict]:
-    """Fallback: scrape moneycontrol's FII/DII data."""
+    """Fallback: extract Moneycontrol __NEXT_DATA__ FII/DII data."""
     try:
+        from bs4 import BeautifulSoup
+        import json
         url = "https://www.moneycontrol.com/stocks/marketstats/fii_dii_activity/index.php"
-        resp = requests.get(url, headers={"User-Agent": NSE_HEADERS["User-Agent"]}, timeout=15)
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        }
+        resp = requests.get(url, headers=headers, timeout=12)
         if resp.status_code != 200:
             return None
 
-        # Simple pattern match for the values (this is fragile but works as fallback)
-        # Production version would use BeautifulSoup
-        text = resp.text
-        # Look for patterns like "FII"..."Net"..."-2,453.45" etc.
-        # For now, return None and let manual entry handle it
-        return None
-    except Exception:
+        soup = BeautifulSoup(resp.text, "html.parser")
+        script = soup.find("script", id="__NEXT_DATA__")
+        if not script or not script.string:
+            return None
+
+        data = json.loads(script.string)
+        page_props = data.get("props", {}).get("pageProps", {})
+        fii_dii_list = page_props.get("FiiDiiData", {}).get("fiiDiiData", [])
+        if not fii_dii_list:
+            return None
+
+        top = fii_dii_list[0]
+        dt = top.get("date") or date.today().strftime("%Y-%m-%d")
+        fii_net = float(str(top.get("fiiCM", "0")).replace(",", ""))
+        dii_net = float(str(top.get("diiCM", "0")).replace(",", ""))
+
+        return {
+            "date": dt,
+            "fii_buy": abs(fii_net) if fii_net > 0 else 0.0,
+            "fii_sell": abs(fii_net) if fii_net < 0 else 0.0,
+            "fii_net": fii_net,
+            "dii_buy": abs(dii_net) if dii_net > 0 else 0.0,
+            "dii_sell": abs(dii_net) if dii_net < 0 else 0.0,
+            "dii_net": dii_net,
+            "source": "moneycontrol",
+        }
+    except Exception as e:
+        print(f"[FII/DII] Moneycontrol fetch failed: {e}", flush=True)
         return None
 
 

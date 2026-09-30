@@ -589,6 +589,102 @@ def replace_kite_positions(rows: list[dict]) -> dict:
     }
 
 
+def replace_upstox_positions(rows: list[dict]) -> dict:
+    """Apply one explicit Upstox snapshot without deleting manual positions."""
+    if not isinstance(rows, list):
+        raise ValueError("Upstox holdings snapshot must be a list")
+    incoming: dict[tuple[str, str], dict] = {}
+    for row in rows:
+        if not isinstance(row, dict):
+            raise ValueError("Upstox holdings snapshot contains an invalid row")
+        raw_symbol = row.get("tradingsymbol") or row.get("ticker")
+        raw_exchange = row.get("exchange") or "NSE"
+        if not isinstance(raw_symbol, str) or not isinstance(raw_exchange, str):
+            raise ValueError("Upstox holdings snapshot contains an invalid symbol or exchange")
+        symbol = raw_symbol.strip().upper()
+        exchange = raw_exchange.strip().upper()
+        if not symbol or not exchange or (symbol, exchange) in incoming:
+            continue
+        incoming[(symbol, exchange)] = row
+
+    ensure_db()
+
+    with get_db() as conn:
+        manual_keys = {
+            (row["tradingsymbol"].upper(), row["exchange"].upper())
+            for row in conn.execute("SELECT tradingsymbol, exchange FROM positions WHERE source = 'manual'")
+        }
+        upstox_keys = {
+            (row["tradingsymbol"].upper(), row["exchange"].upper())
+            for row in conn.execute("SELECT tradingsymbol, exchange FROM positions WHERE source = 'upstox'")
+        }
+        applied_keys = set(incoming) - manual_keys
+        for key in applied_keys:
+            _upsert_position_conn(conn, {**incoming[key], "source": "upstox"})
+        stale_keys = upstox_keys - applied_keys
+        for symbol, exchange in stale_keys:
+            conn.execute(
+                "DELETE FROM positions WHERE source = 'upstox' AND tradingsymbol = ? AND exchange = ?",
+                (symbol, exchange),
+            )
+
+    return {
+        "added": len(applied_keys - upstox_keys),
+        "updated": len(applied_keys & upstox_keys),
+        "removed": len(stale_keys),
+        "skipped_manual": len(set(incoming) & manual_keys),
+        "total": len(incoming),
+    }
+
+
+def replace_kotak_neo_positions(rows: list[dict]) -> dict:
+    """Apply one explicit Kotak Neo snapshot without deleting manual positions."""
+    if not isinstance(rows, list):
+        raise ValueError("Kotak Neo holdings snapshot must be a list")
+    incoming: dict[tuple[str, str], dict] = {}
+    for row in rows:
+        if not isinstance(row, dict):
+            raise ValueError("Kotak Neo holdings snapshot contains an invalid row")
+        raw_symbol = row.get("tradingsymbol") or row.get("ticker")
+        raw_exchange = row.get("exchange") or "NSE"
+        if not isinstance(raw_symbol, str) or not isinstance(raw_exchange, str):
+            raise ValueError("Kotak Neo holdings snapshot contains an invalid symbol or exchange")
+        symbol = raw_symbol.strip().upper()
+        exchange = raw_exchange.strip().upper()
+        if not symbol or not exchange or (symbol, exchange) in incoming:
+            continue
+        incoming[(symbol, exchange)] = row
+
+    ensure_db()
+
+    with get_db() as conn:
+        manual_keys = {
+            (row["tradingsymbol"].upper(), row["exchange"].upper())
+            for row in conn.execute("SELECT tradingsymbol, exchange FROM positions WHERE source = 'manual'")
+        }
+        kotak_keys = {
+            (row["tradingsymbol"].upper(), row["exchange"].upper())
+            for row in conn.execute("SELECT tradingsymbol, exchange FROM positions WHERE source = 'kotak_neo'")
+        }
+        applied_keys = set(incoming) - manual_keys
+        for key in applied_keys:
+            _upsert_position_conn(conn, {**incoming[key], "source": "kotak_neo"})
+        stale_keys = kotak_keys - applied_keys
+        for symbol, exchange in stale_keys:
+            conn.execute(
+                "DELETE FROM positions WHERE source = 'kotak_neo' AND tradingsymbol = ? AND exchange = ?",
+                (symbol, exchange),
+            )
+
+    return {
+        "added": len(applied_keys - kotak_keys),
+        "updated": len(applied_keys & kotak_keys),
+        "removed": len(stale_keys),
+        "skipped_manual": len(set(incoming) & manual_keys),
+        "total": len(incoming),
+    }
+
+
 def delete_position(tradingsymbol: str, exchange: str = "NSE") -> bool:
     with get_db() as conn:
         cursor = conn.execute(
