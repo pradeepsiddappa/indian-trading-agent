@@ -712,15 +712,12 @@ Contributions welcome! Areas that need work:
 
 - Indian market-specific data sources (NSE scraping for bulk/block deals, delivery %, promoter activity)
 - Options/F&O analyzer (Phase 3)
-- Kite API integration (Phase 4)
+- Kite margin visibility and order placement (Phase 4b, see #6)
 - More RSS sources, better news deduplication
 - Additional strategies (VWAP, ORB intraday, momentum breakouts)
-- Testing infrastructure
+- More test coverage
 
-Please ensure:
-1. No API keys or secrets committed
-2. Code follows existing patterns (see `CLAUDE.md`)
-3. New features have user-facing documentation (help sections)
+Please read **[CONTRIBUTING.md](CONTRIBUTING.md)** before opening a pull request. It covers the branch workflow, running the checks, and what gets extra review. New features should also include user-facing documentation (help sections). Report security issues privately, as described in [SECURITY.md](SECURITY.md).
 
 ---
 
