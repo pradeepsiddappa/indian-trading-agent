@@ -20,6 +20,18 @@ interface Article {
   published_at: string;
 }
 
+// Feed links come from third-party RSS sources, so only render real web links;
+// a javascript: or data: URL would run in this page when clicked.
+function safeExternalUrl(url: string | undefined): string | undefined {
+  if (!url) return undefined;
+  try {
+    const parsed = new URL(url);
+    return parsed.protocol === "http:" || parsed.protocol === "https:" ? parsed.href : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 export default function NewsPage() {
   const [articles, setArticles] = useState<Article[]>([]);
   const [loading, setLoading] = useState(true);
@@ -160,7 +172,7 @@ export default function NewsPage() {
                           )}
                         </div>
                         <a
-                          href={a.url}
+                          href={safeExternalUrl(a.url)}
                           target="_blank"
                           rel="noopener noreferrer"
                           className="font-medium text-sm hover:text-primary transition-colors group flex items-start gap-1"

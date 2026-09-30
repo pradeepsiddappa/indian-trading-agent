@@ -309,6 +309,44 @@ def _is_api(scope: dict) -> bool:
     return scope.get("path", "").startswith("/api/")
 
 
+LOCAL_HOSTNAMES = {"localhost", "127.0.0.1", "::1"}
+
+
+def allowed_local_hosts() -> set[str]:
+    """Host names that open (no-login) mode answers to: loopback plus extras."""
+    extra = os.getenv("TRADINGAGENTS_ALLOWED_HOSTS", "")
+    return LOCAL_HOSTNAMES | {item.strip().lower() for item in extra.split(",") if item.strip()}
+
+
+def _request_hostname(scope: dict) -> str | None:
+    host = _headers(scope).get("host", "").strip()
+    if not host:
+        return None
+    try:
+        return urlsplit(f"//{host}").hostname
+    except ValueError:
+        return None
+
+
+def _local_host_allowed(scope: dict) -> bool:
+    hostname = _request_hostname(scope)
+    return bool(hostname) and (hostname in allowed_local_hosts() or hostname.endswith(".localhost"))
+
+
+def _same_origin(scope: dict, origin: str) -> bool:
+    try:
+        return urlsplit(origin).netloc.lower() == _headers(scope).get("host", "").strip().lower()
+    except ValueError:
+        return False
+
+
+async def _deny(scope, receive, send, status_code: int, message: str) -> None:
+    if scope["type"] == "websocket":
+        await send({"type": "websocket.close", "code": 4403, "reason": message})
+    else:
+        await JSONResponse({"detail": message}, status_code=status_code)(scope, receive, send)
+
+
 class AuthMiddleware:
     """Authenticate all API HTTP/WebSocket traffic at one central boundary."""
 
@@ -324,6 +362,16 @@ class AuthMiddleware:
         # secret opts into the full session, CSRF, and origin boundary; public
         # mode always requires it and remains fail-closed when misconfigured.
         if not auth_required():
+            # With no login, only this machine's own pages may use the API: a
+            # foreign Host header means DNS rebinding, and a foreign Origin
+            # means some other website is calling in from the user's browser.
+            if not _local_host_allowed(scope):
+                await _deny(scope, receive, send, 400, "Invalid host header")
+                return
+            origin = _headers(scope).get("origin")
+            if origin is not None and not (_is_allowed_origin(origin) or _same_origin(scope, origin)):
+                await _deny(scope, receive, send, 403, "Origin not allowed")
+                return
             await self.app(scope, receive, send)
             return
 

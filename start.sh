@@ -43,7 +43,7 @@ cd "$ROOT_DIR"
 
 if [[ ! -d "venv" ]]; then
   err "No venv found at ./venv. Create one first:"
-  err "  python3 -m venv venv && source venv/bin/activate && pip install -e ."
+  err "  python3 -m venv venv && source venv/bin/activate && pip install -r requirements.txt && pip install -e ."
   exit 1
 fi
 

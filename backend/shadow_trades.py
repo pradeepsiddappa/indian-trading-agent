@@ -119,7 +119,7 @@ def record_shadow_trades_from_recommendations(recs: dict) -> dict:
 def refresh_shadow_prices() -> dict:
     """Backfill 1/3/5/10-day prices + P&L for shadow trades."""
     from backend.simulation import _price_n_days_later
-    from backend.utils.ticker import normalize_ticker
+    from tradingagents.utils.ticker import InvalidTickerError, normalize_ticker
 
     with get_db() as conn:
         rows = conn.execute(
@@ -138,7 +138,10 @@ def refresh_shadow_prices() -> dict:
         except Exception:
             continue
 
-        symbol = normalize_ticker(r["ticker"])
+        try:
+            symbol = normalize_ticker(r["ticker"])
+        except InvalidTickerError:
+            continue
         updates = {}
         for horizon_label, days in [("1d", 1), ("3d", 3), ("5d", 5), ("10d", 10)]:
             if days_since < days:

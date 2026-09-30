@@ -7,7 +7,7 @@ import yfinance as yf
 import uuid
 from datetime import datetime, timedelta, date
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from tradingagents.utils.ticker import normalize_ticker
+from tradingagents.utils.ticker import InvalidTickerError, normalize_ticker
 from tradingagents.utils.market_calendar import next_trading_day, is_trading_day
 from backend.scanner import UNIVERSES
 from backend.db import (
@@ -168,7 +168,10 @@ def refresh_paper_trade_prices(trade_id: int = None) -> dict:
 
     updated_count = 0
     for trade in trades:
-        symbol = normalize_ticker(trade["ticker"])
+        try:
+            symbol = normalize_ticker(trade["ticker"])
+        except InvalidTickerError:
+            continue  # one malformed saved ticker must not stop the other refreshes
         entry_date = trade["entry_date"]
 
         # Calculate days elapsed
