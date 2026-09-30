@@ -20,8 +20,8 @@ yfinance + RSS feeds (NSE/BSE data + news)
 ```bash
 # 1. Install Python deps
 python3 -m venv venv && source venv/bin/activate
+pip install -r requirements.txt   # exact, tested versions (Python 3.11+)
 pip install -e .
-pip install fastapi uvicorn websockets aiosqlite numpy feedparser
 
 # 2. Configure API keys (2 options)
 # Option A: via .env
@@ -549,7 +549,8 @@ Shipped after the initial feature set (see git history / PR #4):
 - **Dark mode** — light/dark/system theme via `next-themes` (`ThemeToggle`, status tokens in `lib/status-colors.ts`).
 - **Ollama local LLM provider** — added to `PROVIDERS_INFO` (no API key/cost); `GET /api/settings/ollama/models` live-fetches installed models from `localhost:11434`.
 - **Yahoo-powered ticker search** — `GET /api/market-data/search` now uses `yfinance`'s `Search` (always current, NSE-filtered). `stock_list.py` is only a small curated offline fallback; **no NSE data bundled or fetched**.
-- **Test suite** (`tests/`) — 46 `unittest` cases (auth/CSRF/OAuth-replay/WS-origin, equity portfolio, positions, Telegram). Run: `python -m unittest discover -s tests`.
+- **Security hardening** (full-repo audit) — `normalize_ticker` rejects path-like symbols (`InvalidTickerError` → HTTP 400) and `safe_path_component` guards every ticker-derived path; RSS feeds are fetched by `news_sources._fetch_feed` (public http(s) only, re-checked per redirect, bytes handed to feedparser as a stream); open mode (no auth secret) only accepts loopback Host headers + allowed/same Origin (`TRADINGAGENTS_ALLOWED_HOSTS` to extend); AI backtests capped at 60 dates (`TRADINGAGENTS_MAX_BACKTEST_DATES`) and one at a time; `~/.tradingagents` 0700 / DB 0600; CLI upstream announcements opt-in (`TRADINGAGENTS_CLI_ANNOUNCEMENTS=1`). Pinned deps in `requirements.txt`.
+- **Test suite** (`tests/`) — 74 `unittest` cases (auth/CSRF/OAuth-replay/WS-origin, security hardening, equity portfolio, positions, Telegram). Run: `python -m unittest discover -s tests`.
 
 ## Remaining Phases (Unimplemented)
 

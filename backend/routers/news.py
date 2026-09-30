@@ -1,8 +1,9 @@
 """News Feed API — aggregates news from multiple sources."""
 
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel
 from backend.news_sources import (
+    UnsafeFeedURL,
     fetch_all_news,
     fetch_ticker_news,
     get_news_sources_config,
@@ -43,5 +44,8 @@ def get_sources():
 @router.put("/sources")
 def update_sources(data: NewsSourcesUpdate):
     """Update news sources configuration."""
-    save_news_sources_config(rss_feeds=data.rss_feeds, yf_queries=data.yf_queries)
+    try:
+        save_news_sources_config(rss_feeds=data.rss_feeds, yf_queries=data.yf_queries)
+    except UnsafeFeedURL as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
     return {"status": "saved", "config": get_news_sources_config()}

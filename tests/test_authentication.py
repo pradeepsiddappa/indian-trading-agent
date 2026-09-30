@@ -65,7 +65,9 @@ class AuthenticationTests(IsolatedStateTestCase, unittest.TestCase):
             "TRADINGAGENTS_LOCAL_AUTH_SECRET": "",
             "FRONTEND_URL": "http://localhost:3000",
         }):
-            with TestClient(app) as client:
+            # Open mode only answers to loopback Host headers (DNS-rebinding
+            # defense), so talk to it the way a local browser does.
+            with TestClient(app, base_url="http://localhost:8000") as client:
                 status = client.get("/api/auth/status")
                 protected = client.get("/api/settings/api-keys")
                 write = client.post(
@@ -76,7 +78,8 @@ class AuthenticationTests(IsolatedStateTestCase, unittest.TestCase):
                         "average_price": 100,
                     },
                 )
-                with client.websocket_connect("/api/analysis/ws/open-mode") as websocket:
+                # websocket_connect ignores base_url, so pass the full local URL.
+                with client.websocket_connect("ws://localhost:8000/api/analysis/ws/open-mode") as websocket:
                     websocket.close()
 
         self.assertEqual(status.status_code, 200, status.text)

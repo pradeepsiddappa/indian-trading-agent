@@ -99,7 +99,18 @@ async function fetchAPI<T>(path: string, options?: RequestInit): Promise<T> {
     notifyAuthRequired();
     throw new Error("Authentication required. Please sign in to continue.");
   }
-  if (!res.ok) throw new Error(`API error: ${res.status} ${res.statusText}`);
+  if (!res.ok) {
+    // Prefer the backend's own explanation (e.g. an invalid ticker or a
+    // backtest limit) over a bare status line.
+    let detail = "";
+    try {
+      const body = await res.json() as { detail?: unknown };
+      if (typeof body?.detail === "string") detail = body.detail;
+    } catch {
+      // Non-JSON error body; fall back to the status line.
+    }
+    throw new Error(detail || `API error: ${res.status} ${res.statusText}`);
+  }
   const data = await res.json() as T & { csrf_token?: unknown };
   rememberCsrfToken(data?.csrf_token);
   return data;

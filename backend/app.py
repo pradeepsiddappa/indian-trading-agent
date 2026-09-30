@@ -9,13 +9,15 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from dotenv import load_dotenv
 load_dotenv(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), ".env"), override=True)
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from contextlib import asynccontextmanager
 from backend.db import ensure_db
 from backend.auth import AuthMiddleware, allowed_origins
 from backend.routers import market_data, analysis, watchlist, backtest, strategies, scanner, performance, recommender, settings as settings_router, news as news_router, simulation as simulation_router, insights as insights_router, fii_dii as fii_dii_router, calendar as calendar_router, concentration as concentration_router, daily_verdict as daily_verdict_router, signal_performance as signal_performance_router, verdict_calibration as verdict_calibration_router, regime as regime_router, confidence_calibration as confidence_calibration_router, shadow_trades as shadow_trades_router, memory as memory_router, auth as auth_router, kite as kite_router, equity_portfolio as equity_portfolio_router, positions as positions_router, telegram as telegram_router
 from backend.settings_manager import load_api_keys_into_env, apply_llm_config_to_default
+from tradingagents.utils.ticker import InvalidTickerError
 
 
 @asynccontextmanager
@@ -47,6 +49,14 @@ app.add_middleware(
 # WebSocket failures are sent as a close frame before endpoint code can accept
 # the connection, so analysis/backtest/scanner streams cannot bypass auth.
 app.add_middleware(AuthMiddleware)
+
+
+@app.exception_handler(InvalidTickerError)
+async def invalid_ticker(request: Request, exc: InvalidTickerError):
+    # normalize_ticker is the single gate for user-supplied symbols; a bad one
+    # is the caller's mistake, not a server error.
+    return JSONResponse(status_code=400, content={"detail": str(exc)})
+
 
 app.include_router(auth_router.router)
 app.include_router(market_data.router)

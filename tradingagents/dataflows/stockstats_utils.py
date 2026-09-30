@@ -8,6 +8,7 @@ from stockstats import wrap
 from typing import Annotated
 import os
 from .config import get_config
+from tradingagents.utils.ticker import safe_path_component
 
 logger = logging.getLogger(__name__)
 
@@ -63,7 +64,7 @@ def load_ohlcv(symbol: str, curr_date: str) -> pd.DataFrame:
     os.makedirs(config["data_cache_dir"], exist_ok=True)
     data_file = os.path.join(
         config["data_cache_dir"],
-        f"{symbol}-YFin-data-{start_str}-{end_str}.csv",
+        f"{safe_path_component(symbol)}-YFin-data-{start_str}-{end_str}.csv",
     )
 
     if os.path.exists(data_file):

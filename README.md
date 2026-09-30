@@ -99,7 +99,7 @@ VALIDATE
 ## Quick Start
 
 ### Prerequisites
-- **Python 3.10+**
+- **Python 3.11+** (tested on 3.14)
 - **Node.js 20+**
 - An LLM API key (Anthropic/OpenAI/Google — Anthropic Haiku is the cheapest default)
 
@@ -112,8 +112,8 @@ cd indian-trading-agent
 python3 -m venv venv
 source venv/bin/activate  # On Windows: venv\Scripts\activate
 
+pip install -r requirements.txt   # exact, tested versions
 pip install -e .
-pip install fastapi uvicorn websockets aiosqlite numpy feedparser
 ```
 
 ### 2. Configure API key (pick ONE method)
@@ -639,6 +639,10 @@ Switch providers (OpenAI GPT-5.4-mini, Gemini Flash) for even cheaper analyses (
 - **API keys never transmitted**: stored locally, sent only to your chosen LLM provider directly
 - **No tracking, no telemetry, no ads**
 - **Masked display**: API keys in the Settings UI show only first 10 and last 4 characters
+- **Private state directory**: `~/.tradingagents` is kept `0700` and the database `0600`, since they hold your API keys and broker tokens
+- **Only your own pages can use the API when no password is set**: requests must be addressed to `localhost`/`127.0.0.1` and come from the app itself, so other websites you visit can't call it (add hosts with `TRADINGAGENTS_ALLOWED_HOSTS`)
+- **Safe news sources**: custom RSS feeds must be public `http(s)` URLs; local files and private-network addresses are refused
+- **Spend cap on AI backtests**: at most 60 paid analyses per backtest (`TRADINGAGENTS_MAX_BACKTEST_DATES`), one backtest at a time
 
 ---
 

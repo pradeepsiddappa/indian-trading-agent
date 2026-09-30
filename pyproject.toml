@@ -31,6 +31,13 @@ dependencies = [
     "yfinance>=0.2.63",
     "python-dotenv>=1.0.0",
     "kiteconnect>=5.0.1",
+    # Backend (FastAPI app in backend/)
+    "fastapi>=0.135.0",
+    "uvicorn>=0.44.0",
+    "websockets>=16.0",
+    "feedparser>=6.0.12",
+    "numpy>=2.0",
+    "nsepython>=2.97",
 ]
 
 [project.scripts]

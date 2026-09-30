@@ -1,10 +1,12 @@
 """Backtest endpoints — run historical backtests with P&L tracking."""
 
+import os
 import uuid
 import threading
 import asyncio
-from fastapi import APIRouter, WebSocket, WebSocketDisconnect
-from pydantic import BaseModel
+from datetime import datetime
+from fastapi import APIRouter, HTTPException, WebSocket, WebSocketDisconnect
+from pydantic import BaseModel, Field, field_validator, model_validator
 from typing import Optional
 from backend.ws import manager
 from backend.db import (
@@ -20,24 +22,58 @@ from tradingagents.default_config import DEFAULT_CONFIG
 
 router = APIRouter(prefix="/api/backtest", tags=["backtest"])
 
+# Every backtest date is a full paid AI analysis (roughly Rs.15-60 each), so a
+# mistyped range must not be able to turn into thousands of LLM runs.
+DEFAULT_MAX_BACKTEST_DATES = 60
+MAX_BACKTEST_SPAN_DAYS = 20 * 366
+_backtest_slot = threading.BoundedSemaphore(1)
+
+
+def max_backtest_dates() -> int:
+    try:
+        return max(1, int(os.getenv("TRADINGAGENTS_MAX_BACKTEST_DATES", DEFAULT_MAX_BACKTEST_DATES)))
+    except ValueError:
+        return DEFAULT_MAX_BACKTEST_DATES
+
 
 class BacktestRequest(BaseModel):
-    ticker: str
+    ticker: str = Field(min_length=1, max_length=40)
     start_date: str
     end_date: str
-    interval_days: int = 5
-    initial_capital: float = 100000
-    position_size_pct: float = 10
+    interval_days: int = Field(5, ge=1, le=365)
+    initial_capital: float = Field(100000, gt=0)
+    position_size_pct: float = Field(10, gt=0, le=100)
     enable_learning: bool = False
 
+    @field_validator("start_date", "end_date")
+    @classmethod
+    def _iso_date(cls, value: str) -> str:
+        datetime.strptime(value, "%Y-%m-%d")
+        return value
 
-def _run_backtest_thread(backtest_id: str, req: BacktestRequest):
+    @model_validator(mode="after")
+    def _ordered_range(self):
+        start = datetime.strptime(self.start_date, "%Y-%m-%d")
+        end = datetime.strptime(self.end_date, "%Y-%m-%d")
+        if end < start:
+            raise ValueError("end_date must be on or after start_date")
+        if (end - start).days > MAX_BACKTEST_SPAN_DAYS:
+            raise ValueError("A backtest can't span more than 20 years")
+        return self
+
+
+def _run_backtest_thread(backtest_id: str, req: BacktestRequest, dates: list[str]):
+    """Run one backtest, then free the single backtest slot."""
+    try:
+        _execute_backtest(backtest_id, req, dates)
+    finally:
+        _backtest_slot.release()
+
+
+def _execute_backtest(backtest_id: str, req: BacktestRequest, dates: list[str]):
     """Run backtest in a background thread, streaming progress via WebSocket."""
     loop = asyncio.new_event_loop()
     ticker = normalize_ticker(req.ticker)
-
-    # Generate trading dates
-    dates = get_trading_dates(req.start_date, req.end_date, req.interval_days)
 
     if not dates:
         loop.run_until_complete(manager.send_event(backtest_id, {
@@ -113,21 +149,37 @@ def _run_backtest_thread(backtest_id: str, req: BacktestRequest):
 @router.post("/run")
 def start_backtest(req: BacktestRequest):
     """Start a backtest. Returns backtest_id for WebSocket streaming."""
-    backtest_id = str(uuid.uuid4())[:8]
+    ticker = normalize_ticker(req.ticker)
+    dates = get_trading_dates(req.start_date, req.end_date, req.interval_days)
+    limit = max_backtest_dates()
+    if len(dates) > limit:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                f"This backtest would run {len(dates)} paid AI analyses; the limit is {limit}. "
+                "Shorten the date range or increase the interval "
+                "(or set TRADINGAGENTS_MAX_BACKTEST_DATES)."
+            ),
+        )
+    if not _backtest_slot.acquire(blocking=False):
+        raise HTTPException(status_code=409, detail="Another AI backtest is still running. Wait for it to finish.")
 
+    backtest_id = str(uuid.uuid4())[:8]
     thread = threading.Thread(
         target=_run_backtest_thread,
-        args=(backtest_id, req),
+        args=(backtest_id, req, dates),
         daemon=True,
     )
-    thread.start()
-
-    dates = get_trading_dates(req.start_date, req.end_date, req.interval_days)
+    try:
+        thread.start()
+    except Exception:
+        _backtest_slot.release()
+        raise
 
     return {
         "backtest_id": backtest_id,
         "status": "started",
-        "ticker": normalize_ticker(req.ticker),
+        "ticker": ticker,
         "total_dates": len(dates),
         "dates": dates,
     }

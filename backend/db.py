@@ -27,9 +27,30 @@ def get_db_path() -> str:
 DB_PATH = get_db_path()
 
 
+def _restrict_permissions(db_path: str) -> None:
+    """Keep the state directory and DB private to the current OS user.
+
+    The DB stores LLM API keys and Kite/Telegram credentials in plain text, so
+    other accounts on the machine must not be able to read it. The directory is
+    only tightened when it is the app's own default home; a custom
+    TRADINGAGENTS_HOME is left as the operator configured it.
+    """
+    state_dir = os.path.dirname(db_path)
+    try:
+        if os.path.abspath(state_dir) == os.path.abspath(DEFAULT_HOME):
+            os.chmod(state_dir, 0o700)
+        if not os.path.exists(db_path):
+            # Create the file 0600 up front so it is never briefly world-readable.
+            os.close(os.open(db_path, os.O_CREAT | os.O_WRONLY, 0o600))
+        os.chmod(db_path, 0o600)
+    except OSError:
+        pass  # best effort, e.g. on filesystems without POSIX permissions
+
+
 def ensure_db():
     db_path = get_db_path()
-    os.makedirs(os.path.dirname(db_path), exist_ok=True)
+    os.makedirs(os.path.dirname(db_path), mode=0o700, exist_ok=True)
+    _restrict_permissions(db_path)
     with get_db() as conn:
         conn.executescript("""
             CREATE TABLE IF NOT EXISTS watchlist (
