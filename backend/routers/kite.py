@@ -24,7 +24,12 @@ class KiteCredentials(BaseModel):
 def _with_state(url: str) -> str:
     parts = urlsplit(url)
     query = dict(parse_qsl(parts.query, keep_blank_values=True))
-    query.setdefault("state", create_oauth_state())
+    # Kite echoes back only params passed via `redirect_params` (URL-encoded),
+    # never a bare `state`. get_login_url() already sets this in production; this
+    # covers callers that pass a raw Kite login URL (e.g. tests). Guarded so we
+    # don't mint an orphan OAuth state when redirect_params is already present.
+    if "redirect_params" not in query:
+        query["redirect_params"] = urlencode({"state": create_oauth_state()})
     return urlunsplit((parts.scheme, parts.netloc, parts.path, urlencode(query), parts.fragment))
 
 
