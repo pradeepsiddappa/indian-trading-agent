@@ -101,12 +101,7 @@ class FinancialSituationMemory:
 
         default_dir = os.path.join(os.path.expanduser("~"), ".tradingagents", "memory")
         self.memory_dir = (config or {}).get("memory_dir", default_dir)
-        # The name becomes a file name. Refuse anything that would resolve
-        # outside memory_dir (today's callers all pass fixed agent names).
-        base = os.path.normpath(os.path.abspath(self.memory_dir))
-        self.persist_path = os.path.normpath(os.path.join(base, f"{name}.json"))
-        if not self.persist_path.startswith(base + os.sep):
-            raise ValueError(f"Invalid memory name: {name!r}")
+        self.persist_path = self._checked_path()
 
         self._load_from_disk()
 
@@ -134,11 +129,26 @@ class FinancialSituationMemory:
 
     # --- Persistence with migration ---
 
+    def _checked_path(self) -> str:
+        """Return the JSON file path, verified to stay inside memory_dir.
+
+        The name becomes a file name, so refuse anything that would resolve
+        outside memory_dir (today's callers all pass fixed agent names).
+        Every file access goes through this check rather than trusting a
+        value validated earlier.
+        """
+        base = os.path.normpath(os.path.abspath(self.memory_dir))
+        path = os.path.normpath(os.path.join(base, f"{self.name}.json"))
+        if not path.startswith(base + os.sep):
+            raise ValueError(f"Invalid memory name: {self.name!r}")
+        return path
+
     def _load_from_disk(self):
         try:
-            if not os.path.exists(self.persist_path):
+            path = self._checked_path()
+            if not os.path.exists(path):
                 return
-            with open(self.persist_path, "r") as f:
+            with open(path, "r") as f:
                 data = json.load(f)
 
             if "entries" in data and isinstance(data["entries"], list):
@@ -172,7 +182,7 @@ class FinancialSituationMemory:
     def _save_to_disk(self):
         try:
             os.makedirs(self.memory_dir, exist_ok=True)
-            with open(self.persist_path, "w") as f:
+            with open(self._checked_path(), "w") as f:
                 # Save in new format. Also include legacy keys so any
                 # third-party reader of the JSON still sees the data.
                 json.dump({
@@ -396,8 +406,9 @@ class FinancialSituationMemory:
         self.entries = []
         self.bm25 = None
         try:
-            if os.path.exists(self.persist_path):
-                os.remove(self.persist_path)
+            path = self._checked_path()
+            if os.path.exists(path):
+                os.remove(path)
         except Exception:
             pass
 
