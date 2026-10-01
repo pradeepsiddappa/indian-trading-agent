@@ -601,7 +601,7 @@ The trade table shows every shadow with its regime tag and per-horizon P&L. Rows
 - Next.js 16 (App Router)
 - TypeScript
 - Tailwind CSS
-- shadcn/ui (component library)
+- shadcn/ui (component library; add components with `npx shadcn@latest add <name>`)
 - TradingView lightweight-charts
 - Zustand (state management)
 
