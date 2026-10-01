@@ -57,7 +57,8 @@ def snapshot_today(force: bool = False) -> dict:
         from backend.daily_verdict import compute_daily_verdict
         verdict_data = compute_daily_verdict()
     except Exception as e:
-        return {"status": "error", "reason": f"verdict compute failed: {e}"}
+        print(f"[Verdict] Daily verdict compute failed: {e!r}", flush=True)
+        return {"status": "error", "reason": "Could not compute today's verdict."}
 
     # Get Nifty close
     nifty_close = _get_nifty_close_for_date(today)

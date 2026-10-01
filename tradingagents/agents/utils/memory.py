@@ -101,7 +101,12 @@ class FinancialSituationMemory:
 
         default_dir = os.path.join(os.path.expanduser("~"), ".tradingagents", "memory")
         self.memory_dir = (config or {}).get("memory_dir", default_dir)
-        self.persist_path = os.path.join(self.memory_dir, f"{name}.json")
+        # The name becomes a file name. Refuse anything that would resolve
+        # outside memory_dir (today's callers all pass fixed agent names).
+        base = os.path.normpath(os.path.abspath(self.memory_dir))
+        self.persist_path = os.path.normpath(os.path.join(base, f"{name}.json"))
+        if not self.persist_path.startswith(base + os.sep):
+            raise ValueError(f"Invalid memory name: {name!r}")
 
         self._load_from_disk()
 

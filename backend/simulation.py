@@ -53,7 +53,8 @@ def open_paper_trade(
             return {"ok": False, "error": f"No price data for {symbol}"}
         current_price = float(hist.iloc[-1]["Close"])
     except Exception as e:
-        return {"ok": False, "error": str(e)}
+        print(f"[Simulation] Price fetch failed for {symbol}: {e!r}", flush=True)
+        return {"ok": False, "error": f"Could not get a live price for {symbol} right now."}
 
     # Determine direction from signal
     direction = "SHORT" if signal and signal.upper() in ("SELL", "STRONG SELL", "UNDERWEIGHT", "SHORT") else "LONG"
@@ -101,7 +102,8 @@ def close_paper_trade(trade_id: int) -> dict:
             return {"ok": False, "error": f"No price data for {symbol}"}
         current_price = round(float(hist.iloc[-1]["Close"]), 2)
     except Exception as e:
-        return {"ok": False, "error": str(e)}
+        print(f"[Simulation] Price fetch failed for {symbol}: {e!r}", flush=True)
+        return {"ok": False, "error": f"Could not get a live price for {symbol} right now."}
 
     entry = trade["entry_price"]
     direction = trade.get("direction", "LONG")

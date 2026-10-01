@@ -92,12 +92,12 @@ def run_review_and_send_telegram():
     try:
         review = create_and_save_review(_positions_for_review(), enrich=True)
         return {"status": "review_sent", "review": review, "telegram": _send_review(review)}
-    except KiteAuthExpired as exc:
+    except KiteAuthExpired:
         try:
             result = send_html_message_with_optional_buttons(
                 build_kite_login_reminder(), reply_markup=portfolio_keyboard()
             )
-            return {"status": "kite_login_required", "message": str(exc), "telegram": {"status": "sent", "message_id": result.get("result", {}).get("message_id")}}
+            return {"status": "kite_login_required", "message": "Kite login is required for today.", "telegram": {"status": "sent", "message_id": result.get("result", {}).get("message_id")}}
         except Exception as notify_exc:
             raise _notification_error(notify_exc)
     except KiteConfigError as exc:

@@ -55,7 +55,8 @@ def backfill_regime_at_entry(limit: int | None = None) -> dict:
                 )
                 updated += len(ids)
         except Exception as e:
-            failed_dates.append(f"{entry_date_str} ({e})")
+            print(f"[Regime] Backfill failed for {entry_date_str}: {e!r}", flush=True)
+            failed_dates.append(entry_date_str)
 
     return {
         "status": "ok",

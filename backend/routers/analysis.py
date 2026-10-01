@@ -353,7 +353,18 @@ def _reflect_on_analysis(analysis: dict, pnl_amount: float) -> dict:
             },
         }
     except Exception as e:
-        return {"ok": False, "error": str(e)}
+        print(f"[Analysis] Reflection failed: {e!r}", flush=True)
+        return {"ok": False, "error": _friendly_llm_error(e)}
+
+
+def _friendly_llm_error(exc: Exception) -> str:
+    """A short, safe message for an LLM failure; the full error goes to the backend log."""
+    name = type(exc).__name__
+    if "Authentication" in name or "PermissionDenied" in name:
+        return "The LLM provider rejected the API key. Check it in Settings."
+    if "RateLimit" in name:
+        return "The LLM provider's rate limit was hit. Try again in a minute."
+    return "Reflection failed. See the backend log for details."
 
 
 @router.get("/memory/stats")
@@ -373,7 +384,8 @@ def get_memory_stats():
             "total": sum(memories.values()),
         }
     except Exception as e:
-        return {"error": str(e)}
+        print(f"[Analysis] Memory stats failed: {e!r}", flush=True)
+        return {"error": "Could not load agent memory stats."}
 
 
 @router.get("/history/list")

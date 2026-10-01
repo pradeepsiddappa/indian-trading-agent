@@ -71,7 +71,8 @@ def classify_regime_for_date(target_date: Optional[date] = None) -> dict:
             start=start.isoformat(), end=end.isoformat()
         )
     except Exception as e:
-        return {"date": target.isoformat(), "regime": "UNKNOWN", "reasoning": f"fetch failed: {e}"}
+        print(f"[Regime] Nifty fetch failed for {target}: {e!r}", flush=True)
+        return {"date": target.isoformat(), "regime": "UNKNOWN", "reasoning": "Could not fetch Nifty data right now."}
 
     if hist.empty or len(hist) < 200:
         return {"date": target.isoformat(), "regime": "UNKNOWN",

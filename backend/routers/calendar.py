@@ -57,6 +57,6 @@ def market_events_in_range(
     try:
         start_d = datetime.strptime(start, "%Y-%m-%d").date()
         end_d = datetime.strptime(end, "%Y-%m-%d").date()
-    except Exception as e:
-        return {"error": f"Invalid date: {e}"}
+    except ValueError:
+        return {"error": "Invalid date. Use YYYY-MM-DD."}
     return {"events": get_market_events_in_range(start_d, end_d)}

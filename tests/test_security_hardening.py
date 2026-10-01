@@ -406,5 +406,41 @@ class CliAnnouncementTests(unittest.TestCase):
         self.assertEqual(data["announcements"], [announcements.CLI_CONFIG["announcements_fallback"]])
 
 
+class CodeScanningFixTests(unittest.TestCase):
+    def test_memory_name_cannot_escape_the_memory_dir(self):
+        from tradingagents.agents.utils.memory import FinancialSituationMemory
+
+        with tempfile.TemporaryDirectory() as root:
+            config = {"memory_dir": os.path.join(root, "memory")}
+            for bad in ("../escape", "../../etc/passwd", "a/../../b"):
+                with self.subTest(name=bad):
+                    with self.assertRaises(ValueError):
+                        FinancialSituationMemory(bad, config)
+            memory = FinancialSituationMemory("bull_memory", config)
+
+        self.assertEqual(os.path.basename(memory.persist_path), "bull_memory.json")
+
+
+class ErrorMessageTests(IsolatedStateTestCase, unittest.TestCase):
+    def test_price_failure_does_not_leak_exception_text(self):
+        from backend import simulation
+
+        with patch.object(simulation.yf, "Ticker", side_effect=RuntimeError("internal detail /Users/someone/secret")):
+            result = simulation.open_paper_trade("RELIANCE")
+
+        self.assertFalse(result["ok"])
+        self.assertNotIn("internal detail", result["error"])
+        self.assertIn("RELIANCE.NS", result["error"])
+
+    def test_llm_failures_get_a_friendly_message(self):
+        from backend.routers.analysis import _friendly_llm_error
+
+        AuthenticationError = type("AuthenticationError", (Exception,), {})
+        RateLimitError = type("RateLimitError", (Exception,), {})
+        self.assertIn("API key", _friendly_llm_error(AuthenticationError("401 invalid x-api-key sk-ant-abc")))
+        self.assertIn("rate limit", _friendly_llm_error(RateLimitError("429 too many requests")))
+        self.assertNotIn("boom", _friendly_llm_error(RuntimeError("boom")))
+
+
 if __name__ == "__main__":
     unittest.main()
