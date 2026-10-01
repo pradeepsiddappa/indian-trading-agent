@@ -1,0 +1,14 @@
+# Keeps the commit-pinned GitHub Actions in .github/workflows/ up to date.
+# Security fixes for Python and npm packages come from Dependabot security
+# updates (enabled in the repo settings), so only Actions are listed here.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    commit-message:
+      prefix: "chore(ci)"
+    groups:
+      github-actions:
+        patterns: ["*"]
