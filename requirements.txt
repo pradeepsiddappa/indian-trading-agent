@@ -92,7 +92,7 @@ requests==2.33.1
 requests-toolbelt==1.0.0
 rich==15.0.0
 scipy==1.17.1
-setuptools==83.0.0
+setuptools==84.1.0
 sgmllib3k==1.0.0
 shellingham==1.5.4
 six==1.17.0
