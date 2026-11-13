@@ -73,7 +73,7 @@ platformdirs==4.9.6
 prompt_toolkit==3.0.52
 propcache==0.4.1
 protobuf==7.34.1
-pyasn1==0.6.4
+pyasn1==0.6.5
 pyasn1_modules==0.4.2
 pycparser==3.0
 pydantic==2.13.0
