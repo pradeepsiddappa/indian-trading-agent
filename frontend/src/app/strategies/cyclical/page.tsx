@@ -365,12 +365,13 @@ export default function CyclicalPage() {
       ])) as [MonthlySeasonality, DayOfWeekPattern];
       setMonthlyData(monthly);
       setDowData(dow);
-      // Auto-suggest buy/sell months
-      if (monthly.best_months?.length > 0) {
-        setBuyMonths(monthly.best_months.map((m) => m.month).join(","));
-      }
+      // Auto-suggest buy/sell months, matching the insight's advice:
+      // buy in the historically weakest months, sell in the strongest
       if (monthly.worst_months?.length > 0) {
-        setSellMonths(monthly.worst_months.map((m) => m.month).join(","));
+        setBuyMonths(monthly.worst_months.map((m) => m.month).join(","));
+      }
+      if (monthly.best_months?.length > 0) {
+        setSellMonths(monthly.best_months.map((m) => m.month).join(","));
       }
     } catch (e) {
       toast.error(errorMessage(e, "Failed to analyze"));
