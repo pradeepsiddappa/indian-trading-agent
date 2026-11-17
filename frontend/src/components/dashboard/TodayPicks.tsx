@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { getRecommendations, getWatchlist, openPaperTrade } from "@/lib/api";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -16,35 +16,48 @@ export function TodayPicks({ universe = "nifty100" }: { universe?: string }) {
   const [lastRun, setLastRun] = useState<Date | null>(null);
   const [watchlistTickers, setWatchlistTickers] = useState<string[]>([]);
 
-  const load = async () => {
+  // Show the spinner again when the universe prop changes (adjusting state
+  // during render, so there's no extra render from an effect).
+  const [prevUniverse, setPrevUniverse] = useState(universe);
+  if (universe !== prevUniverse) {
+    setPrevUniverse(universe);
     setLoading(true);
-    try {
-      const [result, watchlist]: any[] = await Promise.all([
-        getRecommendations(universe, 2),
-        getWatchlist().catch(() => []),
-      ]);
-      setData(result);
-      setLastRun(new Date());
+  }
 
-      const wlTickers: string[] = (watchlist || []).map((w: any) => w.ticker);
-      setWatchlistTickers(wlTickers);
+  // Fetches picks; callers that need the spinner set `loading` first.
+  const fetchData = useCallback(
+    () =>
+      Promise.all([getRecommendations(universe, 2), getWatchlist().catch(() => [])])
+        .then(([result, watchlist]: any[]) => {
+          setData(result);
+          setLastRun(new Date());
 
-      // Alert for watchlist matches
-      const allPicks = [...(result.strong_buys || []), ...(result.buys || [])];
-      const matches = allPicks.filter((p: any) => wlTickers.includes(p.ticker));
-      if (matches.length > 0) {
-        toast.success(`${matches.length} watchlist stock${matches.length > 1 ? "s" : ""} in Top Picks: ${matches.map((m: any) => m.ticker).join(", ")}`, {
-          duration: 6000,
-          icon: <Bell className="h-4 w-4" />,
-        });
-      }
-    } catch {}
-    setLoading(false);
+          const wlTickers: string[] = (watchlist || []).map((w: any) => w.ticker);
+          setWatchlistTickers(wlTickers);
+
+          // Alert for watchlist matches
+          const allPicks = [...(result.strong_buys || []), ...(result.buys || [])];
+          const matches = allPicks.filter((p: any) => wlTickers.includes(p.ticker));
+          if (matches.length > 0) {
+            toast.success(`${matches.length} watchlist stock${matches.length > 1 ? "s" : ""} in Top Picks: ${matches.map((m: any) => m.ticker).join(", ")}`, {
+              duration: 6000,
+              icon: <Bell className="h-4 w-4" />,
+            });
+          }
+        })
+        .catch(() => {})
+        .finally(() => setLoading(false)),
+    [universe],
+  );
+
+  const load = () => {
+    setLoading(true);
+    return fetchData();
   };
 
   useEffect(() => {
-    load();
-  }, [universe]);
+    fetchData();
+  }, [fetchData]);
 
   const topPicks = data
     ? [...(data.strong_buys || []), ...(data.buys || [])].slice(0, 5)

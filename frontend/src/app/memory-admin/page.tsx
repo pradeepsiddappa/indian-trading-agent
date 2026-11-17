@@ -102,15 +102,16 @@ export default function MemoryAdminPage() {
   const [pruneMinHits, setPruneMinHits] = useState<number | "">("");
   const [pruneMinDecay, setPruneMinDecay] = useState<number | "">("");
 
-  const loadStats = async () => {
+  // Fetches stats; callers that need the spinner set `loading` first.
+  const fetchStats = () =>
+    listMemories()
+      .then((r: any) => setStats(r.memories))
+      .catch((e) => toast.error(e.message || "Failed to load memory stats"))
+      .finally(() => setLoading(false));
+
+  const loadStats = () => {
     setLoading(true);
-    try {
-      const r: any = await listMemories();
-      setStats(r.memories);
-    } catch (e: any) {
-      toast.error(e.message || "Failed to load memory stats");
-    }
-    setLoading(false);
+    return fetchStats();
   };
 
   const loadEntries = async (name: string) => {
@@ -125,7 +126,7 @@ export default function MemoryAdminPage() {
   };
 
   useEffect(() => {
-    loadStats();
+    fetchStats();
   }, []);
 
   const buildPruneArgs = (dry_run: boolean) => ({

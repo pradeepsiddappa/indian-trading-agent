@@ -21,21 +21,22 @@ interface Props {
 const LS_CAPITAL = "trading_agent_capital";
 const LS_RISK_PCT = "trading_agent_risk_pct";
 
+// Read a saved value; the server render has no localStorage, so it gets the
+// fallback. That's safe because the dialog's contents only render once it's
+// opened on the client.
+function readSaved(key: string, fallback: string): string {
+  if (typeof window === "undefined") return fallback;
+  return localStorage.getItem(key) || fallback;
+}
+
 export function PositionSizeCalculator({ open, onClose, defaultEntry, defaultSL, defaultTarget, ticker }: Props) {
-  const [capital, setCapital] = useState("500000");
-  const [riskPct, setRiskPct] = useState("1");
+  // Load saved values on mount
+  const [capital, setCapital] = useState(() => readSaved(LS_CAPITAL, "500000"));
+  const [riskPct, setRiskPct] = useState(() => readSaved(LS_RISK_PCT, "1"));
   const [entry, setEntry] = useState(defaultEntry ? String(defaultEntry) : "");
   const [sl, setSl] = useState(defaultSL ? String(defaultSL) : "");
   const [target, setTarget] = useState(defaultTarget ? String(defaultTarget) : "");
   const [direction, setDirection] = useState<"long" | "short">("long");
-
-  // Load saved values on mount
-  useEffect(() => {
-    const savedCapital = localStorage.getItem(LS_CAPITAL);
-    const savedRisk = localStorage.getItem(LS_RISK_PCT);
-    if (savedCapital) setCapital(savedCapital);
-    if (savedRisk) setRiskPct(savedRisk);
-  }, []);
 
   // Save when changed
   useEffect(() => {
@@ -43,12 +44,19 @@ export function PositionSizeCalculator({ open, onClose, defaultEntry, defaultSL,
     localStorage.setItem(LS_RISK_PCT, riskPct);
   }, [capital, riskPct]);
 
-  // Update when props change
-  useEffect(() => {
+  // Update when props change (adjusting state during render, so there's no
+  // extra render from an effect)
+  const [prevDefaults, setPrevDefaults] = useState({ defaultEntry, defaultSL, defaultTarget });
+  if (
+    prevDefaults.defaultEntry !== defaultEntry ||
+    prevDefaults.defaultSL !== defaultSL ||
+    prevDefaults.defaultTarget !== defaultTarget
+  ) {
+    setPrevDefaults({ defaultEntry, defaultSL, defaultTarget });
     if (defaultEntry) setEntry(String(defaultEntry));
     if (defaultSL) setSl(String(defaultSL));
     if (defaultTarget) setTarget(String(defaultTarget));
-  }, [defaultEntry, defaultSL, defaultTarget]);
+  }
 
   const capitalNum = parseFloat(capital) || 0;
   const riskPctNum = parseFloat(riskPct) || 0;

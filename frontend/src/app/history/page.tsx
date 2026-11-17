@@ -36,8 +36,8 @@ export default function HistoryPage() {
   const [dialog, setDialog] = useState<{ taskId: string; ticker: string; signal: string } | null>(null);
   const [memoryStats, setMemoryStats] = useState<any>(null);
 
-  const load = () => {
-    setLoading(true);
+  // Fetches data; callers that need the spinner set `loading` first.
+  const fetchData = () => {
     Promise.all([getAnalysisHistory(100), getMemoryStats().catch(() => null)])
       .then(([history, mem]: any[]) => {
         setAnalyses(history);
@@ -46,8 +46,13 @@ export default function HistoryPage() {
       .finally(() => setLoading(false));
   };
 
+  const load = () => {
+    setLoading(true);
+    fetchData();
+  };
+
   useEffect(() => {
-    load();
+    fetchData();
   }, []);
 
   // Summary stats

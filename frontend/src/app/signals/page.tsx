@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   getSignalPerformance,
   getActiveSignalWeights,
@@ -133,25 +133,31 @@ export default function SignalsPage() {
   const [applying, setApplying] = useState(false);
   const [windowDays, setWindowDays] = useState(90);
 
-  const load = async () => {
-    setLoading(true);
-    try {
-      const [perf, weights, regime, regSugg, regActive]: any[] = await Promise.all([
+  // Fetches data; callers that need the spinner set `loading` first.
+  const fetchData = useCallback(
+    () =>
+      Promise.all([
         getSignalPerformance(windowDays),
         getActiveSignalWeights(),
         getSignalPerformanceByRegime(Math.max(windowDays, 180)),
         getRegimeWeightSuggestions(Math.max(windowDays, 180)),
         getActiveRegimeWeights(),
-      ]);
-      setData(perf);
-      setOverrides(weights?.overrides || {});
-      setRegimeData(regime);
-      setRegimeSuggestions(regSugg);
-      setActiveRegimeWeights(regActive?.by_regime || {});
-    } catch (e: any) {
-      toast.error(e.message || "Failed to load signal performance");
-    }
-    setLoading(false);
+      ])
+        .then(([perf, weights, regime, regSugg, regActive]: any[]) => {
+          setData(perf);
+          setOverrides(weights?.overrides || {});
+          setRegimeData(regime);
+          setRegimeSuggestions(regSugg);
+          setActiveRegimeWeights(regActive?.by_regime || {});
+        })
+        .catch((e) => toast.error(e.message || "Failed to load signal performance"))
+        .finally(() => setLoading(false)),
+    [windowDays],
+  );
+
+  const load = () => {
+    setLoading(true);
+    return fetchData();
   };
 
   const applyAllRegimeWeights = async () => {
@@ -197,8 +203,8 @@ export default function SignalsPage() {
   };
 
   useEffect(() => {
-    load();
-  }, [windowDays]);
+    fetchData();
+  }, [fetchData]);
 
   const apply = async () => {
     setApplying(true);
@@ -253,7 +259,10 @@ export default function SignalsPage() {
           <select
             className="border rounded-md px-2 py-1.5 text-sm"
             value={windowDays}
-            onChange={(e) => setWindowDays(parseInt(e.target.value, 10))}
+            onChange={(e) => {
+              setLoading(true);
+              setWindowDays(parseInt(e.target.value, 10));
+            }}
           >
             <option value={30}>Last 30 days</option>
             <option value={60}>Last 60 days</option>

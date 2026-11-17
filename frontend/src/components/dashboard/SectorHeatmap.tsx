@@ -15,6 +15,9 @@ interface Sector {
   signal: string;
 }
 
+// Months of performance shown when the heatmap first loads
+const INITIAL_PERIOD = 3;
+
 // Convert return % to a color intensity
 function getSectorColor(returnPct: number) {
   return sectorHeatmapColor(returnPct);
@@ -23,22 +26,23 @@ function getSectorColor(returnPct: number) {
 export function SectorHeatmap() {
   const [sectors, setSectors] = useState<Sector[]>([]);
   const [loading, setLoading] = useState(true);
-  const [period, setPeriod] = useState(3);
+  const [period, setPeriod] = useState(INITIAL_PERIOD);
 
-  const load = async (months: number = period) => {
+  // Fetches sectors; callers that need the spinner set `loading` first.
+  const fetchSectors = (months: number) =>
+    getSectorRotation(months)
+      .then((data: any) => setSectors(data.sectors || []))
+      .catch(() => setSectors([]))
+      .finally(() => setLoading(false));
+
+  const load = (months: number = period) => {
     setLoading(true);
-    try {
-      const data: any = await getSectorRotation(months);
-      setSectors(data.sectors || []);
-    } catch {
-      setSectors([]);
-    } finally {
-      setLoading(false);
-    }
+    return fetchSectors(months);
   };
 
+  // Load the initial period once on mount; the buttons reload on demand.
   useEffect(() => {
-    load();
+    fetchSectors(INITIAL_PERIOD);
   }, []);
 
   return (

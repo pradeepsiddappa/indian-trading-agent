@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   listShadowTrades,
   getShadowComparison,
@@ -115,24 +115,27 @@ export default function ShadowTradesPage() {
   const [refreshing, setRefreshing] = useState(false);
   const [windowDays, setWindowDays] = useState(90);
 
-  const load = async () => {
+  // Fetches data; callers that need the spinner set `loading` first.
+  const fetchData = useCallback(
+    () =>
+      Promise.all([listShadowTrades(windowDays), getShadowComparison(windowDays)])
+        .then(([l, c]: any[]) => {
+          setList(l);
+          setComparison(c);
+        })
+        .catch((e) => toast.error(e.message || "Failed to load shadow trades"))
+        .finally(() => setLoading(false)),
+    [windowDays],
+  );
+
+  const load = () => {
     setLoading(true);
-    try {
-      const [l, c]: any[] = await Promise.all([
-        listShadowTrades(windowDays),
-        getShadowComparison(windowDays),
-      ]);
-      setList(l);
-      setComparison(c);
-    } catch (e: any) {
-      toast.error(e.message || "Failed to load shadow trades");
-    }
-    setLoading(false);
+    return fetchData();
   };
 
   useEffect(() => {
-    load();
-  }, [windowDays]);
+    fetchData();
+  }, [fetchData]);
 
   const refresh = async () => {
     setRefreshing(true);
@@ -167,7 +170,10 @@ export default function ShadowTradesPage() {
           <select
             className="border rounded-md px-2 py-1.5 text-sm"
             value={windowDays}
-            onChange={(e) => setWindowDays(parseInt(e.target.value, 10))}
+            onChange={(e) => {
+              setLoading(true);
+              setWindowDays(parseInt(e.target.value, 10));
+            }}
           >
             <option value={30}>Last 30 days</option>
             <option value={60}>Last 60 days</option>

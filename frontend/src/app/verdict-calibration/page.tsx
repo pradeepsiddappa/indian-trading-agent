@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   getVerdictCalibration,
   forceSnapshotVerdict,
@@ -115,20 +115,24 @@ export default function VerdictCalibrationPage() {
   const [busy, setBusy] = useState(false);
   const [windowDays, setWindowDays] = useState(90);
 
-  const load = async () => {
+  // Fetches data; callers that need the spinner set `loading` first.
+  const fetchData = useCallback(
+    () =>
+      getVerdictCalibration(windowDays)
+        .then((res: any) => setData(res))
+        .catch((e) => toast.error(e.message || "Failed to load calibration"))
+        .finally(() => setLoading(false)),
+    [windowDays],
+  );
+
+  const load = () => {
     setLoading(true);
-    try {
-      const res: any = await getVerdictCalibration(windowDays);
-      setData(res);
-    } catch (e: any) {
-      toast.error(e.message || "Failed to load calibration");
-    }
-    setLoading(false);
+    return fetchData();
   };
 
   useEffect(() => {
-    load();
-  }, [windowDays]);
+    fetchData();
+  }, [fetchData]);
 
   const snapshot = async () => {
     setBusy(true);
@@ -174,7 +178,10 @@ export default function VerdictCalibrationPage() {
           <select
             className="border rounded-md px-2 py-1.5 text-sm"
             value={windowDays}
-            onChange={(e) => setWindowDays(parseInt(e.target.value, 10))}
+            onChange={(e) => {
+              setLoading(true);
+              setWindowDays(parseInt(e.target.value, 10));
+            }}
           >
             <option value={30}>Last 30 days</option>
             <option value={60}>Last 60 days</option>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { getConfidenceCalibration } from "@/lib/api";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -93,20 +93,24 @@ export default function ConfidenceCalibrationPage() {
   const [loading, setLoading] = useState(true);
   const [windowDays, setWindowDays] = useState(180);
 
-  const load = async () => {
+  // Fetches data; callers that need the spinner set `loading` first.
+  const fetchData = useCallback(
+    () =>
+      getConfidenceCalibration(windowDays)
+        .then((r: any) => setData(r))
+        .catch((e) => toast.error(e.message || "Failed to load calibration"))
+        .finally(() => setLoading(false)),
+    [windowDays],
+  );
+
+  const load = () => {
     setLoading(true);
-    try {
-      const r: any = await getConfidenceCalibration(windowDays);
-      setData(r);
-    } catch (e: any) {
-      toast.error(e.message || "Failed to load calibration");
-    }
-    setLoading(false);
+    return fetchData();
   };
 
   useEffect(() => {
-    load();
-  }, [windowDays]);
+    fetchData();
+  }, [fetchData]);
 
   const verdict = data ? VERDICT_STYLES[data.verdict] || VERDICT_STYLES.no_data : VERDICT_STYLES.no_data;
   const VerdictIcon = verdict.icon;
@@ -130,7 +134,10 @@ export default function ConfidenceCalibrationPage() {
           <select
             className="border rounded-md px-2 py-1.5 text-sm"
             value={windowDays}
-            onChange={(e) => setWindowDays(parseInt(e.target.value, 10))}
+            onChange={(e) => {
+              setLoading(true);
+              setWindowDays(parseInt(e.target.value, 10));
+            }}
           >
             <option value={30}>Last 30 days</option>
             <option value={60}>Last 60 days</option>

@@ -39,17 +39,19 @@ export function FIIDIIBanner() {
   const [refreshing, setRefreshing] = useState(false);
   const [expanded, setExpanded] = useState(false);
 
-  const load = async () => {
+  // Fetches data; callers that need the spinner set `loading` first.
+  const fetchData = () =>
+    Promise.all([getFiiDiiBias().catch(() => null), getFiiDiiToday().catch(() => null)])
+      .then(([biasRes, dataRes]: any[]) => {
+        setBias(biasRes);
+        setData(dataRes);
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false));
+
+  const load = () => {
     setLoading(true);
-    try {
-      const [biasRes, dataRes]: any[] = await Promise.all([
-        getFiiDiiBias().catch(() => null),
-        getFiiDiiToday().catch(() => null),
-      ]);
-      setBias(biasRes);
-      setData(dataRes);
-    } catch {}
-    setLoading(false);
+    return fetchData();
   };
 
   const handleRefresh = async () => {
@@ -62,7 +64,7 @@ export function FIIDIIBanner() {
   };
 
   useEffect(() => {
-    load();
+    fetchData();
   }, []);
 
   if (loading) {

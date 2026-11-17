@@ -16,15 +16,20 @@ export function Watchlist() {
   const [newTicker, setNewTicker] = useState("");
   const [loading, setLoading] = useState(true);
 
-  const refresh = () => {
-    setLoading(true);
+  // Fetches the list; callers that need the spinner set `loading` first.
+  const fetchItems = () => {
     getWatchlist()
       .then((data: any) => setItems(data))
       .catch(() => toast.error("Failed to load watchlist"))
       .finally(() => setLoading(false));
   };
 
-  useEffect(() => { refresh(); }, []);
+  const refresh = () => {
+    setLoading(true);
+    fetchItems();
+  };
+
+  useEffect(() => { fetchItems(); }, []);
 
   const handleAdd = async () => {
     if (!newTicker.trim()) return;
