@@ -127,7 +127,13 @@ export interface BacktestWSEvent {
   pnl_amount?: number;
   cumulative_pnl?: number;
   portfolio_value?: number;
-  // complete fields
+  // complete fields: the summary from run_backtest() in backend/backtest_engine.py
+  ticker?: string;
+  initial_capital?: number;
+  final_portfolio_value?: number;
+  position_size_pct?: number;
+  enable_learning?: boolean;
+  status?: string;
   total_trades?: number;
   winning_trades?: number;
   losing_trades?: number;
@@ -137,8 +143,21 @@ export interface BacktestWSEvent {
   total_pnl?: number;
 }
 
+/** Token and cost totals from StatsCallback.summary() (backend/stats_callback.py). */
+export interface AnalysisStatsSummary {
+  llm_calls: number;
+  tool_calls: number;
+  tokens_in: number;
+  tokens_out: number;
+  total_tokens: number;
+  cost_usd: number;
+  cost_inr: number;
+  per_model: Record<string, { input: number; output: number }>;
+}
+
+/** Events on the analysis WebSocket (routers/analysis._run_analysis_sync). */
 export interface WSEvent {
-  type: "report" | "debate" | "risk_debate" | "signal" | "agent_status" | "complete" | "error" | "stats";
+  type: "report" | "debate" | "risk_debate" | "signal" | "agent_status" | "complete" | "error" | "stats" | "heartbeat";
   section?: string;
   content?: string;
   side?: string;
@@ -152,6 +171,15 @@ export interface WSEvent {
   tool_calls?: number;
   tokens_in?: number;
   tokens_out?: number;
+  // "heartbeat" events
+  chunk?: number;
+  last_activity?: string;
+  // "stats" events spread the whole stats summary; "complete" nests it under `stats`
+  total_tokens?: number;
+  cost_usd?: number;
+  cost_inr?: number;
+  per_model?: AnalysisStatsSummary["per_model"];
+  stats?: AnalysisStatsSummary;
 }
 
 export type Signal = "STRONG BUY" | "BUY" | "HOLD" | "SELL" | "SHORT" | "OVERWEIGHT" | "UNDERWEIGHT";

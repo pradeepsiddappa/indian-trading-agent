@@ -25,33 +25,6 @@ interface AnalysisStats {
 // POST /api/analysis/run → backend/models.AnalysisResponse
 type AnalysisStartResponse = { task_id: string; status: string; ticker: string; trade_date: string };
 
-// StatsCallback.summary() (backend/stats_callback.py)
-type StatsSummary = {
-  llm_calls: number;
-  tool_calls: number;
-  tokens_in: number;
-  tokens_out: number;
-  total_tokens: number;
-  cost_usd: number;
-  cost_inr: number;
-  per_model: Record<string, { input: number; output: number }>;
-};
-
-// The analysis WebSocket (routers/analysis._run_analysis_sync) also sends things the
-// shared WSEvent type doesn't list: "heartbeat" events {chunk, last_activity}, the rest
-// of the stats summary spread into "stats" events, and the summary nested under
-// `stats` on "complete".
-type AnalysisWSEvent = Omit<WSEvent, "type"> & {
-  type: WSEvent["type"] | "heartbeat";
-  chunk?: number;
-  last_activity?: string;
-  total_tokens?: number;
-  cost_usd?: number;
-  cost_inr?: number;
-  per_model?: StatsSummary["per_model"];
-  stats?: StatsSummary;
-};
-
 interface AnalysisState {
   taskId: string | null;
   ticker: string;
@@ -123,7 +96,7 @@ export const useAnalysisStore = create<AnalysisState>((set, get) => ({
       })) as AnalysisStartResponse;
       const taskId = result.task_id;
 
-      const ws = connectAnalysisWS(taskId, (event: AnalysisWSEvent) => {
+      const ws = connectAnalysisWS(taskId, (event: WSEvent) => {
         const state = get();
         switch (event.type) {
           case "heartbeat":
