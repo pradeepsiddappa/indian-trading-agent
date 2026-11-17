@@ -11,6 +11,69 @@ import { ArrowDown, ArrowUp, Target, Loader2, Minus } from "lucide-react";
 import { HelpSection } from "@/components/HelpSection";
 import { strategiesHelp } from "@/lib/help-content";
 import { toast } from "sonner";
+import { errorMessage } from "@/lib/utils";
+
+// Response shapes from backend/routers/strategies.py. Both endpoints return
+// `{ error }` alone when yfinance has too little history.
+
+/** A clustered level from _find_support_resistance(). */
+interface SRLevel {
+  level: number;
+  /** How many local extremes were clustered into this level. */
+  strength: number;
+}
+
+/** Classic pivots from _calculate_pivot_points(). */
+interface PivotLevels {
+  pivot: number;
+  r1: number;
+  r2: number;
+  r3: number;
+  s1: number;
+  s2: number;
+  s3: number;
+}
+
+/** GET /api/strategies/support-resistance/{ticker} */
+interface SupportResistanceResponse {
+  error?: string;
+  ticker: string;
+  period: string;
+  data_points: number;
+  current_price: number;
+  period_high: number;
+  period_low: number;
+  support_resistance: {
+    current_price: number;
+    resistances: SRLevel[];
+    supports: SRLevel[];
+  };
+  pivot_points: PivotLevels;
+  /**
+   * Null when there is no level on that side; each distance_to_* is set
+   * exactly when the matching nearest_* is.
+   */
+  analysis: {
+    nearest_support: number | null;
+    nearest_resistance: number | null;
+    distance_to_support_pct: number | null;
+    distance_to_resistance_pct: number | null;
+  };
+}
+
+/** GET /api/strategies/pivot-points/{ticker} */
+interface PivotPointsResponse {
+  error?: string;
+  ticker: string;
+  current_price: number;
+  based_on: {
+    date: string;
+    high: number;
+    low: number;
+    close: number;
+  };
+  pivot_points: PivotLevels;
+}
 
 const periods = [
   { value: "1mo", label: "1 Month" },
@@ -23,8 +86,8 @@ export default function StrategiesPage() {
   const [ticker, setTicker] = useState("");
   const [period, setPeriod] = useState("3mo");
   const [loading, setLoading] = useState(false);
-  const [srData, setSrData] = useState<any>(null);
-  const [pivotData, setPivotData] = useState<any>(null);
+  const [srData, setSrData] = useState<SupportResistanceResponse | null>(null);
+  const [pivotData, setPivotData] = useState<PivotPointsResponse | null>(null);
 
   const handleCalculate = async (overridePeriod?: string) => {
     if (!ticker.trim()) return;
@@ -34,14 +97,14 @@ export default function StrategiesPage() {
     setPivotData(null);
 
     try {
-      const [sr, pivots]: any[] = await Promise.all([
+      const [sr, pivots] = (await Promise.all([
         getSupportResistance(ticker.trim(), activePeriod),
         getPivotPoints(ticker.trim()),
-      ]);
+      ])) as [SupportResistanceResponse, PivotPointsResponse];
       setSrData(sr);
       setPivotData(pivots);
-    } catch (e: any) {
-      toast.error(e.message || "Failed to calculate levels");
+    } catch (e) {
+      toast.error(errorMessage(e, "Failed to calculate levels"));
     } finally {
       setLoading(false);
     }
@@ -122,7 +185,7 @@ export default function StrategiesPage() {
                 </h3>
                 <div className="space-y-2">
                   {srData.support_resistance.resistances.length > 0 ? (
-                    srData.support_resistance.resistances.map((r: any, i: number) => (
+                    srData.support_resistance.resistances.map((r, i: number) => (
                       <div key={i} className="flex items-center justify-between p-3 rounded-lg bg-red-50 border border-red-100 dark:bg-red-950/40 dark:border-red-800">
                         <div className="flex items-center gap-3">
                           <Badge variant="outline" className="bg-red-100 text-red-700 border-red-200 dark:bg-red-950/40 dark:text-red-300 dark:border-red-800">
@@ -161,7 +224,7 @@ export default function StrategiesPage() {
                 </h3>
                 <div className="space-y-2">
                   {srData.support_resistance.supports.length > 0 ? (
-                    srData.support_resistance.supports.map((s: any, i: number) => (
+                    srData.support_resistance.supports.map((s, i: number) => (
                       <div key={i} className="flex items-center justify-between p-3 rounded-lg bg-green-50 border border-green-100 dark:bg-green-950/40 dark:border-green-800">
                         <div className="flex items-center gap-3">
                           <Badge variant="outline" className="bg-green-100 text-green-700 border-green-200 dark:bg-green-950/40 dark:text-green-300 dark:border-green-800">
@@ -190,7 +253,7 @@ export default function StrategiesPage() {
                   <p>
                     Price is <span className="font-semibold">{srData.analysis.distance_to_support_pct}%</span> above nearest support (S1: ₹{srData.analysis.nearest_support}) and{" "}
                     <span className="font-semibold">{srData.analysis.distance_to_resistance_pct}%</span> below nearest resistance (R1: ₹{srData.analysis.nearest_resistance}).
-                    {srData.analysis.distance_to_support_pct < srData.analysis.distance_to_resistance_pct
+                    {srData.analysis.distance_to_support_pct! < srData.analysis.distance_to_resistance_pct!
                       ? " Closer to support — potential buy zone if support holds."
                       : " Closer to resistance — watch for breakout or reversal."}
                   </p>

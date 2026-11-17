@@ -14,8 +14,94 @@ import { Loader2, BarChart3, TrendingUp, TrendingDown, ArrowLeft } from "lucide-
 import Link from "next/link";
 import { toast } from "sonner";
 import { statusColors, splitStatusColor } from "@/lib/status-colors";
+import { errorMessage } from "@/lib/utils";
 
-function generateInsight(data: any): string {
+// Response shapes from backend/cyclical.py. The stock endpoints return
+// `{ error }` alone when yfinance has too little history.
+
+/** One month's stats from analyze_monthly_seasonality(). */
+interface MonthStats {
+  month: number;
+  month_name: string;
+  avg_return_pct: number;
+  win_rate: number;
+  best_return: number;
+  worst_return: number;
+  sample_years: number;
+  signal: "BULLISH" | "BEARISH" | "NEUTRAL";
+}
+
+/** GET /api/strategies/cyclical/monthly/{ticker} */
+interface MonthlySeasonality {
+  error?: string;
+  ticker: string;
+  years_analyzed: number;
+  months: MonthStats[];
+  current_month: MonthStats | null;
+  best_months: MonthStats[];
+  worst_months: MonthStats[];
+}
+
+/** One weekday's stats from analyze_day_of_week(). */
+interface DayStats {
+  day: number;
+  day_name: "Monday" | "Tuesday" | "Wednesday" | "Thursday" | "Friday";
+  avg_return_pct: number;
+  win_rate: number;
+  sample_size: number;
+}
+
+/** GET /api/strategies/cyclical/day-of-week/{ticker} */
+interface DayOfWeekPattern {
+  error?: string;
+  ticker: string;
+  period_months: number;
+  days: DayStats[];
+}
+
+/** One sector from analyze_sector_rotation(). */
+interface SectorPerformance {
+  sector: string;
+  avg_return_pct: number;
+  stocks_analyzed: number;
+  top_stocks: string[];
+  signal: "STRONG" | "BULLISH" | "BEARISH" | "WEAK";
+}
+
+/** GET /api/strategies/cyclical/sector-rotation */
+interface SectorRotation {
+  period_months: number;
+  sectors: SectorPerformance[];
+  top_sectors: SectorPerformance[];
+  bottom_sectors: SectorPerformance[];
+}
+
+/** One trade from backtest_seasonal_strategy(). */
+interface SeasonalTrade {
+  entry_date: string;
+  exit_date: string;
+  entry_price: number;
+  exit_price: number;
+  pnl_pct: number;
+  result: "win" | "loss";
+}
+
+/** POST /api/strategies/cyclical/backtest-seasonal */
+interface SeasonalBacktest {
+  error?: string;
+  ticker: string;
+  strategy: string;
+  years: number;
+  total_trades: number;
+  winning_trades: number;
+  losing_trades: number;
+  win_rate: number;
+  total_return_pct: number;
+  avg_return_per_trade: number;
+  trades: SeasonalTrade[];
+}
+
+function generateInsight(data: MonthlySeasonality): string {
   if (!data || !data.months || data.months.length === 0) return "";
 
   const months = data.months;
@@ -24,20 +110,20 @@ function generateInsight(data: any): string {
   const current = data.current_month;
   const currentMonthName = current?.month_name || "";
 
-  const bullishMonths = months.filter((m: any) => m.signal === "BULLISH");
-  const bearishMonths = months.filter((m: any) => m.signal === "BEARISH");
+  const bullishMonths = months.filter((m) => m.signal === "BULLISH");
+  const bearishMonths = months.filter((m) => m.signal === "BEARISH");
 
   const lines: string[] = [];
 
   // Best months
   if (best.length > 0) {
-    const bestNames = best.map((m: any) => `${m.month_name} (avg +${m.avg_return_pct}%, ${m.win_rate}% win rate)`).join(", ");
+    const bestNames = best.map((m) => `${m.month_name} (avg +${m.avg_return_pct}%, ${m.win_rate}% win rate)`).join(", ");
     lines.push(`Historically strongest months: ${bestNames}.`);
   }
 
   // Worst months
   if (worst.length > 0) {
-    const worstNames = worst.map((m: any) => `${m.month_name} (avg ${m.avg_return_pct}%)`).join(", ");
+    const worstNames = worst.map((m) => `${m.month_name} (avg ${m.avg_return_pct}%)`).join(", ");
     lines.push(`Weakest months: ${worstNames}. Avoid fresh entries or consider hedging during these periods.`);
   }
 
@@ -72,12 +158,12 @@ function generateInsight(data: any): string {
   return lines.join("\n\n");
 }
 
-function generateDowInsight(data: any): string {
+function generateDowInsight(data: DayOfWeekPattern): string {
   if (!data || !data.days || data.days.length === 0) return "";
 
   const days = data.days;
-  const bestDay = [...days].sort((a: any, b: any) => b.avg_return_pct - a.avg_return_pct)[0];
-  const worstDay = [...days].sort((a: any, b: any) => a.avg_return_pct - b.avg_return_pct)[0];
+  const bestDay = [...days].sort((a, b) => b.avg_return_pct - a.avg_return_pct)[0];
+  const worstDay = [...days].sort((a, b) => a.avg_return_pct - b.avg_return_pct)[0];
 
   const lines: string[] = [];
 
@@ -88,8 +174,8 @@ function generateDowInsight(data: any): string {
     lines.push(`Weakest day: ${worstDay.day_name} — avg return ${worstDay.avg_return_pct}%. Avoid placing new buy orders on ${worstDay.day_name}s if possible.`);
   }
 
-  const mondayData = days.find((d: any) => d.day_name === "Monday");
-  const fridayData = days.find((d: any) => d.day_name === "Friday");
+  const mondayData = days.find((d) => d.day_name === "Monday");
+  const fridayData = days.find((d) => d.day_name === "Friday");
   if (mondayData && fridayData) {
     if (mondayData.avg_return_pct < 0 && fridayData.avg_return_pct > 0) {
       lines.push("Pattern: Weak Mondays + Strong Fridays — suggests weekend gap-down risk and Friday buying pressure. Consider entering positions on Monday dips and booking profits on Fridays.");
@@ -109,42 +195,42 @@ interface EntryExitWindow {
   expectedReturn: string;
 }
 
-function generateEntryExitWindows(data: any): { windows: EntryExitWindow[]; summary: string } | null {
+function generateEntryExitWindows(data: MonthlySeasonality): { windows: EntryExitWindow[]; summary: string } | null {
   if (!data || !data.months || data.months.length === 0) return null;
 
   const months = data.months;
   const currentMonth = new Date().getMonth() + 1;
-  const currentMonthData = months.find((m: any) => m.month === currentMonth);
+  const currentMonthData = months.find((m) => m.month === currentMonth);
 
   // Sort months by return to find clear entry/exit windows
-  const strongBull = months.filter((m: any) => m.signal === "BULLISH");
-  const strongBear = months.filter((m: any) => m.signal === "BEARISH");
+  const strongBull = months.filter((m) => m.signal === "BULLISH");
+  const strongBear = months.filter((m) => m.signal === "BEARISH");
 
   const windows: EntryExitWindow[] = [];
 
   // Best entry windows — months just before the strongest rally months
   if (strongBull.length > 0) {
     // Buy at the END of the month before the bullish month
-    const entryMonths = strongBull.map((m: any) => {
+    const entryMonths = strongBull.map((m) => {
       const prevMonth = m.month === 1 ? 12 : m.month - 1;
-      const prevData = months.find((x: any) => x.month === prevMonth);
+      const prevData = months.find((x) => x.month === prevMonth);
       return prevData || m;
     });
-    const uniqueEntryMonthNames = entryMonths.map((m: any) => String(m.month_name)).filter((v: string, i: number, a: string[]) => a.indexOf(v) === i);
-    const targetMonthNames = strongBull.map((m: any) => m.month_name).join(", ");
+    const uniqueEntryMonthNames = entryMonths.map((m) => String(m.month_name)).filter((v: string, i: number, a: string[]) => a.indexOf(v) === i);
+    const targetMonthNames = strongBull.map((m) => m.month_name).join(", ");
 
     windows.push({
       type: "entry",
       months: uniqueEntryMonthNames,
       reasoning: `Enter positions in these months to capture the rally that historically follows in ${targetMonthNames}. Prices tend to be relatively lower before the bullish months begin.`,
       confidence: strongBull.length >= 2 ? "High" : "Medium",
-      expectedReturn: `+${strongBull.reduce((s: number, m: any) => s + m.avg_return_pct, 0).toFixed(1)}% combined from the bullish months`,
+      expectedReturn: `+${strongBull.reduce((s: number, m) => s + m.avg_return_pct, 0).toFixed(1)}% combined from the bullish months`,
     });
   }
 
   // Best exit windows — sell during or just after peak months
   if (strongBull.length > 0) {
-    const exitMonthNames = strongBull.map((m: any) => m.month_name);
+    const exitMonthNames = strongBull.map((m) => m.month_name);
     windows.push({
       type: "exit",
       months: exitMonthNames,
@@ -156,22 +242,22 @@ function generateEntryExitWindows(data: any): { windows: EntryExitWindow[]; summ
 
   // Avoid windows — months to stay away
   if (strongBear.length > 0) {
-    const avoidMonths = strongBear.map((m: any) => m.month_name);
+    const avoidMonths = strongBear.map((m) => m.month_name);
     windows.push({
       type: "exit",
       months: avoidMonths,
       reasoning: `Historically weak months with negative average returns. Reduce exposure or hedge positions. If not invested, wait for these months to pass before entering.`,
       confidence: strongBear.length >= 2 ? "High" : "Medium",
-      expectedReturn: `Avoid ${strongBear.reduce((s: number, m: any) => s + m.avg_return_pct, 0).toFixed(1)}% average loss`,
+      expectedReturn: `Avoid ${strongBear.reduce((s: number, m) => s + m.avg_return_pct, 0).toFixed(1)}% average loss`,
     });
   }
 
   // Accumulation windows — months with slight negative or flat returns but high win rate
-  const accumulate = months.filter((m: any) => m.avg_return_pct >= -1 && m.avg_return_pct <= 0.5 && m.win_rate >= 45 && m.win_rate <= 55);
+  const accumulate = months.filter((m) => m.avg_return_pct >= -1 && m.avg_return_pct <= 0.5 && m.win_rate >= 45 && m.win_rate <= 55);
   if (accumulate.length > 0 && accumulate.length <= 4) {
     windows.push({
       type: "entry",
-      months: accumulate.map((m: any) => m.month_name),
+      months: accumulate.map((m) => m.month_name),
       reasoning: `Sideways/consolidation months. Good for gradual accumulation (SIP or staggered buying) as prices are neither strongly up nor down.`,
       confidence: "Low",
       expectedReturn: "Flat to slightly positive — use for building positions cheaply",
@@ -182,9 +268,9 @@ function generateEntryExitWindows(data: any): { windows: EntryExitWindow[]; summ
   let summary = "";
   if (currentMonthData) {
     const nextMonth = currentMonth === 12 ? 1 : currentMonth + 1;
-    const nextMonthData = months.find((m: any) => m.month === nextMonth);
+    const nextMonthData = months.find((m) => m.month === nextMonth);
     const next2Month = nextMonth === 12 ? 1 : nextMonth + 1;
-    const next2MonthData = months.find((m: any) => m.month === next2Month);
+    const next2MonthData = months.find((m) => m.month === next2Month);
 
     summary = `RIGHT NOW (${currentMonthData.month_name}): `;
 
@@ -247,11 +333,11 @@ const cyclicalHelp = [
 export default function CyclicalPage() {
   const [ticker, setTicker] = useState("");
   const [loading, setLoading] = useState(false);
-  const [monthlyData, setMonthlyData] = useState<any>(null);
-  const [dowData, setDowData] = useState<any>(null);
-  const [sectorData, setSectorData] = useState<any>(null);
+  const [monthlyData, setMonthlyData] = useState<MonthlySeasonality | null>(null);
+  const [dowData, setDowData] = useState<DayOfWeekPattern | null>(null);
+  const [sectorData, setSectorData] = useState<SectorRotation | null>(null);
   const [sectorLoading, setSectorLoading] = useState(false);
-  const [backtestResult, setBacktestResult] = useState<any>(null);
+  const [backtestResult, setBacktestResult] = useState<SeasonalBacktest | null>(null);
   const [buyMonths, setBuyMonths] = useState("");
   const [sellMonths, setSellMonths] = useState("");
 
@@ -262,21 +348,21 @@ export default function CyclicalPage() {
     setDowData(null);
     setBacktestResult(null);
     try {
-      const [monthly, dow]: any[] = await Promise.all([
+      const [monthly, dow] = (await Promise.all([
         getMonthlySeasonality(ticker.trim()),
         getDayOfWeek(ticker.trim()),
-      ]);
+      ])) as [MonthlySeasonality, DayOfWeekPattern];
       setMonthlyData(monthly);
       setDowData(dow);
       // Auto-suggest buy/sell months
       if (monthly.best_months?.length > 0) {
-        setBuyMonths(monthly.best_months.map((m: any) => m.month).join(","));
+        setBuyMonths(monthly.best_months.map((m) => m.month).join(","));
       }
       if (monthly.worst_months?.length > 0) {
-        setSellMonths(monthly.worst_months.map((m: any) => m.month).join(","));
+        setSellMonths(monthly.worst_months.map((m) => m.month).join(","));
       }
-    } catch (e: any) {
-      toast.error(e.message || "Failed to analyze");
+    } catch (e) {
+      toast.error(errorMessage(e, "Failed to analyze"));
     } finally {
       setLoading(false);
     }
@@ -285,10 +371,10 @@ export default function CyclicalPage() {
   const handleSectorScan = async () => {
     setSectorLoading(true);
     try {
-      const data: any = await getSectorRotation(3);
+      const data = (await getSectorRotation(3)) as SectorRotation;
       setSectorData(data);
-    } catch (e: any) {
-      toast.error(e.message || "Failed to load sectors");
+    } catch (e) {
+      toast.error(errorMessage(e, "Failed to load sectors"));
     } finally {
       setSectorLoading(false);
     }
@@ -300,10 +386,10 @@ export default function CyclicalPage() {
       return;
     }
     try {
-      const result: any = await backtestSeasonal(ticker.trim(), buyMonths, sellMonths);
+      const result = (await backtestSeasonal(ticker.trim(), buyMonths, sellMonths)) as SeasonalBacktest;
       setBacktestResult(result);
-    } catch (e: any) {
-      toast.error(e.message || "Backtest failed");
+    } catch (e) {
+      toast.error(errorMessage(e, "Backtest failed"));
     }
   };
 
@@ -354,8 +440,8 @@ export default function CyclicalPage() {
               <CardContent>
                 {/* Bar chart style visualization */}
                 <div className="grid grid-cols-12 gap-1 mb-4">
-                  {(monthlyData.months || []).map((m: any) => {
-                    const maxAbs = Math.max(...monthlyData.months.map((x: any) => Math.abs(x.avg_return_pct)), 1);
+                  {(monthlyData.months || []).map((m) => {
+                    const maxAbs = Math.max(...monthlyData.months.map((x) => Math.abs(x.avg_return_pct)), 1);
                     const height = Math.max(20, Math.abs(m.avg_return_pct) / maxAbs * 80);
                     const isPositive = m.avg_return_pct >= 0;
                     return (
@@ -445,7 +531,7 @@ export default function CyclicalPage() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {(monthlyData.months || []).map((m: any) => (
+                    {(monthlyData.months || []).map((m) => (
                       <TableRow key={m.month} className={m.month === new Date().getMonth() + 1 ? "bg-blue-50 dark:bg-blue-950/20" : ""}>
                         <TableCell className="font-medium">
                           {m.month_name}
@@ -476,7 +562,7 @@ export default function CyclicalPage() {
               </CardHeader>
               <CardContent>
                 <div className="grid grid-cols-5 gap-3">
-                  {(dowData.days || []).map((d: any) => (
+                  {(dowData.days || []).map((d) => (
                     <Card key={d.day} className={d.avg_return_pct >= 0 ? "border-green-200 bg-green-50/50 dark:border-green-800 dark:bg-green-950/20" : "border-red-200 bg-red-50/50 dark:border-red-800 dark:bg-red-950/20"}>
                       <CardContent className="p-3 text-center">
                         <p className="font-medium text-sm">{d.day_name}</p>
@@ -556,7 +642,7 @@ export default function CyclicalPage() {
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {backtestResult.trades.map((t: any, i: number) => (
+                        {backtestResult.trades.map((t, i: number) => (
                           <TableRow key={i}>
                             <TableCell>{t.entry_date}</TableCell>
                             <TableCell>{t.exit_date}</TableCell>
@@ -594,7 +680,7 @@ export default function CyclicalPage() {
 
           {sectorData && (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {(sectorData.sectors || []).map((s: any, i: number) => (
+              {(sectorData.sectors || []).map((s, i: number) => (
                 <Card key={s.sector} className={i < 3 ? "border-green-200" : i >= sectorData.sectors.length - 3 ? "border-red-200" : ""}>
                   <CardContent className="p-4">
                     <div className="flex items-center justify-between mb-2">

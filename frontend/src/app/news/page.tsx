@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Loader2, Newspaper, Rss, ExternalLink, RefreshCw, Settings2, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
+import { errorMessage } from "@/lib/utils";
 
 interface Article {
   source: string;
@@ -17,6 +18,24 @@ interface Article {
   summary: string;
   url: string;
   published_at: string;
+}
+
+/** GET /api/news/ (backend/routers/news.py get_news). */
+interface NewsFeed {
+  articles: Article[];
+}
+
+/** One entry of rss_feeds in backend/news_sources.py (see DEFAULT_RSS_FEEDS). */
+interface RssFeed {
+  name: string;
+  url: string;
+  enabled: boolean;
+}
+
+/** GET /api/news/sources (backend/news_sources.py get_news_sources_config). */
+interface NewsSources {
+  rss_feeds: Record<string, RssFeed>;
+  yf_queries: string[];
 }
 
 // Feed links come from third-party RSS sources, so only render real web links;
@@ -34,7 +53,7 @@ function safeExternalUrl(url: string | undefined): string | undefined {
 export default function NewsPage() {
   const [articles, setArticles] = useState<Article[]>([]);
   const [loading, setLoading] = useState(true);
-  const [sources, setSources] = useState<any>(null);
+  const [sources, setSources] = useState<NewsSources | null>(null);
   const [activeTab, setActiveTab] = useState("feed");
   const [saving, setSaving] = useState(false);
   const [newQuery, setNewQuery] = useState("");
@@ -42,7 +61,7 @@ export default function NewsPage() {
   const loadNews = async () => {
     setLoading(true);
     try {
-      const data: any = await getNewsFeed(8);
+      const data = (await getNewsFeed(8)) as NewsFeed;
       setArticles(data.articles || []);
     } catch {
       toast.error("Failed to load news");
@@ -53,7 +72,7 @@ export default function NewsPage() {
 
   const loadSources = async () => {
     try {
-      const data: any = await getNewsSources();
+      const data = (await getNewsSources()) as NewsSources;
       setSources(data);
     } catch {}
   };
@@ -77,31 +96,31 @@ export default function NewsPage() {
     if (!url) return;
     const key = name.toLowerCase().replace(/[^a-z0-9]+/g, "_");
     setSources({
-      ...sources,
-      rss_feeds: { ...sources.rss_feeds, [key]: { name, url, enabled: true } },
+      ...sources!,
+      rss_feeds: { ...sources!.rss_feeds, [key]: { name, url, enabled: true } },
     });
   };
 
   const removeRssFeed = (key: string) => {
     if (!confirm("Remove this feed?")) return;
-    const updated = { ...sources.rss_feeds };
+    const updated = { ...sources!.rss_feeds };
     delete updated[key];
-    setSources({ ...sources, rss_feeds: updated });
+    setSources({ ...sources!, rss_feeds: updated });
   };
 
   const addYfQuery = () => {
     if (!newQuery.trim()) return;
     setSources({
-      ...sources,
-      yf_queries: [...(sources.yf_queries || []), newQuery.trim()],
+      ...sources!,
+      yf_queries: [...(sources!.yf_queries || []), newQuery.trim()],
     });
     setNewQuery("");
   };
 
   const removeYfQuery = (i: number) => {
-    const updated = [...(sources.yf_queries || [])];
+    const updated = [...(sources!.yf_queries || [])];
     updated.splice(i, 1);
-    setSources({ ...sources, yf_queries: updated });
+    setSources({ ...sources!, yf_queries: updated });
   };
 
   const saveSources = async () => {
@@ -111,8 +130,8 @@ export default function NewsPage() {
       await saveNewsSources({ rss_feeds: sources.rss_feeds, yf_queries: sources.yf_queries });
       toast.success("News sources saved");
       loadNews();
-    } catch (e: any) {
-      toast.error(e.message || "Failed to save");
+    } catch (e) {
+      toast.error(errorMessage(e, "Failed to save"));
     } finally {
       setSaving(false);
     }
@@ -211,7 +230,7 @@ export default function NewsPage() {
                   </p>
                 </CardHeader>
                 <CardContent className="space-y-2">
-                  {Object.entries(sources.rss_feeds).map(([key, info]: any) => (
+                  {Object.entries(sources.rss_feeds).map(([key, info]) => (
                     <div key={key} className="flex items-center justify-between p-3 rounded-lg border">
                       <div className="flex items-center gap-3 flex-1 min-w-0">
                         <input

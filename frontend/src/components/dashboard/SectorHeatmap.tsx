@@ -15,6 +15,14 @@ interface Sector {
   signal: string;
 }
 
+/** GET /api/strategies/cyclical/sector-rotation (backend/cyclical.py analyze_sector_rotation). */
+interface SectorRotationResponse {
+  period_months: number;
+  sectors: Sector[];
+  top_sectors: Sector[];
+  bottom_sectors: Sector[];
+}
+
 // Months of performance shown when the heatmap first loads
 const INITIAL_PERIOD = 3;
 
@@ -31,7 +39,7 @@ export function SectorHeatmap() {
   // Fetches sectors; callers that need the spinner set `loading` first.
   const fetchSectors = (months: number) =>
     getSectorRotation(months)
-      .then((data: any) => setSectors(data.sectors || []))
+      .then((data) => setSectors((data as SectorRotationResponse).sectors || []))
       .catch(() => setSectors([]))
       .finally(() => setLoading(false));
 
