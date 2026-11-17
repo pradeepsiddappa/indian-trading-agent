@@ -64,8 +64,9 @@ interface PaperTrade {
   score: number | null;
   confidence: string | null;
   success_probability: number | null;
-  // Decoded from JSON by list_paper_trades(); if decoding fails the raw string is left in place.
-  triggered_signals: TriggeredSignal[] | null;
+  // Decoded from JSON by list_paper_trades(); if decoding fails the raw string is
+  // left in place, so check Array.isArray before reading it as a list.
+  triggered_signals: TriggeredSignal[] | string | null;
   entry_price: number;
   entry_date: string;
   entry_datetime: string;
@@ -320,7 +321,7 @@ function PaperTradeRow({ t, onClose, onDelete }: { t: PaperTrade; onClose: (id: 
                   )}
                 </div>
               )}
-              {t.triggered_signals && t.triggered_signals.length > 0 && (
+              {Array.isArray(t.triggered_signals) && t.triggered_signals.length > 0 && (
                 <div>
                   <p className="text-xs font-medium text-muted-foreground mb-1">Why this trade was picked:</p>
                   <div className="space-y-1">
