@@ -75,7 +75,7 @@ export function TodayPicks({ universe = "nifty100" }: { universe?: string }) {
               <Sparkles className="h-5 w-5 text-yellow-600" />
             </div>
             <div>
-              <h2 className="font-semibold text-lg">Today's Top Picks</h2>
+              <h2 className="font-semibold text-lg">Today&apos;s Top Picks</h2>
               <p className="text-xs text-muted-foreground">
                 {lastRun ? `Updated ${lastRun.toLocaleTimeString()}` : "Loading..."} · {universe.toUpperCase()}
                 {data?.active_regime && (

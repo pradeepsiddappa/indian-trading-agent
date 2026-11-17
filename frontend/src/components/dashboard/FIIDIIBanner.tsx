@@ -137,14 +137,14 @@ export function FIIDIIBanner() {
             <p className={style.text}>{bias.reasoning}</p>
             <div className="grid grid-cols-2 gap-3 mt-2">
               <div className={`p-2 rounded ${statusColors.surfaceInset}`}>
-                <p className="text-xs text-muted-foreground">Today's FII Net</p>
+                <p className="text-xs text-muted-foreground">Today&apos;s FII Net</p>
                 <p className={`font-semibold ${pnlText(fiiToday >= 0)}`}>
                   {formatCr(fiiToday)}
                 </p>
                 <p className="text-xs text-muted-foreground">5-day: {formatCr(bias.fii_5d_net)}</p>
               </div>
               <div className={`p-2 rounded ${statusColors.surfaceInset}`}>
-                <p className="text-xs text-muted-foreground">Today's DII Net</p>
+                <p className="text-xs text-muted-foreground">Today&apos;s DII Net</p>
                 <p className={`font-semibold ${pnlText(diiToday >= 0)}`}>
                   {formatCr(diiToday)}
                 </p>

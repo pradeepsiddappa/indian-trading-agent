@@ -171,7 +171,7 @@ export default function VerdictCalibrationPage() {
             Verdict Calibration
           </h1>
           <p className="text-sm text-muted-foreground mt-1">
-            Does the Daily Verdict actually predict Nifty's move? Every day's call gets graded.
+            Does the Daily Verdict actually predict Nifty&apos;s move? Every day&apos;s call gets graded.
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -207,10 +207,10 @@ export default function VerdictCalibrationPage() {
               <h3 className="font-semibold text-sm mb-2">How to use this page</h3>
               <ol className="text-sm text-muted-foreground space-y-1.5 list-decimal list-inside">
                 <li><span className="text-foreground font-medium">Let it run:</span> Just load the Dashboard daily — snapshots happen automatically. No action needed for the first ~30 days.</li>
-                <li><span className="text-foreground font-medium">Check accuracy weekly:</span> After 30 days you'll have ~22 ripe snapshots. Look at the 5d Acc column for each verdict.</li>
+                <li><span className="text-foreground font-medium">Check accuracy weekly:</span> After 30 days you&apos;ll have ~22 ripe snapshots. Look at the 5d Acc column for each verdict.</li>
                 <li><span className="text-foreground font-medium">Trust the verdicts that work:</span> If GREEN has 60%+ accuracy and positive avg return — trade with confidence on GREEN days at full size.</li>
-                <li><span className="text-foreground font-medium">Override the ones that don't:</span> If RED has &lt;50% accuracy and positive avg return — the filter is over-cautious. Loosen thresholds in <code className="text-xs bg-muted px-1 rounded">backend/daily_verdict.py</code> or simply ignore RED days.</li>
-                <li><span className="text-foreground font-medium">Watch YELLOW carefully:</span> If YELLOW's "quiet day" accuracy is high, you're correctly skipping noise. If low, the verdict is missing real opportunities — tighten its triggers.</li>
+                <li><span className="text-foreground font-medium">Override the ones that don&apos;t:</span> If RED has &lt;50% accuracy and positive avg return — the filter is over-cautious. Loosen thresholds in <code className="text-xs bg-muted px-1 rounded">backend/daily_verdict.py</code> or simply ignore RED days.</li>
+                <li><span className="text-foreground font-medium">Watch YELLOW carefully:</span> If YELLOW&apos;s &quot;quiet day&quot; accuracy is high, you&apos;re correctly skipping noise. If low, the verdict is missing real opportunities — tighten its triggers.</li>
                 <li><span className="text-foreground font-medium">Sanity check via Recent Snapshots:</span> Scan the table for ✗ patterns — if RED days keep getting wrong calls during a specific period, look for what regime change happened then.</li>
               </ol>
             </div>

@@ -204,10 +204,10 @@ export default function ShadowTradesPage() {
               <ol className="text-sm text-muted-foreground space-y-1.5 list-decimal list-inside">
                 <li><span className="text-foreground font-medium">It runs itself:</span> Every time you load Top Picks, STRONG BUYs and HIGH-confidence BUYs are auto-recorded as shadow trades. No action needed.</li>
                 <li><span className="text-foreground font-medium">Wait ~30 days:</span> Need ≥5 tracked + ≥5 skipped picks before the verdict pill is meaningful.</li>
-                <li><span className="text-foreground font-medium">Read the comparison:</span> The "Skipped vs Tracked" delta tells you if your gut is filtering out winners. Skipped &gt; Tracked = your filter hurts.</li>
+                <li><span className="text-foreground font-medium">Read the comparison:</span> The &quot;Skipped vs Tracked&quot; delta tells you if your gut is filtering out winners. Skipped &gt; Tracked = your filter hurts.</li>
                 <li><span className="text-foreground font-medium">Scan for missed winners:</span> Look at rows with <code>user_tracked=0</code> and big positive 5d P&L. These are picks you wrongly skipped — what made you skip?</li>
-                <li><span className="text-foreground font-medium">Click 'Backfill prices':</span> Forces yfinance lookup for ripe horizons. Normally happens automatically with paper trade refreshes.</li>
-                <li><span className="text-foreground font-medium">Long-term:</span> Once you have 50+ shadow trades, the recommender's true win rate becomes solid — use it to calibrate position sizing rather than relying on stated success_probability alone.</li>
+                <li><span className="text-foreground font-medium">Click &apos;Backfill prices&apos;:</span> Forces yfinance lookup for ripe horizons. Normally happens automatically with paper trade refreshes.</li>
+                <li><span className="text-foreground font-medium">Long-term:</span> Once you have 50+ shadow trades, the recommender&apos;s true win rate becomes solid — use it to calibrate position sizing rather than relying on stated success_probability alone.</li>
               </ol>
             </div>
           </div>

@@ -206,12 +206,12 @@ export default function MemoryAdminPage() {
             <div className="flex-1 min-w-0">
               <h3 className="font-semibold text-sm mb-2">How to use this page</h3>
               <ol className="text-sm text-muted-foreground space-y-1.5 list-decimal list-inside">
-                <li><span className="text-foreground font-medium">Decay is automatic:</span> Every retrieval already applies the age-based multiplier. You don't need to do anything for that part.</li>
+                <li><span className="text-foreground font-medium">Decay is automatic:</span> Every retrieval already applies the age-based multiplier. You don&apos;t need to do anything for that part.</li>
                 <li><span className="text-foreground font-medium">Inspect first:</span> Click an agent card to see its entries, ages, decay factors, and hit counts before pruning anything.</li>
                 <li><span className="text-foreground font-medium">Look for stale entries:</span> Rows with low decay (red) AND zero hits are the best prune candidates — old lessons that never matched anything anyway.</li>
-                <li><span className="text-foreground font-medium">Use dry-run first:</span> Set criteria, click 'Preview', see what would be pruned. Only commit when the preview looks right.</li>
+                <li><span className="text-foreground font-medium">Use dry-run first:</span> Set criteria, click &apos;Preview&apos;, see what would be pruned. Only commit when the preview looks right.</li>
                 <li><span className="text-foreground font-medium">Pruning trigger ideas:</span> After a market regime shift (Bull → Bear), prune by min_decay 0.4 to drop weak old lessons. Or every 6 months prune by max_age_days 540.</li>
-                <li><span className="text-foreground font-medium">Need data:</span> Memories only populate when you run AI Deep Analysis + log P&L with 'Teach the agent' checked. Without that this page stays empty.</li>
+                <li><span className="text-foreground font-medium">Need data:</span> Memories only populate when you run AI Deep Analysis + log P&L with &apos;Teach the agent&apos; checked. Without that this page stays empty.</li>
               </ol>
             </div>
           </div>
@@ -350,7 +350,7 @@ export default function MemoryAdminPage() {
                   {entries.length === 0 && (
                     <tr>
                       <td colSpan={7} className="text-center py-6 text-muted-foreground">
-                        No entries — agent hasn't reflected on any trades yet.
+                        No entries — agent hasn&apos;t reflected on any trades yet.
                       </td>
                     </tr>
                   )}

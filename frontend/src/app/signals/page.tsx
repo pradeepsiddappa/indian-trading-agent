@@ -290,7 +290,7 @@ export default function SignalsPage() {
                 <li><span className="text-foreground font-medium">Wait for data:</span> Need ≥10 closed trades per signal. Track at least 30 paper trades from <a href="/recommendations" className="text-purple-700 underline">Top Picks</a> to get tunable signals.</li>
                 <li><span className="text-foreground font-medium">Read the table:</span> Look for signals with high <em>Honest WR</em> (≥55%) — these are reliably profitable. Low <em>Honest WR</em> (≤40%) signals are fooling you.</li>
                 <li><span className="text-foreground font-medium">Apply tuning:</span> Click <em>Apply Suggested Weights</em> when verdict shows <span className="text-green-700">Tune up</span> or <span className="text-red-700">Tune down</span>. Recommender uses new weights on next refresh.</li>
-                <li><span className="text-foreground font-medium">Re-tune monthly:</span> Markets change. Come back every 30 days and apply again — weights drift toward what's currently working.</li>
+                <li><span className="text-foreground font-medium">Re-tune monthly:</span> Markets change. Come back every 30 days and apply again — weights drift toward what&apos;s currently working.</li>
                 <li><span className="text-foreground font-medium">Reset if regime shifts:</span> After a major market event (crash, rate cut), defaults may beat stale tuned weights. Reset and re-collect data.</li>
               </ol>
             </div>
@@ -462,10 +462,10 @@ export default function SignalsPage() {
             <div className="flex-1 min-w-0">
               <h3 className="font-semibold text-sm mb-2">How to use the regime breakdown</h3>
               <ol className="text-sm text-muted-foreground space-y-1.5 list-decimal list-inside">
-                <li><span className="text-foreground font-medium">Watch today's regime:</span> The badge on the Dashboard shows the current regime. Most signals behave differently in HIGH_VOL vs BULL.</li>
+                <li><span className="text-foreground font-medium">Watch today&apos;s regime:</span> The badge on the Dashboard shows the current regime. Most signals behave differently in HIGH_VOL vs BULL.</li>
                 <li><span className="text-foreground font-medium">Spot regime-dependent signals:</span> Any row flagged <span className="text-amber-700 font-medium">⚡ regime-dependent</span> works in some regimes but fails in others. The blanket weight in the main table is a misleading average.</li>
-                <li><span className="text-foreground font-medium">Read the spread:</span> A spread of 50% means the signal's win rate ranges by 50 percentage points across regimes — huge signal. Spread &lt;20% means it works consistently everywhere.</li>
-                <li><span className="text-foreground font-medium">Filter manually for now:</span> If "Volume Spike Bullish" wins 75% in BULL but 25% in BEAR, only act on it during BULL regimes (check the Dashboard badge before trading).</li>
+                <li><span className="text-foreground font-medium">Read the spread:</span> A spread of 50% means the signal&apos;s win rate ranges by 50 percentage points across regimes — huge signal. Spread &lt;20% means it works consistently everywhere.</li>
+                <li><span className="text-foreground font-medium">Filter manually for now:</span> If &quot;Volume Spike Bullish&quot; wins 75% in BULL but 25% in BEAR, only act on it during BULL regimes (check the Dashboard badge before trading).</li>
                 <li><span className="text-foreground font-medium">Need data:</span> Spread is only computed when n≥5 in at least 2 regimes. Most users will start in one regime — accumulate trades, wait for the market to shift, then come back.</li>
                 <li><span className="text-foreground font-medium">Future:</span> When enough data exists, the recommender will auto-apply regime-conditional weights (skips ⚡ signals when the wrong regime is active).</li>
               </ol>
@@ -582,7 +582,7 @@ export default function SignalsPage() {
           <div>
             <CardTitle className="text-base">Conditional Regime Weights (Tier 4.1)</CardTitle>
             <p className="text-xs text-muted-foreground mt-1">
-              Per-regime weight overrides layered on top of base tuned weights. Recommender automatically picks the right layer based on today's regime.
+              Per-regime weight overrides layered on top of base tuned weights. Recommender automatically picks the right layer based on today&apos;s regime.
             </p>
           </div>
           <div className="flex items-center gap-2">
@@ -639,7 +639,7 @@ export default function SignalsPage() {
           </div>
 
           <div className="text-xs text-muted-foreground border-t pt-3">
-            <strong>How layering works:</strong> DEFAULT_WEIGHTS → base tuned weights (Apply Suggested Weights button above) → regime-specific overrides (this card). Recommender automatically picks the active regime's overrides at runtime. Regime overrides are conservative — only applied when n≥5 in that regime AND Wilson lower bound differs from 50% by &gt;10% AND the suggested change is &gt;0.25.
+            <strong>How layering works:</strong> DEFAULT_WEIGHTS → base tuned weights (Apply Suggested Weights button above) → regime-specific overrides (this card). Recommender automatically picks the active regime&apos;s overrides at runtime. Regime overrides are conservative — only applied when n≥5 in that regime AND Wilson lower bound differs from 50% by &gt;10% AND the suggested change is &gt;0.25.
           </div>
         </CardContent>
       </Card>

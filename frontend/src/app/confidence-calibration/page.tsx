@@ -127,7 +127,7 @@ export default function ConfidenceCalibrationPage() {
             Confidence Calibration
           </h1>
           <p className="text-sm text-muted-foreground mt-1">
-            Is the recommender's stated probability honest? Brier score + reliability diagram from your closed trades.
+            Is the recommender&apos;s stated probability honest? Brier score + reliability diagram from your closed trades.
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -162,7 +162,7 @@ export default function ConfidenceCalibrationPage() {
             <div className="flex-1 min-w-0">
               <h3 className="font-semibold text-sm mb-2">How to use this page</h3>
               <ol className="text-sm text-muted-foreground space-y-1.5 list-decimal list-inside">
-                <li><span className="text-foreground font-medium">Read the verdict pill:</span> "Overconfident" means the recommender's % is inflated — derate it. "Underconfident" means trust the engine more on high-prob calls.</li>
+                <li><span className="text-foreground font-medium">Read the verdict pill:</span> &quot;Overconfident&quot; means the recommender&apos;s % is inflated — derate it. &quot;Underconfident&quot; means trust the engine more on high-prob calls.</li>
                 <li><span className="text-foreground font-medium">Check Brier improvement:</span> 20%+ improvement over the 50% baseline means the engine has real signal. &lt;5% means you may as well guess.</li>
                 <li><span className="text-foreground font-medium">Scan the bin table:</span> Maybe 60-70% bin is honest but 80%+ is wildly overconfident — only trust the bucket where actual ≈ predicted.</li>
                 <li><span className="text-foreground font-medium">Adjust your sizing:</span> If the engine claims 70% but reality is 55%, treat displayed probabilities as `actual = stated × 0.79` for position sizing decisions.</li>
