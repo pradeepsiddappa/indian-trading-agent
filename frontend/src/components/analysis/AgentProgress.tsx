@@ -53,15 +53,11 @@ export function AgentProgress({ reports, signal, status }: Props) {
   });
 
   // Second pass: mark the first pending agent as running
-  let foundRunning = false;
-  const agents = defaultAgents.map((agent, i) => {
-    let agentStatus: "pending" | "running" | "completed" = agentStatuses[i];
-    if (status === "running" && agentStatus === "pending" && !foundRunning) {
-      agentStatus = "running";
-      foundRunning = true;
-    }
-    return { ...agent, status: agentStatus };
-  });
+  const runningIndex = status === "running" ? agentStatuses.indexOf("pending") : -1;
+  const agents = defaultAgents.map((agent, i) => ({
+    ...agent,
+    status: i === runningIndex ? ("running" as const) : agentStatuses[i],
+  }));
 
   const statusIcon = (s: string) => {
     switch (s) {

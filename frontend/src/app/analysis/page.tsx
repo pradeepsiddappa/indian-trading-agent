@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, Suspense } from "react";
+import { useEffect, useState, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { useAnalysisStore } from "@/lib/store";
 import { DecisionCard } from "@/components/analysis/DecisionCard";
@@ -25,6 +25,17 @@ export default function AnalysisPage() {
       <AnalysisPageInner />
     </Suspense>
   );
+}
+
+// "Ns ago" for the live heartbeat. Reading the clock during render is impure,
+// so the current time lives in state and a 1s interval moves it forward.
+function SecondsAgo({ since }: { since: number }) {
+  const [now, setNow] = useState(since);
+  useEffect(() => {
+    const id = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, []);
+  return <>{Math.max(0, Math.floor((now - since) / 1000))}s ago</>;
 }
 
 function AnalysisPageInner() {
@@ -152,7 +163,7 @@ function AnalysisPageInner() {
               <span className="text-blue-700 font-mono text-xs truncate flex-1">{analysis.heartbeat}</span>
               {analysis.lastUpdateAt > 0 && (
                 <span className="text-xs text-muted-foreground">
-                  {Math.floor((Date.now() - analysis.lastUpdateAt) / 1000)}s ago
+                  <SecondsAgo since={analysis.lastUpdateAt} />
                 </span>
               )}
             </div>
