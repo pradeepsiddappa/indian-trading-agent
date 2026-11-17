@@ -236,12 +236,18 @@ function generateEntryExitWindows(data: MonthlySeasonality): { windows: EntryExi
   // Best exit windows — sell during or just after peak months
   if (strongBull.length > 0) {
     const exitMonthNames = strongBull.map((m) => m.month_name);
+    const bullReturns = strongBull.map((m) => m.avg_return_pct);
+    const lowReturn = Math.min(...bullReturns);
+    const highReturn = Math.max(...bullReturns);
     windows.push({
       type: "exit",
       months: exitMonthNames,
       reasoning: `Book profits during or at the end of these months. Historically the strongest months — prices tend to peak here before pulling back.`,
       confidence: strongBull.length >= 2 ? "High" : "Medium",
-      expectedReturn: `Capture the +${strongBull[0].avg_return_pct}% to +${strongBull[strongBull.length - 1]?.avg_return_pct}% seasonal rally`,
+      // BULLISH months always average above +1%, so the "+" is safe here.
+      expectedReturn: lowReturn === highReturn
+        ? `Capture the +${lowReturn}% seasonal rally`
+        : `Capture the +${lowReturn}% to +${highReturn}% seasonal rally`,
     });
   }
 
