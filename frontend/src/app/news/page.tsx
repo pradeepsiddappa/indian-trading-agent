@@ -54,6 +54,7 @@ export default function NewsPage() {
   const [articles, setArticles] = useState<Article[]>([]);
   const [loading, setLoading] = useState(true);
   const [sources, setSources] = useState<NewsSources | null>(null);
+  const [sourcesError, setSourcesError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState("feed");
   const [saving, setSaving] = useState(false);
   const [newQuery, setNewQuery] = useState("");
@@ -74,7 +75,14 @@ export default function NewsPage() {
     try {
       const data = (await getNewsSources()) as NewsSources;
       setSources(data);
-    } catch {}
+    } catch (e) {
+      setSourcesError(errorMessage(e, "Failed to load news sources"));
+    }
+  };
+
+  const retryLoadSources = () => {
+    setSourcesError(null);
+    loadSources();
   };
 
   useEffect(() => {
@@ -212,7 +220,14 @@ export default function NewsPage() {
 
         {/* Sources */}
         <TabsContent value="sources">
-          {!sources ? (
+          {!sources && sourcesError ? (
+            <div className="py-10 text-center space-y-3">
+              <p className="text-sm text-muted-foreground">{sourcesError}</p>
+              <Button variant="outline" size="sm" onClick={retryLoadSources}>
+                <RefreshCw className="h-3 w-3 mr-1" /> Retry
+              </Button>
+            </div>
+          ) : !sources ? (
             <div className="py-10 text-center"><Loader2 className="h-5 w-5 animate-spin mx-auto" /></div>
           ) : (
             <div className="space-y-4">
