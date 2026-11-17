@@ -194,7 +194,8 @@ export function LLMSettings() {
     try {
       const r: any = await testApiKey(selected, keyInput.trim() || undefined);
       setTestRes({ ok: r.ok, msg: r.ok ? r.message : r.error });
-      r.ok ? toast.success(`${cur?.name} works!`) : toast.error(`Test failed: ${r.error}`);
+      if (r.ok) toast.success(`${cur?.name} works!`);
+      else toast.error(`Test failed: ${r.error}`);
     } catch (e: any) {
       setTestRes({ ok: false, msg: e.message });
     } finally {

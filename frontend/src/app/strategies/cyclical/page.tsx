@@ -28,7 +28,7 @@ function generateInsight(data: any): string {
   const bullishMonths = months.filter((m: any) => m.signal === "BULLISH");
   const bearishMonths = months.filter((m: any) => m.signal === "BEARISH");
 
-  let lines: string[] = [];
+  const lines: string[] = [];
 
   // Best months
   if (best.length > 0) {
@@ -80,7 +80,7 @@ function generateDowInsight(data: any): string {
   const bestDay = [...days].sort((a: any, b: any) => b.avg_return_pct - a.avg_return_pct)[0];
   const worstDay = [...days].sort((a: any, b: any) => a.avg_return_pct - b.avg_return_pct)[0];
 
-  let lines: string[] = [];
+  const lines: string[] = [];
 
   if (bestDay) {
     lines.push(`Best day to buy: ${bestDay.day_name} — avg return +${bestDay.avg_return_pct}%, ${bestDay.win_rate}% of ${bestDay.day_name}s are positive.`);
