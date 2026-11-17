@@ -43,7 +43,8 @@ export default function AnalysisDetailPage() {
     <div className="p-6 space-y-6">
       <div>
         <h1 className="text-2xl font-bold">{result.ticker} Analysis</h1>
-        <p className="text-sm text-muted-foreground">Date: {result.trade_date} | Task: {result.task_id}</p>
+        {/* The URL's id is the task id; a result still held in backend memory has no task_id field. */}
+        <p className="text-sm text-muted-foreground">Date: {result.trade_date} | Task: {params.id}</p>
       </div>
 
       <DecisionCard signal={result.signal} ticker={result.ticker} duration={result.duration_seconds} />
