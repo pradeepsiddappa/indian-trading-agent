@@ -49,6 +49,8 @@ jobs:
       - name: Install dependencies
         # A pull request can change dependencies, so never run their install scripts here.
         run: npm ci --ignore-scripts
+      - name: Lint
+        run: npm run lint
       - name: Typecheck
         run: npx tsc --noEmit
       - name: Build
