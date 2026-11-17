@@ -7,7 +7,7 @@ name = "indian-trading-agent"
 version = "0.1.0"
 description = "Indian Market Trading Agent: AI-powered short-term trading decisions for NSE/BSE"
 readme = "README.md"
-requires-python = ">=3.10"
+requires-python = ">=3.11.5"
 dependencies = [
     "langchain-core>=1.4.6",
     "langchain-anthropic>=1.4.6",
