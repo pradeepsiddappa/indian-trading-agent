@@ -101,6 +101,11 @@ interface SeasonalBacktest {
   trades: SeasonalTrade[];
 }
 
+// "+1.2%" for a gain, "-0.4%" for a loss
+function signedPct(n: number): string {
+  return `${n >= 0 ? "+" : ""}${n}%`;
+}
+
 function generateInsight(data: MonthlySeasonality): string {
   if (!data || !data.months || data.months.length === 0) return "";
 
@@ -117,7 +122,7 @@ function generateInsight(data: MonthlySeasonality): string {
 
   // Best months
   if (best.length > 0) {
-    const bestNames = best.map((m) => `${m.month_name} (avg +${m.avg_return_pct}%, ${m.win_rate}% win rate)`).join(", ");
+    const bestNames = best.map((m) => `${m.month_name} (avg ${signedPct(m.avg_return_pct)}, ${m.win_rate}% win rate)`).join(", ");
     lines.push(`Historically strongest months: ${bestNames}.`);
   }
 
@@ -168,7 +173,7 @@ function generateDowInsight(data: DayOfWeekPattern): string {
   const lines: string[] = [];
 
   if (bestDay) {
-    lines.push(`Best day to buy: ${bestDay.day_name} — avg return +${bestDay.avg_return_pct}%, ${bestDay.win_rate}% of ${bestDay.day_name}s are positive.`);
+    lines.push(`Best day to buy: ${bestDay.day_name} — avg return ${signedPct(bestDay.avg_return_pct)}, ${bestDay.win_rate}% of ${bestDay.day_name}s are positive.`);
   }
   if (worstDay && worstDay.avg_return_pct < 0) {
     lines.push(`Weakest day: ${worstDay.day_name} — avg return ${worstDay.avg_return_pct}%. Avoid placing new buy orders on ${worstDay.day_name}s if possible.`);
