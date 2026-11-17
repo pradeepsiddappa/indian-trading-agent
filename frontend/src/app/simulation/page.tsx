@@ -603,10 +603,10 @@ export default function SimulationPage() {
                           <TableCell className="font-medium">{s.strategy}</TableCell>
                           <TableCell className="text-right">{s.count}</TableCell>
                           <TableCell className="text-right">{s.closed || 0}</TableCell>
-                          <TableCell className={`text-right font-semibold ${s.win_rate! >= 55 ? "text-green-600" : s.win_rate != null && s.win_rate < 45 ? "text-red-600" : ""}`}>
+                          <TableCell className={`text-right font-semibold ${s.win_rate != null && s.win_rate >= 55 ? "text-green-600" : s.win_rate != null && s.win_rate < 45 ? "text-red-600" : ""}`}>
                             {s.win_rate != null ? `${s.win_rate}%` : "—"}
                           </TableCell>
-                          <TableCell className={`text-right ${s.avg! >= 0 ? "text-green-600" : "text-red-600"}`}>
+                          <TableCell className={`text-right ${s.avg == null ? "" : s.avg >= 0 ? "text-green-600" : "text-red-600"}`}>
                             {s.avg != null ? `${s.avg >= 0 ? "+" : ""}${s.avg}%` : "—"}
                           </TableCell>
                         </TableRow>
@@ -860,8 +860,8 @@ export default function SimulationPage() {
                         <TableCell className="text-xs">{h.created_at}</TableCell>
                         <TableCell className="text-right">{h.signals}</TableCell>
                         <TableCell className="text-right">{h.wins}/{h.signals}</TableCell>
-                        <TableCell className={`text-right ${h.avg_return_5d! >= 0 ? "text-green-600" : "text-red-600"}`}>
-                          {h.avg_return_5d! >= 0 ? "+" : ""}{(h.avg_return_5d || 0).toFixed(2)}%
+                        <TableCell className={`text-right ${h.avg_return_5d == null ? "" : h.avg_return_5d >= 0 ? "text-green-600" : "text-red-600"}`}>
+                          {h.avg_return_5d == null ? "—" : `${h.avg_return_5d >= 0 ? "+" : ""}${h.avg_return_5d.toFixed(2)}%`}
                         </TableCell>
                         <TableCell>
                           <Button size="sm" variant="ghost" className="h-6" onClick={() => handleLoadHistoricalRun(h.run_id)}>
