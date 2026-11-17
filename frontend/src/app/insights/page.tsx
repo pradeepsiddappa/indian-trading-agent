@@ -22,9 +22,49 @@ import {
   Calendar,
   Award,
   MinusCircle,
+  type LucideIcon,
 } from "lucide-react";
 import { toast } from "sonner";
 import { statusColors, splitStatusColor, infoSubtle } from "@/lib/status-colors";
+import { errorMessage } from "@/lib/utils";
+
+// Shapes returned by analyze_trades() in backend/insights.py (GET /api/insights/).
+
+// _compute_group_stats()
+interface InsightStats {
+  count: number;
+  wins: number;
+  losses: number;
+  win_rate: number;
+  avg_return: number;
+  best: number;
+  worst: number;
+}
+
+// _classify_insight() returns one of these as the insight's type
+type InsightType = "strength" | "positive" | "neutral" | "caution" | "weakness" | "insufficient";
+
+interface Insight {
+  category: "Signal Type" | "Confidence Level" | "Strategy" | "Seasonality" | "Ticker" | "Indicator" | "Direction";
+  name: string;
+  description: string;
+  stats: InsightStats;
+  type: InsightType;
+  label: string;
+  actionable_tip: string;
+}
+
+// _generate_summary()
+interface InsightsSummary {
+  strength_count: number;
+  weakness_count: number;
+  key_findings: string[];
+}
+
+type LearningInsightsResponse =
+  // Fewer than MIN_SAMPLES closed trades
+  | { ok: false; total_trades: number; message: string; insights: Insight[] }
+  | { ok: true; total_trades: number; overall: InsightStats; insights: Insight[]; summary: InsightsSummary };
 
 const insightsHelp = [
   {
@@ -45,7 +85,7 @@ const insightsHelp = [
   },
 ];
 
-const categoryIcons: Record<string, any> = {
+const categoryIcons: Record<string, LucideIcon> = {
   "Signal Type": Sparkles,
   "Confidence Level": Award,
   "Strategy": Target,
@@ -55,7 +95,7 @@ const categoryIcons: Record<string, any> = {
   "Direction": TrendingUp,
 };
 
-const typeStyles: Record<string, { bg: string; border: string; text: string; icon: any }> = {
+const typeStyles: Record<string, { bg: string; border: string; text: string; icon: LucideIcon }> = {
   strength: { ...splitStatusColor(statusColors.bullish), border: "border-green-300 dark:border-green-800", icon: CheckCircle2 },
   positive: { ...splitStatusColor(statusColors.bullish), icon: TrendingUp },
   neutral: { ...splitStatusColor(statusColors.neutral), icon: MinusCircle },
@@ -64,7 +104,7 @@ const typeStyles: Record<string, { bg: string; border: string; text: string; ico
   insufficient: { ...splitStatusColor(statusColors.neutral), text: "text-gray-500 dark:text-muted-foreground", icon: Info },
 };
 
-function InsightCard({ insight }: { insight: any }) {
+function InsightCard({ insight }: { insight: Insight }) {
   const style = typeStyles[insight.type] || typeStyles.neutral;
   const CategoryIcon = categoryIcons[insight.category] || Info;
   const TypeIcon = style.icon;
@@ -131,17 +171,17 @@ function InsightCard({ insight }: { insight: any }) {
 }
 
 export default function InsightsPage() {
-  const [data, setData] = useState<any>(null);
+  const [data, setData] = useState<LearningInsightsResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState("strengths");
 
   const load = async () => {
     setLoading(true);
     try {
-      const result: any = await getLearningInsights();
+      const result = (await getLearningInsights()) as LearningInsightsResponse;
       setData(result);
-    } catch (e: any) {
-      toast.error(e.message || "Failed to load insights");
+    } catch (e) {
+      toast.error(errorMessage(e, "Failed to load insights"));
     } finally {
       setLoading(false);
     }
@@ -198,9 +238,9 @@ export default function InsightsPage() {
     );
   }
 
-  const strengths = data.insights.filter((i: any) => i.type === "strength" || i.type === "positive");
-  const weaknesses = data.insights.filter((i: any) => i.type === "weakness" || i.type === "caution");
-  const neutral = data.insights.filter((i: any) => i.type === "neutral");
+  const strengths = data.insights.filter((i) => i.type === "strength" || i.type === "positive");
+  const weaknesses = data.insights.filter((i) => i.type === "weakness" || i.type === "caution");
+  const neutral = data.insights.filter((i) => i.type === "neutral");
 
   return (
     <div className="p-6 space-y-6">
@@ -299,7 +339,7 @@ export default function InsightsPage() {
           {strengths.length === 0 ? (
             <Card><CardContent className="p-8 text-center text-muted-foreground text-sm">No clear strengths yet. Keep trading to build up patterns.</CardContent></Card>
           ) : (
-            strengths.map((i: any, idx: number) => <InsightCard key={idx} insight={i} />)
+            strengths.map((i, idx) => <InsightCard key={idx} insight={i} />)
           )}
         </TabsContent>
 
@@ -307,16 +347,16 @@ export default function InsightsPage() {
           {weaknesses.length === 0 ? (
             <Card><CardContent className="p-8 text-center text-muted-foreground text-sm">No clear weaknesses detected! Good job — keep going.</CardContent></Card>
           ) : (
-            weaknesses.map((i: any, idx: number) => <InsightCard key={idx} insight={i} />)
+            weaknesses.map((i, idx) => <InsightCard key={idx} insight={i} />)
           )}
         </TabsContent>
 
         <TabsContent value="neutral" className="space-y-3 mt-4">
-          {neutral.map((i: any, idx: number) => <InsightCard key={idx} insight={i} />)}
+          {neutral.map((i, idx) => <InsightCard key={idx} insight={i} />)}
         </TabsContent>
 
         <TabsContent value="all" className="space-y-3 mt-4">
-          {data.insights.map((i: any, idx: number) => <InsightCard key={idx} insight={i} />)}
+          {data.insights.map((i, idx) => <InsightCard key={idx} insight={i} />)}
         </TabsContent>
       </Tabs>
 

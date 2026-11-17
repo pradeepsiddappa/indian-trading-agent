@@ -9,10 +9,60 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { HelpSection } from "@/components/HelpSection";
-import { Loader2, TrendingUp, Zap, ArrowUpRight, Volume2, Target, Award, Sparkles } from "lucide-react";
+import { Loader2, TrendingUp, Zap, ArrowUpRight, Volume2, Target, Award, Sparkles, type LucideIcon } from "lucide-react";
 import { toast } from "sonner";
 import { NextStep } from "@/components/NextStep";
 import { iconBadge, cautionSubtle } from "@/lib/status-colors";
+import { errorMessage } from "@/lib/utils";
+
+// Shapes returned by measure_all_strategies() in backend/performance.py
+// (GET /api/performance/all).
+
+// _summarize_trades(): one entry per hold period that has data, keyed "day_1" / "day_3" / "day_5"
+interface HoldPeriodStats {
+  hold_days: number;
+  total_signals: number;
+  wins: number;
+  losses: number;
+  win_rate: number;
+  avg_return: number;
+  median_return: number;
+  best_trade: number;
+  worst_trade: number;
+  std_dev: number;
+}
+
+// One signal from the measure_*_strategy() helpers. Each strategy also adds its own
+// extra fields (gap_pct, volume_ratio, breakout_level, support_level, ...) that this page doesn't read.
+interface StrategyTrade {
+  ticker: string;
+  date: string;
+  direction: "LONG" | "SHORT";
+  entry_price: number;
+  // Only the hold periods that had elapsed are present, keyed "day_1" / "day_3" / "day_5"
+  returns: Partial<Record<string, number>>;
+}
+
+interface StrategyPerformance {
+  strategy: string;
+  total_signals: number;
+  hold_periods: Record<string, HoldPeriodStats>;
+  trades: StrategyTrade[];
+}
+
+interface PerformanceAllResponse {
+  universe: string;
+  lookback_days: number;
+  hold_days: number[];
+  strategies: Record<"gap" | "volume" | "breakout" | "sr_bounce", StrategyPerformance>;
+}
+
+interface BestStrategy {
+  key: string;
+  name: string;
+  score: number;
+  stats: HoldPeriodStats;
+}
 
 const performanceHelp = [
   {
@@ -37,7 +87,7 @@ const performanceHelp = [
   },
 ];
 
-const strategyIcons: Record<string, any> = {
+const strategyIcons: Record<string, LucideIcon> = {
   gap: ArrowUpRight,
   volume: Volume2,
   breakout: TrendingUp,
@@ -70,25 +120,25 @@ export default function PerformancePage() {
   const [universe, setUniverse] = useState("nifty50");
   const [lookbackDays, setLookbackDays] = useState(60);
   const [status, setStatus] = useState<"idle" | "running" | "done">("idle");
-  const [results, setResults] = useState<any>(null);
+  const [results, setResults] = useState<PerformanceAllResponse | null>(null);
 
   const handleRun = async () => {
     setStatus("running");
     setResults(null);
 
     try {
-      const data: any = await getPerformanceAll(universe, lookbackDays);
+      const data = (await getPerformanceAll(universe, lookbackDays)) as PerformanceAllResponse;
       setResults(data);
       setStatus("done");
-    } catch (e: any) {
-      toast.error(e.message || "Failed to measure performance");
+    } catch (e) {
+      toast.error(errorMessage(e, "Failed to measure performance"));
       setStatus("idle");
     }
   };
 
   // Find best strategy
   const bestStrategy = results
-    ? Object.entries(results.strategies).reduce((best: any, [key, val]: any) => {
+    ? Object.entries(results.strategies).reduce<BestStrategy | null>((best, [key, val]) => {
         const day3 = val.hold_periods?.day_3;
         if (!day3) return best;
         const score = day3.win_rate + day3.avg_return * 10; // Combined metric
@@ -183,7 +233,7 @@ export default function PerformancePage() {
       {/* Strategy Cards */}
       {results && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          {Object.entries(results.strategies).map(([key, data]: any) => {
+          {Object.entries(results.strategies).map(([key, data]) => {
             const Icon = strategyIcons[key] || Zap;
             const colorClass = strategyColors[key];
             const day3 = data.hold_periods?.day_3;
@@ -219,7 +269,7 @@ export default function PerformancePage() {
                           </TableRow>
                         </TableHeader>
                         <TableBody>
-                          {Object.entries(data.hold_periods).map(([periodKey, stats]: any) => (
+                          {Object.entries(data.hold_periods).map(([periodKey, stats]) => (
                             <TableRow key={periodKey}>
                               <TableCell className="text-sm font-medium">{stats.hold_days} day{stats.hold_days > 1 ? "s" : ""}</TableCell>
                               <TableCell className={`text-right font-semibold ${stats.win_rate >= 55 ? "text-green-600" : stats.win_rate < 45 ? "text-red-600" : ""}`}>
@@ -253,7 +303,7 @@ export default function PerformancePage() {
               </TabsTrigger>
             ))}
           </TabsList>
-          {Object.entries(results.strategies).map(([key, data]: any) => (
+          {Object.entries(results.strategies).map(([key, data]) => (
             <TabsContent key={key} value={key}>
               <Card>
                 <CardHeader className="pb-2">
@@ -274,7 +324,7 @@ export default function PerformancePage() {
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {(data.trades || []).slice(0, 50).map((t: any, i: number) => (
+                        {(data.trades || []).slice(0, 50).map((t, i) => (
                           <TableRow key={i}>
                             <TableCell className="font-medium">{t.ticker}</TableCell>
                             <TableCell className="text-sm text-muted-foreground">{t.date}</TableCell>

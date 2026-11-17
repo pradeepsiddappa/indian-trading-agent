@@ -35,10 +35,166 @@ import {
   Radar,
   Target,
   Brain,
+  type LucideIcon,
 } from "lucide-react";
 import Link from "next/link";
 import { toast } from "sonner";
 import { statusColors, directionBg } from "@/lib/status-colors";
+import { errorMessage } from "@/lib/utils";
+
+// --- Paper trades (backend/routers/simulation.py + backend/simulation.py) ---
+
+// One recommender signal, as built by _analyze_stock() in backend/recommender.py
+// and stored JSON-encoded in paper_trades.triggered_signals.
+interface TriggeredSignal {
+  type: string;
+  direction: string; // "BULLISH" | "BEARISH" | "FADE" | "NEUTRAL"
+  value?: string;
+  weight: number;
+}
+
+// A paper_trades row from list_paper_trades() in backend/db.py
+interface PaperTrade {
+  id: number;
+  ticker: string;
+  source: string; // "recommendation" | "scanner" | "ai_analysis" | "manual" | ...
+  strategy: string | null;
+  direction: "LONG" | "SHORT";
+  signal: string | null;
+  score: number | null;
+  confidence: string | null;
+  success_probability: number | null;
+  // Decoded from JSON by list_paper_trades(); if decoding fails the raw string is left in place.
+  triggered_signals: TriggeredSignal[] | null;
+  entry_price: number;
+  entry_date: string;
+  entry_datetime: string;
+  price_1d: number | null;
+  price_3d: number | null;
+  price_5d: number | null;
+  price_10d: number | null;
+  pnl_1d_pct: number | null;
+  pnl_3d_pct: number | null;
+  pnl_5d_pct: number | null;
+  pnl_10d_pct: number | null;
+  status: "active" | "expired" | "manually_closed";
+  notes: string | null;
+  regime_at_entry: string | null;
+  updated_at: string;
+}
+
+// GET /api/simulation/paper-trades
+interface PaperTradesResponse {
+  trades: PaperTrade[];
+  count: number;
+}
+
+// compute_stats() inside paper_trading_stats()
+interface HorizonStats {
+  count: number;
+  win_rate: number;
+  avg_return: number;
+  best: number;
+  worst: number;
+}
+
+type Horizon = "1d" | "3d" | "5d" | "10d";
+
+// GET /api/simulation/paper-trades/stats → paper_trading_stats()
+type PaperTradingStats = {
+  total_trades: number;
+  active: number;
+  expired: number;
+} & Record<`horizon_${Horizon}`, HorizonStats>;
+
+// POST /api/simulation/paper-trades/refresh → refresh_paper_trade_prices()
+interface RefreshPaperTradesResponse {
+  ok: true;
+  updated: number;
+  total_active: number;
+  shadow: unknown;
+}
+
+// PUT /api/simulation/paper-trades/{id}/close → close_paper_trade()
+type ClosePaperTradeResponse =
+  | {
+      ok: true;
+      trade_id: number;
+      ticker: string;
+      entry_price: number;
+      close_price: number;
+      pnl_pct: number;
+      direction: string;
+    }
+  | { ok: false; error: string };
+
+// --- Historical recommender backtest ---
+
+// _analyze_stock_at_date() only emits these four
+type RecommenderSignal = "STRONG BUY" | "BUY" | "SELL" | "STRONG SELL";
+
+// A recommender_backtests row from get_recommender_backtest() in backend/db.py
+interface RecommenderBacktestRow {
+  id: number;
+  run_id: string;
+  trade_date: string;
+  ticker: string;
+  signal: RecommenderSignal;
+  score: number;
+  confidence: "HIGH" | "MEDIUM" | "LOW";
+  success_probability: number;
+  entry_price: number;
+  return_1d: number | null;
+  return_3d: number | null;
+  return_5d: number | null;
+  return_10d: number | null;
+  outcome_1d: "win" | "loss" | null;
+  outcome_5d: "win" | "loss" | null;
+  created_at: string;
+}
+
+type RowWith5d = RecommenderBacktestRow & { return_5d: number };
+
+// GET /api/simulation/recommender-backtest/{run_id}
+interface RecommenderBacktestRowsResponse {
+  run_id: string;
+  rows: RecommenderBacktestRow[];
+  count: number;
+}
+
+interface SignalBreakdown {
+  count: number;
+  win_rate: number;
+  avg_return: number;
+}
+
+// POST /api/simulation/recommender-backtest → run_recommender_backtest(), which
+// returns no rows; the page also rebuilds this shape (with rows) from a past run.
+interface RecommenderBacktestResult {
+  run_id: string;
+  universe?: string;
+  start_date?: string;
+  end_date?: string;
+  dates_tested?: number;
+  total_signals: number;
+  wins_5d: number;
+  losses_5d: number;
+  win_rate_5d: number;
+  avg_return_5d: number;
+  by_signal: Record<string, SignalBreakdown>;
+  rows?: RecommenderBacktestRow[];
+}
+
+// GET /api/simulation/recommender-backtest-history → list_recommender_backtest_runs() in backend/db.py
+interface RecommenderBacktestRun {
+  run_id: string;
+  trade_date: string;
+  signals: number;
+  wins: number;
+  losses: number;
+  avg_return_5d: number | null; // SQL AVG(): null when no row in the run has a 5d return
+  created_at: string;
+}
 
 const simulationHelp = [
   {
@@ -70,7 +226,7 @@ const signalColors: Record<string, string> = {
   "STRONG SELL": "bg-red-100 text-red-800 border-red-300 dark:bg-red-950/40 dark:text-red-300 dark:border-red-800",
 };
 
-const sourceConfig: Record<string, { label: string; icon: any; color: string }> = {
+const sourceConfig: Record<string, { label: string; icon: LucideIcon; color: string }> = {
   recommendation: { label: "Recommendations", icon: Sparkles, color: statusColors.caution },
   scanner: { label: "Scanner", icon: Radar, color: statusColors.orange },
   ai_analysis: { label: "AI Analysis", icon: Brain, color: statusColors.purple },
@@ -88,7 +244,7 @@ function PnLCell({ value }: { value: number | null | undefined }) {
   );
 }
 
-function PaperTradeRow({ t, onClose, onDelete }: { t: any; onClose: (id: number) => void; onDelete: (id: number) => void }) {
+function PaperTradeRow({ t, onClose, onDelete }: { t: PaperTrade; onClose: (id: number) => void; onDelete: (id: number) => void }) {
   const [expanded, setExpanded] = useState(false);
   const src = sourceConfig[t.source] || sourceConfig.manual;
   const SrcIcon = src.icon;
@@ -168,7 +324,7 @@ function PaperTradeRow({ t, onClose, onDelete }: { t: any; onClose: (id: number)
                 <div>
                   <p className="text-xs font-medium text-muted-foreground mb-1">Why this trade was picked:</p>
                   <div className="space-y-1">
-                    {t.triggered_signals.map((s: any, i: number) => (
+                    {t.triggered_signals.map((s, i) => (
                       <div
                         key={i}
                         className={`flex items-center justify-between p-2 rounded text-xs ${
@@ -204,8 +360,8 @@ function PaperTradeRow({ t, onClose, onDelete }: { t: any; onClose: (id: number)
 
 export default function SimulationPage() {
   const [tab, setTab] = useState("paper");
-  const [trades, setTrades] = useState<any[]>([]);
-  const [stats, setStats] = useState<any>(null);
+  const [trades, setTrades] = useState<PaperTrade[]>([]);
+  const [stats, setStats] = useState<PaperTradingStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
@@ -213,16 +369,16 @@ export default function SimulationPage() {
   const [bt_universe, setBtUniverse] = useState("nifty50");
   const [bt_interval, setBtInterval] = useState(5);
   const [bt_running, setBtRunning] = useState(false);
-  const [bt_result, setBtResult] = useState<any>(null);
-  const [bt_history, setBtHistory] = useState<any[]>([]);
+  const [bt_result, setBtResult] = useState<RecommenderBacktestResult | null>(null);
+  const [bt_history, setBtHistory] = useState<RecommenderBacktestRun[]>([]);
 
   const loadPaperData = async () => {
     setLoading(true);
     try {
-      const [tradesRes, statsRes]: any[] = await Promise.all([
+      const [tradesRes, statsRes] = (await Promise.all([
         listPaperTrades(),
         getPaperTradingStats(),
-      ]);
+      ])) as [PaperTradesResponse, PaperTradingStats];
       setTrades(tradesRes.trades || []);
       setStats(statsRes);
     } catch {
@@ -234,7 +390,7 @@ export default function SimulationPage() {
 
   const loadBacktestHistory = async () => {
     try {
-      const data: any = await listRecommenderBacktests();
+      const data = (await listRecommenderBacktests()) as RecommenderBacktestRun[];
       setBtHistory(Array.isArray(data) ? data : []);
     } catch {}
   };
@@ -247,11 +403,11 @@ export default function SimulationPage() {
   const handleRefresh = async () => {
     setRefreshing(true);
     try {
-      const r: any = await refreshPaperTrades();
+      const r = (await refreshPaperTrades()) as RefreshPaperTradesResponse;
       toast.success(`Refreshed ${r.updated} trades`);
       await loadPaperData();
-    } catch (e: any) {
-      toast.error(e.message || "Refresh failed");
+    } catch (e) {
+      toast.error(errorMessage(e, "Refresh failed"));
     } finally {
       setRefreshing(false);
     }
@@ -266,7 +422,7 @@ export default function SimulationPage() {
 
   const handleClose = async (id: number) => {
     try {
-      const result: any = await closePaperTrade(id);
+      const result = (await closePaperTrade(id)) as ClosePaperTradeResponse;
       if (result.ok) {
         const pnl = result.pnl_pct;
         toast.success(
@@ -285,15 +441,15 @@ export default function SimulationPage() {
     setBtRunning(true);
     setBtResult(null);
     try {
-      const result: any = await runRecommenderBacktest({
+      const result = (await runRecommenderBacktest({
         universe: bt_universe,
         interval_days: bt_interval,
-      });
+      })) as RecommenderBacktestResult;
       setBtResult(result);
       toast.success(`Backtest complete: ${result.total_signals} signals, ${result.win_rate_5d}% win rate at 5d`);
       loadBacktestHistory();
-    } catch (e: any) {
-      toast.error(e.message || "Backtest failed");
+    } catch (e) {
+      toast.error(errorMessage(e, "Backtest failed"));
     } finally {
       setBtRunning(false);
     }
@@ -301,22 +457,22 @@ export default function SimulationPage() {
 
   const handleLoadHistoricalRun = async (runId: string) => {
     try {
-      const data: any = await getRecommenderBacktestResult(runId);
+      const data = (await getRecommenderBacktestResult(runId)) as RecommenderBacktestRowsResponse;
       // Reconstruct summary from rows
       const rows = data.rows || [];
-      const with5d = rows.filter((r: any) => r.return_5d !== null);
-      const wins = with5d.filter((r: any) => r.return_5d > 0).length;
-      const avg = with5d.length > 0 ? with5d.reduce((s: number, r: any) => s + r.return_5d, 0) / with5d.length : 0;
+      const with5d = rows.filter((r): r is RowWith5d => r.return_5d !== null);
+      const wins = with5d.filter((r) => r.return_5d > 0).length;
+      const avg = with5d.length > 0 ? with5d.reduce((s: number, r) => s + r.return_5d, 0) / with5d.length : 0;
 
-      const bySignal: Record<string, any> = {};
+      const bySignal: Record<string, SignalBreakdown> = {};
       ["STRONG BUY", "BUY", "SELL", "STRONG SELL"].forEach((sig) => {
-        const sigRows = rows.filter((r: any) => r.signal === sig && r.return_5d !== null);
+        const sigRows = rows.filter((r): r is RowWith5d => r.signal === sig && r.return_5d !== null);
         if (sigRows.length > 0) {
-          const sigWins = sigRows.filter((r: any) => r.return_5d > 0).length;
+          const sigWins = sigRows.filter((r) => r.return_5d > 0).length;
           bySignal[sig] = {
             count: sigRows.length,
             win_rate: Math.round(sigWins / sigRows.length * 100 * 10) / 10,
-            avg_return: Math.round(sigRows.reduce((s: number, r: any) => s + r.return_5d, 0) / sigRows.length * 100) / 100,
+            avg_return: Math.round(sigRows.reduce((s: number, r) => s + r.return_5d, 0) / sigRows.length * 100) / 100,
           };
         }
       });
@@ -366,8 +522,8 @@ export default function SimulationPage() {
                   <p className="text-xs text-muted-foreground">{stats.active} active</p>
                 </CardContent>
               </Card>
-              {["1d", "3d", "5d", "10d"].map((h) => {
-                const s = stats[`horizon_${h}`];
+              {(["1d", "3d", "5d", "10d"] as const).map((h) => {
+                const s = stats[`horizon_${h}` as const];
                 return (
                   <Card key={h} className={s.count > 0 && s.win_rate >= 55 ? "border-green-200" : ""}>
                     <CardContent className="p-3 text-center">
@@ -404,18 +560,18 @@ export default function SimulationPage() {
 
           {/* Stats by Strategy */}
           {trades.length > 0 && (() => {
-            const byStrategy: Record<string, any[]> = {};
-            trades.forEach((t: any) => {
+            const byStrategy: Record<string, PaperTrade[]> = {};
+            trades.forEach((t) => {
               const key = t.strategy || sourceConfig[t.source]?.label || t.source || "manual";
               if (!byStrategy[key]) byStrategy[key] = [];
               byStrategy[key].push(t);
             });
 
             const statsPerStrategy = Object.entries(byStrategy).map(([strategy, list]) => {
-              const with5d = list.filter((t: any) => t.pnl_5d_pct != null);
+              const with5d = list.filter((t): t is PaperTrade & { pnl_5d_pct: number } => t.pnl_5d_pct != null);
               if (with5d.length === 0) return { strategy, count: list.length, win_rate: null, avg: null };
-              const wins = with5d.filter((t: any) => t.pnl_5d_pct > 0).length;
-              const avg = with5d.reduce((s: number, t: any) => s + t.pnl_5d_pct, 0) / with5d.length;
+              const wins = with5d.filter((t) => t.pnl_5d_pct > 0).length;
+              const avg = with5d.reduce((s: number, t) => s + t.pnl_5d_pct, 0) / with5d.length;
               return {
                 strategy,
                 count: list.length,
@@ -442,15 +598,15 @@ export default function SimulationPage() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {statsPerStrategy.map((s: any) => (
+                      {statsPerStrategy.map((s) => (
                         <TableRow key={s.strategy}>
                           <TableCell className="font-medium">{s.strategy}</TableCell>
                           <TableCell className="text-right">{s.count}</TableCell>
                           <TableCell className="text-right">{s.closed || 0}</TableCell>
-                          <TableCell className={`text-right font-semibold ${s.win_rate >= 55 ? "text-green-600" : s.win_rate != null && s.win_rate < 45 ? "text-red-600" : ""}`}>
+                          <TableCell className={`text-right font-semibold ${s.win_rate! >= 55 ? "text-green-600" : s.win_rate != null && s.win_rate < 45 ? "text-red-600" : ""}`}>
                             {s.win_rate != null ? `${s.win_rate}%` : "—"}
                           </TableCell>
-                          <TableCell className={`text-right ${s.avg >= 0 ? "text-green-600" : "text-red-600"}`}>
+                          <TableCell className={`text-right ${s.avg! >= 0 ? "text-green-600" : "text-red-600"}`}>
                             {s.avg != null ? `${s.avg >= 0 ? "+" : ""}${s.avg}%` : "—"}
                           </TableCell>
                         </TableRow>
@@ -496,7 +652,7 @@ export default function SimulationPage() {
                           No paper trades yet. Open one from the recommendations page.
                         </TableCell>
                       </TableRow>
-                    ) : trades.map((t: any) => (
+                    ) : trades.map((t) => (
                       <PaperTradeRow key={t.id} t={t} onClose={handleClose} onDelete={handleDelete} />
                     ))}
                   </TableBody>
@@ -610,7 +766,7 @@ export default function SimulationPage() {
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {Object.entries(bt_result.by_signal).map(([sig, s]: any) => (
+                        {Object.entries(bt_result.by_signal).map(([sig, s]) => (
                           <TableRow key={sig}>
                             <TableCell>
                               <Badge variant="outline" className={signalColors[sig] || ""}>{sig}</Badge>
@@ -653,7 +809,7 @@ export default function SimulationPage() {
                           </TableRow>
                         </TableHeader>
                         <TableBody>
-                          {bt_result.rows.slice(0, 100).map((r: any, i: number) => (
+                          {bt_result.rows.slice(0, 100).map((r, i) => (
                             <TableRow key={i}>
                               <TableCell className="text-xs">{r.trade_date}</TableCell>
                               <TableCell className="font-medium">{r.ticker}</TableCell>
@@ -698,14 +854,14 @@ export default function SimulationPage() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {bt_history.map((h: any) => (
+                    {bt_history.map((h) => (
                       <TableRow key={h.run_id}>
                         <TableCell className="font-mono text-xs">{h.run_id}</TableCell>
                         <TableCell className="text-xs">{h.created_at}</TableCell>
                         <TableCell className="text-right">{h.signals}</TableCell>
                         <TableCell className="text-right">{h.wins}/{h.signals}</TableCell>
-                        <TableCell className={`text-right ${h.avg_return_5d >= 0 ? "text-green-600" : "text-red-600"}`}>
-                          {h.avg_return_5d >= 0 ? "+" : ""}{(h.avg_return_5d || 0).toFixed(2)}%
+                        <TableCell className={`text-right ${h.avg_return_5d! >= 0 ? "text-green-600" : "text-red-600"}`}>
+                          {h.avg_return_5d! >= 0 ? "+" : ""}{(h.avg_return_5d || 0).toFixed(2)}%
                         </TableCell>
                         <TableCell>
                           <Button size="sm" variant="ghost" className="h-6" onClick={() => handleLoadHistoricalRun(h.run_id)}>

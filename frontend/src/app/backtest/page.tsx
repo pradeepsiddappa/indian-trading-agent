@@ -2,7 +2,7 @@
 
 import { useState, useCallback } from "react";
 import { startBacktest, connectBacktestWS } from "@/lib/api";
-import type { BacktestTrade, BacktestWSEvent } from "@/lib/types";
+import type { BacktestResult, BacktestTrade, BacktestWSEvent } from "@/lib/types";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,6 +12,23 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Loader2, Play, AlertTriangle } from "lucide-react";
 import { HelpSection } from "@/components/HelpSection";
 import { backtestHelp } from "@/lib/help-content";
+
+// POST /api/backtest/run → start_backtest() in backend/routers/backtest.py
+interface BacktestStartResponse {
+  backtest_id: string;
+  status: string;
+  ticker: string;
+  total_dates: number;
+  dates: string[];
+}
+
+// The "complete" WebSocket event: { type: "complete", ...summary }, where summary is
+// what run_backtest() in backend/backtest_engine.py returns (no backtest_id or trades).
+interface BacktestSummary extends Omit<BacktestResult, "backtest_id" | "trades"> {
+  type: "complete";
+  position_size_pct: number;
+  enable_learning: boolean;
+}
 
 export default function BacktestPage() {
   const [ticker, setTicker] = useState("RELIANCE");
@@ -25,7 +42,7 @@ export default function BacktestPage() {
   const [status, setStatus] = useState<"idle" | "running" | "completed" | "error">("idle");
   const [trades, setTrades] = useState<BacktestTrade[]>([]);
   const [logs, setLogs] = useState<string[]>([]);
-  const [summary, setSummary] = useState<any>(null);
+  const [summary, setSummary] = useState<BacktestSummary | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const handleRun = useCallback(async () => {
@@ -36,7 +53,7 @@ export default function BacktestPage() {
     setError(null);
 
     try {
-      const result: any = await startBacktest({
+      const result = (await startBacktest({
         ticker,
         start_date: startDate,
         end_date: endDate,
@@ -44,7 +61,7 @@ export default function BacktestPage() {
         initial_capital: capital,
         position_size_pct: positionSize,
         enable_learning: enableLearning,
-      });
+      })) as BacktestStartResponse;
 
       const backtestId = result.backtest_id;
       setLogs((prev) => [...prev, `Backtest started: ${result.total_dates} dates to analyze`]);
@@ -72,7 +89,7 @@ export default function BacktestPage() {
             ]);
             break;
           case "complete":
-            setSummary(event);
+            setSummary(event as BacktestSummary);
             setStatus("completed");
             ws.close();
             break;
@@ -83,8 +100,8 @@ export default function BacktestPage() {
             break;
         }
       });
-    } catch (e: any) {
-      setError(e.message);
+    } catch (e) {
+      setError((e as Error).message);
       setStatus("error");
     }
   }, [ticker, startDate, endDate, intervalDays, capital, positionSize, enableLearning]);
