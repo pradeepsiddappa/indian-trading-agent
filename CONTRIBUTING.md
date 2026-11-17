@@ -33,13 +33,14 @@ pip install -r requirements.txt
 python -m unittest discover -s tests
 
 # Frontend (Node 20.9+)
-cd frontend && npm ci && npx tsc --noEmit && npm run build
+cd frontend && npm ci && npm run lint && npx tsc --noEmit && npm run build
 ```
 
 The same checks run automatically on every pull request.
 
 ## Guidelines
 
+- **Frontend lint:** `npm run lint` must report no problems. Fix the code rather than adding `eslint-disable` comments or switching rules off in `frontend/eslint.config.mjs`.
 - **Tests:** add or update tests for your change. Tests must not call real services; mock the network (see `tests/` for examples).
 - **No unrelated changes:** no drive-by reformatting, personal tooling or GitHub workflow changes unless they are the point of the PR.
 - **Security-sensitive code** gets extra scrutiny: login and OAuth flows, broker credentials, `backend/auth.py`, and anything that fetches URLs or writes files.

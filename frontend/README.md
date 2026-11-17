@@ -1,36 +1,44 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Frontend
 
-## Getting Started
+The trading terminal UI for the Indian Market Trading Agent: Next.js 16 (App Router), Tailwind CSS, shadcn/ui on Base UI, and Open Sans, with light, dark and system themes. The [root README](../README.md) covers features and full setup. [CONTRIBUTING.md](../CONTRIBUTING.md) covers the pull request workflow.
 
-First, run the development server:
+## Run it
 
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000). The backend must be running. When you open the UI on `localhost`, it calls the API at the same host on port 8000. Set `NEXT_PUBLIC_API_URL` to point it somewhere else. A deployed build with no setting uses its own origin.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Checks
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+CI runs all three on every push to `main` and every pull request:
 
-## Learn More
+```bash
+npm run lint       # ESLint (Next.js core-web-vitals + TypeScript rules), must report 0 problems
+npx tsc --noEmit   # typecheck
+npm run build      # production build
+```
 
-To learn more about Next.js, take a look at the following resources:
+## Layout
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+- `src/app/`: one folder per page (Today, Top Picks, Scanner, Strategies, Analysis, Simulation, the calibration pages, Settings, …)
+- `src/components/`: feature components (`dashboard/`, `analysis/`, `history/`, `settings/`, `portfolio/`). `ui/` holds the shadcn primitives.
+- `src/lib/`:
+  - `api.ts`: REST and WebSocket client
+  - `store.ts`: Zustand store for the running analysis
+  - `types.ts`: shared types
+  - `utils.ts`: `cn`, `errorMessage`
+  - `status-colors.ts`: theme-aware status colours
+  - `help-content.ts`: help text
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Conventions
 
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- **API responses:** functions in `lib/api.ts` return `Promise<unknown>`. Declare a local type for the response shape you read, taken from the backend route, and assert it at the call site with `(await getX()) as XResponse`. Don't use `any`.
+- **Errors:** use `catch (e) { toast.error(errorMessage(e, "Failed to …")) }`.
+- **Loading data in effects:** keep `setState` out of the synchronous part of an effect.
+  - A `fetchData()` function sets state only inside promise callbacks, and the effect calls it.
+  - A `load()` function calls `setLoading(true)` and then `fetchData()`. Refresh buttons use it.
+- **Lint:** fix the code instead of adding `eslint-disable` comments or turning rules off.
+- **Next.js version:** this release differs from older Next.js docs. Check `node_modules/next/dist/docs/` before relying on an API (see `AGENTS.md`).

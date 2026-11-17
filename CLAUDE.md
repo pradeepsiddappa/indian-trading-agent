@@ -221,7 +221,8 @@ VALIDATE
 - **lib/**
   - `api.ts` — REST + WebSocket client (includes stats, news, memory endpoints)
   - `store.ts` — Zustand global store for analysis state (stats + heartbeat + survives page navigation)
-  - `types.ts` — TypeScript types
+  - `types.ts` — Shared TypeScript types (incl. the analysis/backtest WebSocket events and `AnalysisStatsSummary`)
+  - `utils.ts` — `cn()` class merging + `errorMessage(e, fallback)` for typed catch blocks
   - `help-content.ts` — All help text centralized
 
 ## Agent Pipeline Flow
@@ -559,6 +560,20 @@ Shipped after the initial feature set (see git history / PR #4):
   - `pyasn1` 0.6.4 → 0.6.5 (4 quadratic-time DoS advisories); `setuptools` 83.0.0 → 84.1.0 (Windows path escape)
   - `minimatch` 10.2.5 → 11.0.4 for `@typescript-eslint/typescript-estree` (GHSA-g3hv-75wg-m249), first set with a temporary `overrides` entry in `frontend/package.json`. Dev-only (ESLint). **Override removed 2026-11-17:** `typescript-eslint` was updated 8.58.1 → 8.73.0 (comes in through `eslint-config-next`), and 8.73.0 depends on `minimatch ^11.0.1` itself. The lockfile kept minimatch 11.0.4. The update also bumped `ignore`, `semver` and `brace-expansion` within their ranges. `npm audit signatures` passes (8.73.0 is published from typescript-eslint's GitHub Actions with provenance). `npx eslint src` reported the same 339 problems before and after the update. That older lint debt was then cleared (`cf368f0..b910dab`, 0 problems), and `npm run lint` is now a CI step.
   - Each Dependabot PR was checked against the external-PR checklist before closing (only its own package changed, all tarballs from `registry.npmjs.org`). Fresh releases (16.4.6, typescript-eslint 8.73.0) were skipped in favour of the first patched version at least ~2 weeks old.
+- **Frontend lint cleanup (2026-11-17, `cf368f0..b910dab`)** — `npx eslint src` went from 339 problems (299 errors, 40 warnings) to 0, without changing ESLint config or adding `eslint-disable` comments. `npm run lint` is now a step in the CI frontend job (`f404754`). The job keeps the name "Frontend typecheck and build" because that name is a required check in the "Protect main" ruleset. Conventions to keep it clean:
+  - **API responses:** `lib/api.ts` functions return `Promise<unknown>`. Each page declares local types for the response shapes it reads (taken from the backend route) and asserts them at the call site: `(await getX()) as XResponse`, or `as [A, B]` for `Promise.all`. Don't write `any`. When an API function's *parameter* type is missing a field the backend accepts, fix it in `api.ts` rather than casting.
+  - **catch blocks:** `catch (e) { toast.error(errorMessage(e, "fallback")) }`, using `errorMessage` from `lib/utils.ts`.
+  - **Data-loading effects** (react-hooks `set-state-in-effect`): a `fetchData()` sets state only inside promise callbacks; `load()` = `setLoading(true)` + `fetchData()` for refresh buttons; the effect calls `fetchData()`. A handler that changes a dependency (e.g. a window select) sets `loading` itself. Keep render pure: no `Date.now()` and no variable reassignment during render.
+  - **JSX text:** escape `'` and `"` as `&apos;` / `&quot;`.
+- **Frontend bug fixes (2026-11-17, `b910dab..780e684`)** — the typing pass above turned up these, each fixed in its own commit:
+  - Cyclical page: the seasonal backtest pre-fill is now Buy = weakest months, Sell = strongest, matching the page's advice text. "+-0.4%" now shows as "-0.4%". The exit window's "+X% to +Y%" uses the real low–high range.
+  - News: the Sources tab shows the error and a Retry button instead of spinning forever.
+  - Simulation: missing averages show an uncoloured "—" instead of green. A paper-trade row with undecodable `triggered_signals` no longer crashes the page.
+  - P&L dialog: shows "Analysis not found" instead of a bogus success toast.
+  - Analysis detail: the task ID is never blank.
+  - Confidence Calibration: the `no_valid_data` badge is styled and labelled.
+  - `lib/types.ts`: `WSEvent` / `BacktestWSEvent` now list everything the backend streams.
+  - Analysis page: the "Live: … Ns ago" label now counts up every second; it used to read the clock during render and was nearly always "0s ago".
 
 ## Remaining Phases (Unimplemented)
 

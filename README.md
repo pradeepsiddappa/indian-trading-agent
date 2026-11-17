@@ -696,7 +696,8 @@ Switch providers (OpenAI GPT-5.4-mini, Gemini Flash) for even cheaper analyses (
 - [x] **Dark mode** (light / dark / system theme)
 - [x] **Ollama** local LLM provider (no API key / cost)
 - [x] **Yahoo-powered ticker search** (live; replaces the bundled NSE list)
-- [x] **Automated test suite** (46 tests: auth, portfolio, positions, Telegram)
+- [x] **Automated test suite** (78 tests: auth/CSRF, security hardening, portfolio, positions, Telegram)
+- [x] **Frontend lint in CI** (ESLint clean, checked on every push and pull request)
 
 ### Pre-Kite Hardening
 - [x] Sector concentration checker

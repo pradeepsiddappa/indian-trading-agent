@@ -7,7 +7,7 @@
 ## Checklist
 - [ ] One change per PR, from its own branch (not my fork's `main`)
 - [ ] `python -m unittest discover -s tests` passes
-- [ ] If the frontend changed: `npx tsc --noEmit` and `npm run build` pass in `frontend/`
+- [ ] If the frontend changed: `npm run lint`, `npx tsc --noEmit` and `npm run build` pass in `frontend/`
 - [ ] New or changed code has tests, with the network mocked
 - [ ] No secrets, no unrelated changes, no workflow changes
 - [ ] Brokers stay read-only (no order placement)
