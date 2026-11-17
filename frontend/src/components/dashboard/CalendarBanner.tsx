@@ -13,7 +13,6 @@ import {
   Globe,
   ChevronDown,
   ChevronUp,
-  Loader2,
 } from "lucide-react";
 import { statusColors, splitStatusColor, infoSubtle } from "@/lib/status-colors";
 

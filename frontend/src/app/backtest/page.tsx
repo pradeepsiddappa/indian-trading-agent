@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Loader2, Play, TrendingUp, TrendingDown, Target, AlertTriangle } from "lucide-react";
+import { Loader2, Play, AlertTriangle } from "lucide-react";
 import { HelpSection } from "@/components/HelpSection";
 import { backtestHelp } from "@/lib/help-content";
 

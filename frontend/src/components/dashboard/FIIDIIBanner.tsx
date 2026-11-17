@@ -34,17 +34,17 @@ function formatCr(value: number | null | undefined): string {
 
 export function FIIDIIBanner() {
   const [bias, setBias] = useState<any>(null);
-  const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [expanded, setExpanded] = useState(false);
 
   // Fetches data; callers that need the spinner set `loading` first.
+  // The banner only shows the bias. /today is still requested because it
+  // fetches and caches today's NSE figures into the history /bias reads.
   const fetchData = () =>
     Promise.all([getFiiDiiBias().catch(() => null), getFiiDiiToday().catch(() => null)])
-      .then(([biasRes, dataRes]: any[]) => {
+      .then(([biasRes]: any[]) => {
         setBias(biasRes);
-        setData(dataRes);
       })
       .catch(() => {})
       .finally(() => setLoading(false));

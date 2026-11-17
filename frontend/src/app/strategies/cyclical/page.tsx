@@ -18,7 +18,6 @@ import { statusColors, splitStatusColor } from "@/lib/status-colors";
 function generateInsight(data: any): string {
   if (!data || !data.months || data.months.length === 0) return "";
 
-  const ticker = data.ticker || "This stock";
   const months = data.months;
   const best = data.best_months || [];
   const worst = data.worst_months || [];
@@ -118,9 +117,6 @@ function generateEntryExitWindows(data: any): { windows: EntryExitWindow[]; summ
   const currentMonthData = months.find((m: any) => m.month === currentMonth);
 
   // Sort months by return to find clear entry/exit windows
-  const sorted = [...months].sort((a: any, b: any) => a.avg_return_pct - b.avg_return_pct);
-  const bullish = months.filter((m: any) => m.avg_return_pct > 0.5 && m.win_rate > 55);
-  const bearish = months.filter((m: any) => m.avg_return_pct < -0.5 && m.win_rate < 50);
   const strongBull = months.filter((m: any) => m.signal === "BULLISH");
   const strongBear = months.filter((m: any) => m.signal === "BEARISH");
 

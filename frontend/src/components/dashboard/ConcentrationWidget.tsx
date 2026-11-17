@@ -6,7 +6,6 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
-  PieChart as PieIcon,
   AlertTriangle,
   CheckCircle2,
   Loader2,

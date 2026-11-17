@@ -6,7 +6,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Loader2, Newspaper, Rss, ExternalLink, RefreshCw, Settings2, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
@@ -45,7 +44,7 @@ export default function NewsPage() {
     try {
       const data: any = await getNewsFeed(8);
       setArticles(data.articles || []);
-    } catch (e: any) {
+    } catch {
       toast.error("Failed to load news");
     } finally {
       setLoading(false);

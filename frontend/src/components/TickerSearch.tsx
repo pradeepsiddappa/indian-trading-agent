@@ -22,7 +22,6 @@ export function TickerSearch({ value, onChange, placeholder, disabled, className
   const [query, setQuery] = useState(value);
   const [results, setResults] = useState<StockResult[]>([]);
   const [showDropdown, setShowDropdown] = useState(false);
-  const [loading, setLoading] = useState(false);
   const debounceRef = useRef<any>(null);
   const wrapperRef = useRef<HTMLDivElement>(null);
 
@@ -53,15 +52,12 @@ export function TickerSearch({ value, onChange, placeholder, disabled, className
     }
 
     debounceRef.current = setTimeout(async () => {
-      setLoading(true);
       try {
         const data: any = await searchStocks(val.trim());
         setResults(data);
         setShowDropdown(data.length > 0);
       } catch {
         setResults([]);
-      } finally {
-        setLoading(false);
       }
     }, 200);
   };

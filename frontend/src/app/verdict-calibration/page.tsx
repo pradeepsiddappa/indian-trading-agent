@@ -19,7 +19,6 @@ import {
   MinusCircle,
   Camera,
   Database,
-  TrendingUp,
 } from "lucide-react";
 import { toast } from "sonner";
 

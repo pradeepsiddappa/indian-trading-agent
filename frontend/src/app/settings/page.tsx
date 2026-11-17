@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 import { getConfig } from "@/lib/api";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
 import { LLMSettings } from "@/components/settings/LLMSettings";
 import { ThemeToggle } from "@/components/theme/ThemeToggle";
 import { statusColors } from "@/lib/status-colors";

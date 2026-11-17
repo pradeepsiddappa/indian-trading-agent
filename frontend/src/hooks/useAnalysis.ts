@@ -2,7 +2,7 @@
 
 import { useState, useCallback } from "react";
 import { runAnalysis, connectAnalysisWS } from "@/lib/api";
-import type { WSEvent, AnalysisResult } from "@/lib/types";
+import type { WSEvent } from "@/lib/types";
 
 interface AnalysisState {
   taskId: string | null;

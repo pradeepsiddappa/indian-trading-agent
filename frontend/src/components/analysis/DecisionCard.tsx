@@ -1,7 +1,6 @@
 "use client";
 
 import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { TrendingUp, TrendingDown, Minus, AlertTriangle } from "lucide-react";
 
 const signalConfig: Record<string, { color: string; bg: string; icon: any }> = {

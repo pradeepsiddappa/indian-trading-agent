@@ -1,7 +1,7 @@
 "use client";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { CheckCircle2, Clock, Loader2, Circle } from "lucide-react";
+import { CheckCircle2, Loader2, Circle } from "lucide-react";
 
 interface Agent {
   name: string;
@@ -27,7 +27,7 @@ interface Props {
   status: string;
 }
 
-export function AgentProgress({ reports, signal, status }: Props) {
+export function AgentProgress({ reports, status }: Props) {
   const reportMap: Record<string, string> = {
     "Market Analyst": "market_report",
     "Social Analyst": "sentiment_report",

@@ -9,7 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { HelpSection } from "@/components/HelpSection";
-import { Loader2, TrendingUp, TrendingDown, Zap, ArrowUpRight, Volume2, Target, Award, AlertTriangle, Sparkles } from "lucide-react";
+import { Loader2, TrendingUp, Zap, ArrowUpRight, Volume2, Target, Award, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import { NextStep } from "@/components/NextStep";
 import { iconBadge, cautionSubtle } from "@/lib/status-colors";
@@ -71,19 +71,14 @@ export default function PerformancePage() {
   const [lookbackDays, setLookbackDays] = useState(60);
   const [status, setStatus] = useState<"idle" | "running" | "done">("idle");
   const [results, setResults] = useState<any>(null);
-  const [startTime, setStartTime] = useState<number>(0);
-  const [duration, setDuration] = useState<number>(0);
 
   const handleRun = async () => {
     setStatus("running");
     setResults(null);
-    setStartTime(Date.now());
-    setDuration(0);
 
     try {
       const data: any = await getPerformanceAll(universe, lookbackDays);
       setResults(data);
-      setDuration((Date.now() - startTime) / 1000);
       setStatus("done");
     } catch (e: any) {
       toast.error(e.message || "Failed to measure performance");

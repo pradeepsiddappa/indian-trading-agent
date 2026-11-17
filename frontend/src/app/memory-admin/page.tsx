@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 import {
   listMemories,
   getMemoryEntries,
-  pruneMemory,
   pruneAllMemories,
   deleteMemoryEntry,
 } from "@/lib/api";
@@ -19,7 +18,6 @@ import {
   Trash2,
   Eye,
   Scissors,
-  Sparkles,
   AlertTriangle,
 } from "lucide-react";
 import { toast } from "sonner";

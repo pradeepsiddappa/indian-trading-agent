@@ -29,7 +29,6 @@ import {
   X,
   Play,
   BarChart3,
-  AlertCircle,
   ChevronDown,
   ChevronRight,
   Sparkles,
@@ -226,7 +225,7 @@ export default function SimulationPage() {
       ]);
       setTrades(tradesRes.trades || []);
       setStats(statsRes);
-    } catch (e: any) {
+    } catch {
       toast.error("Failed to load paper trades");
     } finally {
       setLoading(false);
@@ -270,7 +269,6 @@ export default function SimulationPage() {
       const result: any = await closePaperTrade(id);
       if (result.ok) {
         const pnl = result.pnl_pct;
-        const emoji = pnl >= 0 ? "profit" : "loss";
         toast.success(
           `Closed ${result.ticker} at Rs.${result.close_price} — ${pnl >= 0 ? "+" : ""}${pnl}% P&L`
         );
@@ -333,7 +331,7 @@ export default function SimulationPage() {
         by_signal: bySignal,
         rows,
       });
-    } catch (e: any) {
+    } catch {
       toast.error("Failed to load backtest");
     }
   };

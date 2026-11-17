@@ -2,7 +2,6 @@
 
 import { create } from "zustand";
 import { runAnalysis, connectAnalysisWS } from "@/lib/api";
-import type { WSEvent } from "@/lib/types";
 
 interface AnalysisOptions {
   analysts?: string[];
