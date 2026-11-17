@@ -99,7 +99,7 @@ VALIDATE
 ## Quick Start
 
 ### Prerequisites
-- **Python 3.11+** (tested on 3.14)
+- **Python 3.11.5+** (tested on 3.14)
 - **Node.js 20+**
 - An LLM API key (Anthropic/OpenAI/Google — Anthropic Haiku is the cheapest default)
 
@@ -589,7 +589,7 @@ The trade table shows every shadow with its regime tag and per-horizon P&L. Rows
 ## Tech Stack
 
 **Backend:**
-- Python 3.10+
+- Python 3.11.5+
 - LangGraph (multi-agent orchestration)
 - LangChain (LLM integrations)
 - FastAPI + Uvicorn
@@ -643,6 +643,7 @@ Switch providers (OpenAI GPT-5.4-mini, Gemini Flash) for even cheaper analyses (
 - **Only your own pages can use the API when no password is set**: requests must be addressed to `localhost`/`127.0.0.1` and come from the app itself, so other websites you visit can't call it (add hosts with `TRADINGAGENTS_ALLOWED_HOSTS`)
 - **Safe news sources**: custom RSS feeds must be public `http(s)` URLs; local files and private-network addresses are refused
 - **Spend cap on AI backtests**: at most 60 paid analyses per backtest (`TRADINGAGENTS_MAX_BACKTEST_DATES`), one backtest at a time
+- **Patched, pinned dependencies**: exact versions in `requirements.txt` and `frontend/package-lock.json`. Dependabot reports security alerts, and fixes land on `main` after CI passes (last cleared 2026-11-17: Next.js, soupsieve, pyasn1, setuptools, minimatch)
 
 ---
 

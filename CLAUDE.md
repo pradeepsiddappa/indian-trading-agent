@@ -20,7 +20,7 @@ yfinance + RSS feeds (NSE/BSE data + news)
 ```bash
 # 1. Install Python deps
 python3 -m venv venv && source venv/bin/activate
-pip install -r requirements.txt   # exact, tested versions (Python 3.11+)
+pip install -r requirements.txt   # exact, tested versions (Python 3.11.5+)
 pip install -e .
 
 # 2. Configure API keys (2 options)
@@ -553,6 +553,12 @@ Shipped after the initial feature set (see git history / PR #4):
 - **Test suite** (`tests/`) — 77 `unittest` cases (auth/CSRF/OAuth-replay/WS-origin, security hardening, equity portfolio, positions, Telegram). Run: `python -m unittest discover -s tests`.
 - **CI + contribution rules** — `.github/workflows/tests.yml` runs the backend tests and the frontend typecheck + build on every push to `main` and every PR (read-only token, `npm ci --ignore-scripts`, Actions pinned to commit SHAs and updated weekly via `.github/dependabot.yml`). CodeQL code scanning (default setup) checks every PR. `main` is protected by the "Protect main" ruleset (both checks required for PRs; the owner can bypass for direct commits). `.github/CODEOWNERS` auto-requests the maintainer's review on every PR. Contributor workflow: `CONTRIBUTING.md` (one change per PR, from a feature branch); vulnerability reports: `SECURITY.md`.
 - **Leaner frontend dependencies** — the `shadcn` CLI is no longer a dependency (it pulled in ~250 packages, including `hono` from Dependabot alert #53). Its theme helpers are vendored in `frontend/src/app/shadcn-tailwind.css` (byte-identical to shadcn@4.2.0, MIT notice included); add components with `npx shadcn@latest add <name>`.
+- **Dependency security fixes (2026-11-17, commit `cb435ba`)** — cleared all 11 open Dependabot alerts in one commit on `main` and closed the Dependabot PRs it replaced (#25, #26, #27):
+  - `next` 16.4.1 → 16.4.5 (GHSA-mfr8-8qww-v76h: a `'use cache'` function called through `unstable_cache()` could leak data across root params)
+  - `soupsieve` 2.9 → 4.0.1 (4 ReDoS/quadratic-time advisories). Only used through `beautifulsoup4` (from yfinance); the 4.0 breaking changes only affect `<template>`/`<iframe>` matching. **Needs Python ≥ 3.11.5.**
+  - `pyasn1` 0.6.4 → 0.6.5 (4 quadratic-time DoS advisories); `setuptools` 83.0.0 → 84.1.0 (Windows path escape)
+  - `minimatch` 10.2.5 → 11.0.4 for `@typescript-eslint/typescript-estree` (GHSA-g3hv-75wg-m249), set with an `overrides` entry in `frontend/package.json`. Dev-only (ESLint). typescript-estree only calls plain `minimatch()`, which v11 keeps. **Temporary:** remove the override once `typescript-eslint` ≥ 8.73.0 is installed (that release depends on `minimatch ^11.0.1` itself). Check that `npm ls minimatch` still shows ≥ 11.0.1 under typescript-estree.
+  - Each Dependabot PR was checked against the external-PR checklist before closing (only its own package changed, all tarballs from `registry.npmjs.org`). Fresh releases (16.4.6, typescript-eslint 8.73.0) were skipped in favour of the first patched version at least ~2 weeks old.
 
 ## Remaining Phases (Unimplemented)
 

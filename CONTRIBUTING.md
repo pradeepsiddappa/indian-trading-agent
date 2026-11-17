@@ -28,7 +28,7 @@ Pull requests are squash-merged into a single commit that credits you.
 ## Running the checks
 
 ```bash
-# Backend (Python 3.11+)
+# Backend (Python 3.11.5+)
 pip install -r requirements.txt
 python -m unittest discover -s tests
 
