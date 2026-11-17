@@ -30,6 +30,8 @@ type PnLUpdateResult = {
   pnl_status: "win" | "loss" | "breakeven";
   reflection: ReflectionResult | null;
 };
+// update_pnl() answers 200 with just {error} when the analysis isn't found.
+type PnLErrorResult = { error: string };
 
 export function PnLDialog({ open, onClose, taskId, ticker, signal, onSaved }: Props) {
   const [entryPrice, setEntryPrice] = useState("");
@@ -45,10 +47,14 @@ export function PnLDialog({ open, onClose, taskId, ticker, signal, onSaved }: Pr
     }
     setSaving(true);
     try {
-      // The backend's exit_price is optional (omitted = open trade); api.ts types it as required.
-      await updatePnL(taskId, {
+      // No exit_price = the trade is still open.
+      const result = (await updatePnL(taskId, {
         entry_price: entry,
-      });
+      })) as { error?: string };
+      if (result.error) {
+        toast.error(result.error);
+        return;
+      }
       toast.success(`Trade marked as OPEN at Rs.${entry}`);
       onSaved();
       onClose();
@@ -74,7 +80,11 @@ export function PnLDialog({ open, onClose, taskId, ticker, signal, onSaved }: Pr
         entry_price: entry,
         exit_price: exit,
         reflect,
-      })) as PnLUpdateResult;
+      })) as PnLUpdateResult | PnLErrorResult;
+      if ("error" in result) {
+        toast.error(result.error);
+        return;
+      }
       toast.success(`P&L saved: ${result.pnl_pct >= 0 ? "+" : ""}${result.pnl_pct}% (${result.pnl_status})`);
       if (reflect && result.reflection?.ok) {
         toast.success("Agent memories updated — future analyses will learn from this trade", {
