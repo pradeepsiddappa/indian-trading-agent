@@ -14,14 +14,30 @@ import {
   XCircle,
   ChevronDown,
   ChevronUp,
+  type LucideIcon,
 } from "lucide-react";
 import { statusColors } from "@/lib/status-colors";
+
+// GET /api/daily-verdict/ (backend/daily_verdict.py compute_daily_verdict).
+type DailyVerdictResponse = {
+  verdict: "GREEN" | "YELLOW" | "RED";
+  label: "TRADE" | "SELECTIVE" | "STAND DOWN";
+  action: string;
+  caution_flags: string[];
+  favorable_flags: string[];
+  recommended_position_size_pct: number;
+  max_trades_today: number;
+  min_conviction_required: "HIGH" | "MEDIUM" | "LOW";
+  reasoning: string;
+  filter_results: Record<string, unknown>;
+  computed_at: string;
+};
 
 const verdictStyles: Record<string, {
   bg: string;
   border: string;
   text: string;
-  icon: any;
+  icon: LucideIcon;
   pillBg: string;
 }> = {
   GREEN: {
@@ -48,13 +64,13 @@ const verdictStyles: Record<string, {
 };
 
 export function DailyVerdict() {
-  const [verdict, setVerdict] = useState<any>(null);
+  const [verdict, setVerdict] = useState<DailyVerdictResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [expanded, setExpanded] = useState(false);
 
   useEffect(() => {
     getDailyVerdict()
-      .then((data: any) => setVerdict(data))
+      .then((data) => setVerdict(data as DailyVerdictResponse))
       .catch(() => {})
       .finally(() => setLoading(false));
   }, []);

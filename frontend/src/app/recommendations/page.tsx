@@ -7,11 +7,61 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { HelpSection } from "@/components/HelpSection";
-import { Loader2, TrendingUp, TrendingDown, Sparkles, ChevronDown, ChevronUp, Target, Search, FlaskConical } from "lucide-react";
+import { Loader2, TrendingUp, TrendingDown, Sparkles, ChevronDown, ChevronUp, Target, Search, FlaskConical, type LucideIcon } from "lucide-react";
 import Link from "next/link";
 import { toast } from "sonner";
 import { NextStep } from "@/components/NextStep";
 import { statusColors, splitStatusColor, confidenceBadge, directionBg } from "@/lib/status-colors";
+import { errorMessage } from "@/lib/utils";
+
+// One signal behind a pick (backend/recommender.py _analyze_stock, plus the
+// FII/DII, event and sector-concentration signals the _apply_* filters add).
+type RecommendationSignal = {
+  type: string;
+  direction: "BULLISH" | "BEARISH" | "FADE" | "NEUTRAL";
+  value: string;
+  weight: number;
+};
+
+// One ranked stock (backend/recommender.py _analyze_stock + _apply_* filters).
+type Recommendation = {
+  ticker: string;
+  symbol: string;
+  price: number;
+  change_pct: number;
+  rsi: number | null;
+  score: number;
+  direction: "STRONG BUY" | "BUY" | "NEUTRAL" | "SELL" | "STRONG SELL";
+  confidence: "HIGH" | "MEDIUM" | "LOW";
+  success_probability: number;
+  signals: RecommendationSignal[];
+  bullish_signal_count: number;
+  bearish_signal_count: number;
+  near_support: number;
+  near_resistance: number;
+  market_bias_applied?: string;
+  sector?: string;
+  concentration_warning?: string | null;
+  concentration_breach?: boolean;
+  event_warning?: string;
+  upcoming_events?: unknown[];
+};
+
+// GET /api/recommend/ (backend/recommender.py recommend).
+type RecommendationsResponse = {
+  universe: string;
+  total_analyzed: number;
+  total_with_signals: number;
+  market_bias: unknown;
+  today_market_events: unknown[];
+  concentration_summary: unknown;
+  active_regime: string | null;
+  regime_weight_overrides_active: number;
+  strong_buys: Recommendation[];
+  buys: Recommendation[];
+  sells: Recommendation[];
+  strong_sells: Recommendation[];
+};
 
 const recommendationsHelp = [
   {
@@ -44,7 +94,7 @@ const recommendationsHelp = [
   },
 ];
 
-const ratingStyles: Record<string, { color: string; bg: string; border: string; icon: any }> = {
+const ratingStyles: Record<string, { color: string; bg: string; border: string; icon: LucideIcon }> = {
   "STRONG BUY": { color: "text-green-700 dark:text-green-300", bg: "bg-green-100 dark:bg-green-950/40", border: "border-green-300 dark:border-green-800", icon: TrendingUp },
   "BUY": { ...splitStatusColor(statusColors.bullish), color: "text-green-600 dark:text-green-300", icon: TrendingUp },
   "SELL": { ...splitStatusColor(statusColors.bearish), color: "text-red-600 dark:text-red-300", icon: TrendingDown },
@@ -57,7 +107,7 @@ const confidenceStyles: Record<string, string> = {
   LOW: statusColors.neutral,
 };
 
-function RecommendationCard({ rec }: { rec: any }) {
+function RecommendationCard({ rec }: { rec: Recommendation }) {
   const [expanded, setExpanded] = useState(false);
   const style = ratingStyles[rec.direction] || ratingStyles.BUY;
   const Icon = style.icon;
@@ -117,7 +167,7 @@ function RecommendationCard({ rec }: { rec: any }) {
                     confidence: rec.confidence,
                     success_probability: rec.success_probability,
                     triggered_signals: rec.signals,
-                  } as any);
+                  });
                   toast.success(`${rec.ticker} tracked at Rs.${rec.price}`, {
                     description: "Paper trade opened. Check P&L at 1/3/5/10 days on the Simulation page.",
                     duration: 6000,
@@ -126,8 +176,8 @@ function RecommendationCard({ rec }: { rec: any }) {
                       onClick: () => { window.location.href = "/simulation"; },
                     },
                   });
-                } catch (e: any) {
-                  toast.error(e.message || "Failed to track");
+                } catch (e) {
+                  toast.error(errorMessage(e, "Failed to track"));
                 }
               }}
             >
@@ -144,7 +194,7 @@ function RecommendationCard({ rec }: { rec: any }) {
         {expanded && (
           <div className="mt-4 pt-4 border-t space-y-2">
             <p className="text-xs font-medium text-muted-foreground mb-2">WHY THIS RECOMMENDATION:</p>
-            {rec.signals.map((s: any, i: number) => {
+            {rec.signals.map((s, i: number) => {
               const dirColor = directionBg(s.direction);
               return (
                 <div key={i} className={`flex items-center justify-between p-2 rounded text-sm ${dirColor}`}>
@@ -176,16 +226,16 @@ export default function RecommendationsPage() {
   const [universe, setUniverse] = useState("nifty100");
   const [minSignals, setMinSignals] = useState(2);
   const [loading, setLoading] = useState(false);
-  const [data, setData] = useState<any>(null);
+  const [data, setData] = useState<RecommendationsResponse | null>(null);
 
   const handleRun = async () => {
     setLoading(true);
     setData(null);
     try {
-      const result: any = await getRecommendations(universe, minSignals);
+      const result = (await getRecommendations(universe, minSignals)) as RecommendationsResponse;
       setData(result);
-    } catch (e: any) {
-      toast.error(e.message || "Failed to get recommendations");
+    } catch (e) {
+      toast.error(errorMessage(e, "Failed to get recommendations"));
     } finally {
       setLoading(false);
     }
@@ -318,7 +368,7 @@ export default function RecommendationsPage() {
                   </CardContent>
                 </Card>
               ) : (
-                data[key].map((rec: any) => <RecommendationCard key={rec.ticker} rec={rec} />)
+                data[key].map((rec) => <RecommendationCard key={rec.ticker} rec={rec} />)
               )}
             </TabsContent>
           ))}

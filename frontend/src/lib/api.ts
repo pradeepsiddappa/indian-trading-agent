@@ -298,9 +298,12 @@ export const backtestSeasonal = (ticker: string, buyMonths: string, sellMonths: 
 export const openPaperTrade = (data: {
   ticker: string;
   source?: string;
+  strategy?: string;
   signal?: string;
   score?: number;
+  confidence?: string;
   success_probability?: number;
+  triggered_signals?: object[];
   notes?: string;
 }) => fetchAPI(`/api/simulation/paper-trade`, { method: "POST", body: JSON.stringify(data) });
 

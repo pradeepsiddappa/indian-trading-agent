@@ -15,10 +15,34 @@ import {
   AlertCircle,
   ChevronDown,
   ChevronUp,
+  type LucideIcon,
 } from "lucide-react";
 import { statusColors, splitStatusColor, pnlText, cautionSubtle } from "@/lib/status-colors";
 
-const biasColors: Record<string, { bg: string; border: string; text: string; icon: any }> = {
+// GET /api/fii-dii/bias (backend/fii_dii.py get_market_bias). With no FII/DII
+// history it returns only the first shape, with null nets.
+type FiiDiiBias =
+  | {
+      bias: "NEUTRAL";
+      confidence: "NONE";
+      score_adjustment: number;
+      reasoning: string;
+      today_fii_net: null;
+      today_dii_net: null;
+    }
+  | {
+      bias: "BULLISH" | "BEARISH" | "MIXED" | "NEUTRAL";
+      confidence: "HIGH" | "MEDIUM" | "LOW";
+      score_adjustment: number;
+      reasoning: string;
+      today_fii_net: number;
+      today_dii_net: number;
+      fii_5d_net: number;
+      dii_5d_net: number;
+      data_date: string;
+    };
+
+const biasColors: Record<string, { bg: string; border: string; text: string; icon: LucideIcon }> = {
   BULLISH: { ...splitStatusColor(statusColors.bullish), icon: TrendingUp },
   BEARISH: { ...splitStatusColor(statusColors.bearish), icon: TrendingDown },
   MIXED: { ...splitStatusColor(statusColors.caution), icon: Minus },
@@ -33,7 +57,7 @@ function formatCr(value: number | null | undefined): string {
 }
 
 export function FIIDIIBanner() {
-  const [bias, setBias] = useState<any>(null);
+  const [bias, setBias] = useState<FiiDiiBias | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [expanded, setExpanded] = useState(false);
@@ -42,8 +66,11 @@ export function FIIDIIBanner() {
   // The banner only shows the bias. /today is still requested because it
   // fetches and caches today's NSE figures into the history /bias reads.
   const fetchData = () =>
-    Promise.all([getFiiDiiBias().catch(() => null), getFiiDiiToday().catch(() => null)])
-      .then(([biasRes]: any[]) => {
+    Promise.all([
+      getFiiDiiBias().catch(() => null) as Promise<FiiDiiBias | null>,
+      getFiiDiiToday().catch(() => null),
+    ])
+      .then(([biasRes]) => {
         setBias(biasRes);
       })
       .catch(() => {})

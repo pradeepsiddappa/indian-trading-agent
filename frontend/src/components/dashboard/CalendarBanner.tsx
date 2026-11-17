@@ -13,10 +13,61 @@ import {
   Globe,
   ChevronDown,
   ChevronUp,
+  type LucideIcon,
 } from "lucide-react";
 import { statusColors, splitStatusColor, infoSubtle } from "@/lib/status-colors";
 
-const eventStyles: Record<string, { bg: string; border: string; text: string; icon: any; label: string }> = {
+type EventImpact = "VERY_HIGH" | "HIGH" | "MEDIUM" | "LOW";
+
+// One market-wide event (backend/calendar_data.py get_market_events_in_range).
+type MarketEvent = {
+  date: string;
+  type: "RBI_POLICY" | "BUDGET" | "FOMC" | "FNO_EXPIRY";
+  name: string;
+  impact: EventImpact;
+  category: string;
+  description: string;
+};
+
+// One earnings_calendar row (backend/calendar_data.py get_earnings_in_range).
+type EarningsEvent = {
+  ticker: string;
+  event_date: string;
+  event_type: string;
+  description: string | null;
+  fetched_at: string | null;
+};
+
+// GET /api/calendar/today (backend/routers/calendar.py today_events).
+type CalendarToday = {
+  date: string;
+  market_events: MarketEvent[];
+  earnings: EarningsEvent[];
+  total: number;
+};
+
+// GET /api/calendar/upcoming (backend/calendar_data.py get_upcoming_events).
+type CalendarUpcoming = {
+  from_date: string;
+  to_date: string;
+  market_events: MarketEvent[];
+  earnings: EarningsEvent[];
+  total: number;
+};
+
+// A market event or an earnings row (relabelled below) as one list item.
+// Market events carry `date`, earnings rows carry `event_date` and `ticker`.
+type CalendarRow = {
+  type: string;
+  name: string | null;
+  impact?: string;
+  description?: string | null;
+  date?: string;
+  event_date?: string;
+  ticker?: string;
+};
+
+const eventStyles: Record<string, { bg: string; border: string; text: string; icon: LucideIcon; label: string }> = {
   RBI_POLICY: { ...splitStatusColor(statusColors.purple), icon: Building, label: "RBI Policy" },
   BUDGET: { ...splitStatusColor(statusColors.orange), icon: AlertTriangle, label: "Union Budget" },
   FOMC: { ...splitStatusColor(statusColors.info), icon: Globe, label: "Fed FOMC" },
@@ -48,14 +99,17 @@ function formatDateRelative(dateStr: string): string {
 }
 
 export function CalendarBanner() {
-  const [today, setToday] = useState<any>(null);
-  const [upcoming, setUpcoming] = useState<any>(null);
+  const [today, setToday] = useState<CalendarToday | null>(null);
+  const [upcoming, setUpcoming] = useState<CalendarUpcoming | null>(null);
   const [loading, setLoading] = useState(true);
   const [expanded, setExpanded] = useState(false);
 
   useEffect(() => {
-    Promise.all([getCalendarToday(), getCalendarUpcoming(14)])
-      .then(([t, u]: any[]) => {
+    Promise.all([
+      getCalendarToday() as Promise<CalendarToday>,
+      getCalendarUpcoming(14) as Promise<CalendarUpcoming>,
+    ])
+      .then(([t, u]) => {
         setToday(t);
         setUpcoming(u);
       })
@@ -75,10 +129,10 @@ export function CalendarBanner() {
   }
 
   // Today has high-impact event → big warning banner
-  const hasHighImpactToday = today?.market_events?.some((e: any) => e.impact === "VERY_HIGH" || e.impact === "HIGH");
-  const todayEvents = [
+  const hasHighImpactToday = today?.market_events?.some((e) => e.impact === "VERY_HIGH" || e.impact === "HIGH");
+  const todayEvents: CalendarRow[] = [
     ...(today?.market_events || []),
-    ...(today?.earnings || []).map((e: any) => ({ ...e, type: "earnings", name: e.description })),
+    ...(today?.earnings || []).map((e) => ({ ...e, type: "earnings", name: e.description })),
   ];
 
   return (
@@ -99,7 +153,7 @@ export function CalendarBanner() {
               </p>
               <div className="flex items-center gap-2 flex-wrap">
                 {todayEvents.length > 0 ? (
-                  todayEvents.slice(0, 3).map((e: any, i: number) => {
+                  todayEvents.slice(0, 3).map((e, i: number) => {
                     const style = eventStyles[e.type] || eventStyles.earnings;
                     const Icon = style.icon;
                     return (
@@ -130,7 +184,7 @@ export function CalendarBanner() {
               <div>
                 <p className="text-xs font-semibold text-muted-foreground mb-2">TODAY</p>
                 <div className="space-y-2">
-                  {todayEvents.map((e: any, i: number) => {
+                  {todayEvents.map((e, i: number) => {
                     const style = eventStyles[e.type] || eventStyles.earnings;
                     const Icon = style.icon;
                     return (
@@ -161,17 +215,17 @@ export function CalendarBanner() {
               <div>
                 <p className="text-xs font-semibold text-muted-foreground mb-2">NEXT 14 DAYS</p>
                 <div className="space-y-1">
-                  {[...(upcoming.market_events || []), ...(upcoming.earnings || []).map((e: any) => ({ ...e, type: "earnings", name: e.description, impact: "MEDIUM" }))]
-                    .filter((e: any) => {
+                  {[...(upcoming.market_events || []), ...(upcoming.earnings || []).map((e) => ({ ...e, type: "earnings", name: e.description, impact: "MEDIUM" }))]
+                    .filter((e: CalendarRow) => {
                       const eDate = e.date || e.event_date;
                       return eDate !== today?.date;  // exclude today (already shown above)
                     })
-                    .sort((a: any, b: any) => (a.date || a.event_date).localeCompare(b.date || b.event_date))
+                    .sort((a: CalendarRow, b: CalendarRow) => (a.date || a.event_date as string).localeCompare(b.date || b.event_date as string))
                     .slice(0, 10)
-                    .map((e: any, i: number) => {
+                    .map((e: CalendarRow, i: number) => {
                       const style = eventStyles[e.type] || eventStyles.earnings;
                       const Icon = style.icon;
-                      const dateStr = e.date || e.event_date;
+                      const dateStr = e.date || e.event_date as string;
                       return (
                         <div key={i} className={`flex items-center justify-between p-2 rounded ${style.bg} text-sm`}>
                           <div className="flex items-center gap-2">

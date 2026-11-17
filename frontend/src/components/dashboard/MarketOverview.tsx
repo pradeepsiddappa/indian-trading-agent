@@ -9,7 +9,7 @@ export function MarketOverview() {
   const [data, setData] = useState<MarketStatus | null>(null);
 
   useEffect(() => {
-    getMarketStatus().then((d: any) => setData(d)).catch(() => {});
+    getMarketStatus().then((d) => setData(d as MarketStatus)).catch(() => {});
   }, []);
 
   if (!data) {

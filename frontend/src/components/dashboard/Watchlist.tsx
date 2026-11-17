@@ -19,7 +19,7 @@ export function Watchlist() {
   // Fetches the list; callers that need the spinner set `loading` first.
   const fetchItems = () => {
     getWatchlist()
-      .then((data: any) => setItems(data))
+      .then((data) => setItems(data as WatchlistItem[]))
       .catch(() => toast.error("Failed to load watchlist"))
       .finally(() => setLoading(false));
   };

@@ -4,10 +4,23 @@ import { useEffect, useState } from "react";
 import { getCurrentRegime } from "@/lib/api";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { TrendingUp, TrendingDown, Move, Zap, HelpCircle, Loader2 } from "lucide-react";
+import { TrendingUp, TrendingDown, Move, Zap, HelpCircle, Loader2, type LucideIcon } from "lucide-react";
 import { statusColors, splitStatusColor } from "@/lib/status-colors";
 
-const styles: Record<string, { bg: string; text: string; border: string; icon: any; label: string; desc: string }> = {
+// GET /api/regime/current (backend/market_regime.py classify_regime_for_date).
+// An UNKNOWN regime comes back with only date, regime and reasoning.
+type CurrentRegime = {
+  date: string;
+  regime: "BULL" | "BEAR" | "SIDEWAYS" | "HIGH_VOL" | "UNKNOWN";
+  reasoning: string;
+  nifty_close?: number;
+  sma_50?: number;
+  sma_200?: number;
+  annualized_vol_pct?: number;
+  vol_baseline_pct?: number;
+};
+
+const styles: Record<string, { bg: string; text: string; border: string; icon: LucideIcon; label: string; desc: string }> = {
   BULL: {
     ...splitStatusColor(statusColors.bullish),
     border: "border-green-300 dark:border-green-800",
@@ -46,11 +59,11 @@ const styles: Record<string, { bg: string; text: string; border: string; icon: a
 };
 
 export function RegimeBadge() {
-  const [data, setData] = useState<any>(null);
+  const [data, setData] = useState<CurrentRegime | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    getCurrentRegime()
+    (getCurrentRegime() as Promise<CurrentRegime>)
       .then(setData)
       .catch(() => {})
       .finally(() => setLoading(false));

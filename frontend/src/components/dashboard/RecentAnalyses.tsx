@@ -21,7 +21,7 @@ export function RecentAnalyses() {
   const [analyses, setAnalyses] = useState<AnalysisHistoryItem[]>([]);
 
   useEffect(() => {
-    getAnalysisHistory(5).then((data: any) => setAnalyses(data)).catch(() => {});
+    getAnalysisHistory(5).then((data) => setAnalyses(data as AnalysisHistoryItem[])).catch(() => {});
   }, []);
 
   return (

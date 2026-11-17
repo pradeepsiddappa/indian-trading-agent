@@ -11,11 +11,47 @@ import {
   Loader2,
   ChevronDown,
   ChevronUp,
+  type LucideIcon,
 } from "lucide-react";
 
 import { statusColors, splitStatusColor } from "@/lib/status-colors";
 
-const riskColors: Record<string, { bg: string; border: string; text: string; icon: any }> = {
+// One open position (backend/concentration.py get_open_positions; position_value
+// is filled in by get_sector_allocation).
+type OpenPosition = {
+  id: string;
+  ticker: string;
+  sector: string;
+  direction: string;
+  entry_price: number | null;
+  entry_date: string | null;
+  source: "paper_trade" | "real_trade" | "local_position";
+  position_value: number;
+  strategy?: string | null;
+  signal?: string | null;
+  exchange?: string;
+};
+
+type SectorExposure = {
+  count: number;
+  percent: number;
+  value: number;
+  positions: OpenPosition[];
+};
+
+// GET /api/concentration/summary (backend/concentration.py get_concentration_summary).
+type ConcentrationSummary = {
+  risk_level: "HIGH" | "MEDIUM" | "LOW" | "NONE";
+  risk_reason: string;
+  total_positions: number;
+  total_allocated_pct: number;
+  top_sector: { name: string; count: number; percent: number } | null;
+  by_sector: Record<string, SectorExposure>;
+  concentrated_sectors: string[];
+  limits: { max_positions_per_sector: number; max_percent_per_sector: number };
+};
+
+const riskColors: Record<string, { bg: string; border: string; text: string; icon: LucideIcon }> = {
   HIGH: { ...splitStatusColor(statusColors.bearish), border: "border-red-300 dark:border-red-800", icon: AlertTriangle },
   MEDIUM: { ...splitStatusColor(statusColors.caution), icon: AlertTriangle },
   LOW: { ...splitStatusColor(statusColors.bullish), icon: CheckCircle2 },
@@ -36,13 +72,13 @@ const sectorColors: Record<string, string> = {
 };
 
 export function ConcentrationWidget() {
-  const [summary, setSummary] = useState<any>(null);
+  const [summary, setSummary] = useState<ConcentrationSummary | null>(null);
   const [loading, setLoading] = useState(true);
   const [expanded, setExpanded] = useState(false);
 
   useEffect(() => {
     getConcentrationSummary()
-      .then((data: any) => setSummary(data))
+      .then((data) => setSummary(data as ConcentrationSummary))
       .catch(() => {})
       .finally(() => setLoading(false));
   }, []);
@@ -65,8 +101,8 @@ export function ConcentrationWidget() {
   const style = riskColors[summary.risk_level] || riskColors.LOW;
   const Icon = style.icon;
   const sectors = Object.entries(summary.by_sector || {})
-    .map(([name, data]: any) => ({ name, ...data }))
-    .sort((a: any, b: any) => b.percent - a.percent);
+    .map(([name, data]) => ({ name, ...data }))
+    .sort((a, b) => b.percent - a.percent);
 
   return (
     <Card className={`${style.border} ${style.bg}`}>
@@ -94,7 +130,7 @@ export function ConcentrationWidget() {
 
         {/* Stacked bar showing sector breakdown */}
         <div className={`mt-3 flex h-3 rounded-full overflow-hidden border ${statusColors.surfaceInsetLight}`}>
-          {sectors.map((s: any) => (
+          {sectors.map((s) => (
             <div
               key={s.name}
               className={`${sectorColors[s.name] || sectorColors.Other} transition-all`}
@@ -107,7 +143,7 @@ export function ConcentrationWidget() {
         {expanded && (
           <div className="mt-3 pt-3 border-t border-current/10 space-y-3">
             <div className="space-y-2">
-              {sectors.map((s: any) => {
+              {sectors.map((s) => {
                 const isConcentrated = summary.concentrated_sectors?.includes(s.name);
                 return (
                   <div key={s.name} className="space-y-1">
@@ -126,7 +162,7 @@ export function ConcentrationWidget() {
                       </span>
                     </div>
                     <div className="text-xs text-muted-foreground pl-5">
-                      {s.positions?.map((p: any) => p.ticker).join(", ")}
+                      {s.positions?.map((p) => p.ticker).join(", ")}
                     </div>
                   </div>
                 );

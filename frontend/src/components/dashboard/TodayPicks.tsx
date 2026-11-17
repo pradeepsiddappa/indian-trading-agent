@@ -9,10 +9,61 @@ import { Loader2, TrendingUp, TrendingDown, Sparkles, RefreshCw, ArrowRight, Bel
 import Link from "next/link";
 import { toast } from "sonner";
 import { statusColors, splitStatusColor } from "@/lib/status-colors";
+import { errorMessage } from "@/lib/utils";
+import type { WatchlistItem } from "@/lib/types";
+
+// One signal behind a pick (backend/recommender.py _analyze_stock, plus the
+// FII/DII, event and sector-concentration signals the _apply_* filters add).
+type RecommendationSignal = {
+  type: string;
+  direction: "BULLISH" | "BEARISH" | "FADE" | "NEUTRAL";
+  value: string;
+  weight: number;
+};
+
+// One ranked stock (backend/recommender.py _analyze_stock + _apply_* filters).
+type Recommendation = {
+  ticker: string;
+  symbol: string;
+  price: number;
+  change_pct: number;
+  rsi: number | null;
+  score: number;
+  direction: "STRONG BUY" | "BUY" | "NEUTRAL" | "SELL" | "STRONG SELL";
+  confidence: "HIGH" | "MEDIUM" | "LOW";
+  success_probability: number;
+  signals: RecommendationSignal[];
+  bullish_signal_count: number;
+  bearish_signal_count: number;
+  near_support: number;
+  near_resistance: number;
+  market_bias_applied?: string;
+  sector?: string;
+  concentration_warning?: string | null;
+  concentration_breach?: boolean;
+  event_warning?: string;
+  upcoming_events?: unknown[];
+};
+
+// GET /api/recommend/ (backend/recommender.py recommend).
+type RecommendationsResponse = {
+  universe: string;
+  total_analyzed: number;
+  total_with_signals: number;
+  market_bias: unknown;
+  today_market_events: unknown[];
+  concentration_summary: unknown;
+  active_regime: string | null;
+  regime_weight_overrides_active: number;
+  strong_buys: Recommendation[];
+  buys: Recommendation[];
+  sells: Recommendation[];
+  strong_sells: Recommendation[];
+};
 
 export function TodayPicks({ universe = "nifty100" }: { universe?: string }) {
   const [loading, setLoading] = useState(true);
-  const [data, setData] = useState<any>(null);
+  const [data, setData] = useState<RecommendationsResponse | null>(null);
   const [lastRun, setLastRun] = useState<Date | null>(null);
   const [watchlistTickers, setWatchlistTickers] = useState<string[]>([]);
 
@@ -27,19 +78,22 @@ export function TodayPicks({ universe = "nifty100" }: { universe?: string }) {
   // Fetches picks; callers that need the spinner set `loading` first.
   const fetchData = useCallback(
     () =>
-      Promise.all([getRecommendations(universe, 2), getWatchlist().catch(() => [])])
-        .then(([result, watchlist]: any[]) => {
+      Promise.all([
+        getRecommendations(universe, 2) as Promise<RecommendationsResponse>,
+        getWatchlist().catch(() => []) as Promise<WatchlistItem[]>,
+      ])
+        .then(([result, watchlist]) => {
           setData(result);
           setLastRun(new Date());
 
-          const wlTickers: string[] = (watchlist || []).map((w: any) => w.ticker);
+          const wlTickers: string[] = (watchlist || []).map((w) => w.ticker);
           setWatchlistTickers(wlTickers);
 
           // Alert for watchlist matches
           const allPicks = [...(result.strong_buys || []), ...(result.buys || [])];
-          const matches = allPicks.filter((p: any) => wlTickers.includes(p.ticker));
+          const matches = allPicks.filter((p) => wlTickers.includes(p.ticker));
           if (matches.length > 0) {
-            toast.success(`${matches.length} watchlist stock${matches.length > 1 ? "s" : ""} in Top Picks: ${matches.map((m: any) => m.ticker).join(", ")}`, {
+            toast.success(`${matches.length} watchlist stock${matches.length > 1 ? "s" : ""} in Top Picks: ${matches.map((m) => m.ticker).join(", ")}`, {
               duration: 6000,
               icon: <Bell className="h-4 w-4" />,
             });
@@ -124,7 +178,7 @@ export function TodayPicks({ universe = "nifty100" }: { universe?: string }) {
         {data && topPicks.length > 0 && (
           <div className="space-y-2">
             <p className="text-xs font-medium text-green-700 dark:text-green-300 mb-2">BUY OPPORTUNITIES</p>
-            {topPicks.map((pick: any, i: number) => (
+            {topPicks.map((pick, i: number) => (
               <div
                 key={pick.ticker}
                 className="flex items-center justify-between p-3 rounded-lg bg-green-50/50 border border-green-100 hover:bg-green-50 dark:bg-green-950/20 dark:border-green-800/50 dark:hover:bg-green-950/40 transition-colors"
@@ -170,7 +224,7 @@ export function TodayPicks({ universe = "nifty100" }: { universe?: string }) {
                           confidence: pick.confidence,
                           success_probability: pick.success_probability,
                           triggered_signals: pick.signals,
-                        } as any);
+                        });
                         toast.success(`${pick.ticker} tracked at Rs.${pick.price}`, {
                           description: "Paper trade opened. Check P&L at 1/3/5/10 days on the Simulation page.",
                           duration: 6000,
@@ -179,8 +233,8 @@ export function TodayPicks({ universe = "nifty100" }: { universe?: string }) {
                             onClick: () => { window.location.href = "/simulation"; },
                           },
                         });
-                      } catch (e: any) {
-                        toast.error(e.message || "Failed to track");
+                      } catch (e) {
+                        toast.error(errorMessage(e, "Failed to track"));
                       }
                     }}
                   >
@@ -200,7 +254,7 @@ export function TodayPicks({ universe = "nifty100" }: { universe?: string }) {
         {data && topSells.length > 0 && (
           <div className="space-y-2 mt-4">
             <p className="text-xs font-medium text-red-700 dark:text-red-300 mb-2">AVOID / EXIT</p>
-            {topSells.map((pick: any) => (
+            {topSells.map((pick) => (
               <div
                 key={pick.ticker}
                 className="flex items-center justify-between p-3 rounded-lg bg-red-50/50 border border-red-100 dark:bg-red-950/20 dark:border-red-800/50"

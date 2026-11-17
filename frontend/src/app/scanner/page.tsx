@@ -17,6 +17,55 @@ import { Sparkles } from "lucide-react";
 import Link from "next/link";
 import { iconBadge, infoSubtle } from "@/lib/status-colors";
 
+// One gap hit (backend/scanner.py scan_gaps).
+type GapResult = {
+  ticker: string;
+  symbol: string;
+  price: number;
+  gap_pct: number;
+  direction: "UP" | "DOWN";
+  prev_close: number;
+  open: number;
+  filled: boolean;
+};
+
+// One volume spike (backend/scanner.py scan_volume_spikes).
+type VolumeSpikeResult = {
+  ticker: string;
+  symbol: string;
+  price: number;
+  change_pct: number;
+  volume: number;
+  avg_volume: number;
+  volume_ratio: number;
+  direction: "BULLISH" | "BEARISH";
+};
+
+// One N-day-high breakout (backend/scanner.py scan_breakouts).
+type BreakoutResult = {
+  ticker: string;
+  symbol: string;
+  price: number;
+  breakout_level: number;
+  breakout_pct: number;
+  lookback_days: number;
+  volume_ratio: number;
+  volume_confirmed: boolean;
+};
+
+// POST /api/scanner/run (backend/scanner.py run_scan). A strategy's key is
+// present only when that strategy was requested.
+type ScanResponse = {
+  universe: string;
+  total_stocks: number;
+  scanned: number;
+  results: {
+    gap?: GapResult[];
+    volume?: VolumeSpikeResult[];
+    breakout?: BreakoutResult[];
+  };
+};
+
 export default function ScannerPage() {
   const [universe, setUniverse] = useState("nifty50");
   const [gapThreshold, setGapThreshold] = useState(2);
@@ -24,7 +73,7 @@ export default function ScannerPage() {
   const [breakoutLookback, setBreakoutLookback] = useState(20);
   const [status, setStatus] = useState<"idle" | "running" | "done">("idle");
   const [logs, setLogs] = useState<string[]>([]);
-  const [results, setResults] = useState<any>(null);
+  const [results, setResults] = useState<ScanResponse | null>(null);
 
   const handleScan = async () => {
     setStatus("running");
@@ -32,13 +81,13 @@ export default function ScannerPage() {
     setResults(null);
 
     try {
-      const res: any = await startScan({
+      const res = (await startScan({
         universe,
         strategies: ["gap", "volume", "breakout"],
         gap_threshold: gapThreshold,
         volume_multiplier: volumeMultiplier,
         breakout_lookback: breakoutLookback,
-      });
+      })) as ScanResponse;
 
       if (res && res.results) {
         setResults(res);
@@ -51,20 +100,20 @@ export default function ScannerPage() {
         setLogs(["Scan returned no results. The backend may not be running."]);
         setStatus("done");
       }
-    } catch (e: any) {
-      setLogs([`Error: ${e.message}`]);
+    } catch (e) {
+      setLogs([`Error: ${(e as Error).message}`]);
       setStatus("done");
     }
   };
 
   const allGaps = results?.results?.gap || [];
-  const gapUpCount = allGaps.filter((g: any) => g.direction === "UP").length;
-  const gapDownCount = allGaps.filter((g: any) => g.direction === "DOWN").length;
+  const gapUpCount = allGaps.filter((g) => g.direction === "UP").length;
+  const gapDownCount = allGaps.filter((g) => g.direction === "DOWN").length;
   const volumeResults = results?.results?.volume || [];
   const breakoutResults = results?.results?.breakout || [];
 
   const [gapFilter, setGapFilter] = useState<"all" | "up" | "down">("all");
-  const gapResults = allGaps.filter((g: any) =>
+  const gapResults = allGaps.filter((g) =>
     gapFilter === "all" ? true : gapFilter === "up" ? g.direction === "UP" : g.direction === "DOWN"
   );
 
@@ -222,7 +271,7 @@ export default function ScannerPage() {
                       <TableBody>
                         {gapResults.length === 0 ? (
                           <TableRow><TableCell colSpan={8} className="text-center py-8 text-muted-foreground">No gaps found</TableCell></TableRow>
-                        ) : gapResults.map((r: any) => (
+                        ) : gapResults.map((r) => (
                           <TableRow key={r.ticker}>
                             <TableCell className="font-sans font-medium">{r.ticker}</TableCell>
                             <TableCell>
@@ -282,7 +331,7 @@ export default function ScannerPage() {
                       <TableBody>
                         {volumeResults.length === 0 ? (
                           <TableRow><TableCell colSpan={8} className="text-center py-8 text-muted-foreground">No volume spikes found</TableCell></TableRow>
-                        ) : volumeResults.map((r: any) => (
+                        ) : volumeResults.map((r) => (
                           <TableRow key={r.ticker}>
                             <TableCell className="font-sans font-medium">{r.ticker}</TableCell>
                             <TableCell>
@@ -336,7 +385,7 @@ export default function ScannerPage() {
                       <TableBody>
                         {breakoutResults.length === 0 ? (
                           <TableRow><TableCell colSpan={7} className="text-center py-8 text-muted-foreground">No breakouts found</TableCell></TableRow>
-                        ) : breakoutResults.map((r: any) => (
+                        ) : breakoutResults.map((r) => (
                           <TableRow key={r.ticker}>
                             <TableCell className="font-sans font-medium">{r.ticker}</TableCell>
                             <TableCell className="text-right font-sans">₹{r.price}</TableCell>
