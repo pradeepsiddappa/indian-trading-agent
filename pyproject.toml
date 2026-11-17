@@ -30,7 +30,6 @@ dependencies = [
     "typing-extensions>=4.14.0",
     "yfinance>=0.2.63",
     "python-dotenv>=1.0.0",
-    "kiteconnect>=5.0.1",
     # Backend (FastAPI app in backend/)
     "fastapi>=0.135.0",
     "uvicorn>=0.44.0",
@@ -39,6 +38,14 @@ dependencies = [
     "numpy>=2.0",
     "nsepython>=2.97",
 ]
+
+[project.optional-dependencies]
+# Zerodha Kite holdings sync: pip install -e ".[kite]"
+# Optional (and not in requirements.txt) because kiteconnect pins
+# autobahn==19.11.2, which has open advisories (CVE-2020-35678,
+# CVE-2026-77528). Only kiteconnect's live-feed client uses autobahn, and the
+# app never opens that feed.
+kite = ["kiteconnect>=5.2.2"]
 
 [project.scripts]
 indian-trading-agent = "cli.main:app"

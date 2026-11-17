@@ -113,7 +113,7 @@ python3 -m venv venv
 source venv/bin/activate  # On Windows: venv\Scripts\activate
 
 pip install -r requirements.txt   # exact, tested versions
-pip install -e .
+pip install -e .                  # or: pip install -e ".[kite]" to use Zerodha Kite (step 5)
 ```
 
 ### 2. Configure API key (pick ONE method)
@@ -182,8 +182,17 @@ cd frontend && npm install && npm run dev
 The Kite integration pulls your **holdings** for portfolio analysis. It is
 strictly read-only — no orders, no fund transfers.
 
-1. Create a Kite Connect app at [developers.kite.trade](https://developers.kite.trade/apps).
-2. Set the app's **Redirect URL** to the **backend** callback (not the frontend):
+1. Install the Kite extra (Zerodha's `kiteconnect` library), with your venv active:
+
+   ```bash
+   pip install -e ".[kite]"
+   ```
+
+   It's optional because `kiteconnect` requires an old `autobahn` (19.11.2) that
+   has known security advisories. Only Kite's live price feed uses it, and this
+   app never opens that feed.
+2. Create a Kite Connect app at [developers.kite.trade](https://developers.kite.trade/apps).
+3. Set the app's **Redirect URL** to the **backend** callback (not the frontend):
 
    ```
    http://localhost:8000/api/kite/callback
@@ -193,7 +202,7 @@ strictly read-only — no orders, no fund transfers.
    **exactly** (scheme, host, port, path). If you run the backend on a different
    port, use that port. For a public deployment use your HTTPS backend origin,
    e.g. `https://api.yourhost.com/api/kite/callback`.
-3. In the app, open **Equity Portfolio Analysis**, paste your **API key** and
+4. In the app, open **Equity Portfolio Analysis**, paste your **API key** and
    **API secret**, then click **Connect Kite**. Log in on Kite's page; you'll be
    redirected back and your holdings will load.
 

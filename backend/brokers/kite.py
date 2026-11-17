@@ -140,7 +140,9 @@ def _kite_connect_cls():
         from kiteconnect import KiteConnect
         return KiteConnect
     except ImportError as exc:
-        raise KiteConfigError("kiteconnect package is not installed") from exc
+        raise KiteConfigError(
+            'kiteconnect package is not installed. Install it with: pip install -e ".[kite]"'
+        ) from exc
 
 
 def _new_client():

@@ -27,6 +27,16 @@ class EquityPortfolioTests(IsolatedStateTestCase, unittest.TestCase):
         self.assertEqual(rows[0]["pnl"], 250)
         self.assertEqual(rows[0]["pnl_pct"], 25)
 
+    def test_missing_kiteconnect_explains_how_to_install_the_extra(self):
+        from backend.brokers import kite
+
+        # A None entry makes `from kiteconnect import ...` raise ImportError,
+        # whether or not the optional package is installed.
+        with patch.dict("sys.modules", {"kiteconnect": None}):
+            with self.assertRaises(kite.KiteConfigError) as ctx:
+                kite._kite_connect_cls()
+        self.assertIn('pip install -e ".[kite]"', str(ctx.exception))
+
     def test_kite_status_masks_credentials_and_expires_old_token(self):
         from backend.brokers.kite import get_kite_status
 
