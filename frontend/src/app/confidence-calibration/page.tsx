@@ -77,6 +77,8 @@ const QUALITY_STYLES: Record<string, string> = {
   fair: "bg-amber-50 text-amber-700 border-amber-300 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800",
   poor: "bg-red-50 text-red-700 border-red-300 dark:bg-red-950/40 dark:text-red-300 dark:border-red-800",
   no_data: "bg-muted text-muted-foreground border",
+  // Closed trades exist, but every stated probability was 0% or 100%, so none could be scored
+  no_valid_data: "bg-muted text-muted-foreground border",
 };
 
 const VERDICT_STYLES: Record<string, { color: string; icon: LucideIcon; label: string }> = {
@@ -197,7 +199,7 @@ export default function ConfidenceCalibrationPage() {
               <p className="text-xs text-muted-foreground">Brier score</p>
               <p className="text-2xl font-bold">{data?.brier_score?.toFixed(3) ?? "—"}</p>
               <Badge variant="outline" className={`text-xs ${QUALITY_STYLES[data?.calibration_quality || "no_data"]}`}>
-                {data?.calibration_quality?.replace("_", " ") || "no data"}
+                {data?.calibration_quality?.replace(/_/g, " ") || "no data"}
               </Badge>
             </div>
             <div>
