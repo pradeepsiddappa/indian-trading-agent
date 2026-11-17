@@ -30,16 +30,22 @@ const pnlStatusColors: Record<string, string> = {
   pending: "bg-muted text-muted-foreground",
 };
 
+// GET /api/analysis/memory/stats → routers/analysis.get_memory_stats(): lesson count per agent + total.
+// (On failure the backend returns {error} instead; `total` is then undefined and the badge stays hidden.)
+type MemoryStats = { memories: Record<string, number>; total: number };
+
 export default function HistoryPage() {
   const [analyses, setAnalyses] = useState<AnalysisHistoryItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [dialog, setDialog] = useState<{ taskId: string; ticker: string; signal: string } | null>(null);
-  const [memoryStats, setMemoryStats] = useState<any>(null);
+  const [memoryStats, setMemoryStats] = useState<MemoryStats | null>(null);
 
   // Fetches data; callers that need the spinner set `loading` first.
   const fetchData = () => {
-    Promise.all([getAnalysisHistory(100), getMemoryStats().catch(() => null)])
-      .then(([history, mem]: any[]) => {
+    (Promise.all([getAnalysisHistory(100), getMemoryStats().catch(() => null)]) as Promise<
+      [AnalysisHistoryItem[], MemoryStats | null]
+    >)
+      .then(([history, mem]) => {
         setAnalyses(history);
         setMemoryStats(mem);
       })
@@ -175,7 +181,7 @@ export default function HistoryPage() {
                         </TableCell>
                       </TableRow>
                     ) : (
-                      tab.data.map((a: any) => (
+                      tab.data.map((a) => (
                         <TableRow key={a.task_id}>
                           <TableCell className="text-sm">
                             {a.created_at ? new Date(a.created_at).toLocaleDateString() : "-"}

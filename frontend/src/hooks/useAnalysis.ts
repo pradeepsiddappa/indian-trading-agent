@@ -4,6 +4,9 @@ import { useState, useCallback } from "react";
 import { runAnalysis, connectAnalysisWS } from "@/lib/api";
 import type { WSEvent } from "@/lib/types";
 
+// POST /api/analysis/run → backend/models.AnalysisResponse
+type AnalysisStartResponse = { task_id: string; status: string; ticker: string; trade_date: string };
+
 interface AnalysisState {
   taskId: string | null;
   status: "idle" | "running" | "completed" | "error";
@@ -40,7 +43,7 @@ export function useAnalysis() {
     });
 
     try {
-      const result: any = await runAnalysis({ ticker, trade_date: tradeDate });
+      const result = (await runAnalysis({ ticker, trade_date: tradeDate })) as AnalysisStartResponse;
       const taskId = result.task_id;
 
       setState((s) => ({ ...s, taskId }));
@@ -76,8 +79,8 @@ export function useAnalysis() {
           }
         });
       });
-    } catch (e: any) {
-      setState((s) => ({ ...s, status: "error", error: e.message }));
+    } catch (e) {
+      setState((s) => ({ ...s, status: "error", error: (e as Error).message }));
     }
   }, []);
 

@@ -16,7 +16,7 @@ export default function AnalysisDetailPage() {
   useEffect(() => {
     if (params.id) {
       getAnalysisResult(params.id as string)
-        .then((data: any) => setResult(data))
+        .then((data) => setResult(data as AnalysisResult))
         .catch(() => setResult(null))
         .finally(() => setLoading(false));
     }

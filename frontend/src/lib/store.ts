@@ -2,6 +2,7 @@
 
 import { create } from "zustand";
 import { runAnalysis, connectAnalysisWS } from "@/lib/api";
+import type { WSEvent } from "@/lib/types";
 
 interface AnalysisOptions {
   analysts?: string[];
@@ -20,6 +21,36 @@ interface AnalysisStats {
   cost_inr: number;
   per_model?: Record<string, { input: number; output: number }>;
 }
+
+// POST /api/analysis/run → backend/models.AnalysisResponse
+type AnalysisStartResponse = { task_id: string; status: string; ticker: string; trade_date: string };
+
+// StatsCallback.summary() (backend/stats_callback.py)
+type StatsSummary = {
+  llm_calls: number;
+  tool_calls: number;
+  tokens_in: number;
+  tokens_out: number;
+  total_tokens: number;
+  cost_usd: number;
+  cost_inr: number;
+  per_model: Record<string, { input: number; output: number }>;
+};
+
+// The analysis WebSocket (routers/analysis._run_analysis_sync) also sends things the
+// shared WSEvent type doesn't list: "heartbeat" events {chunk, last_activity}, the rest
+// of the stats summary spread into "stats" events, and the summary nested under
+// `stats` on "complete".
+type AnalysisWSEvent = Omit<WSEvent, "type"> & {
+  type: WSEvent["type"] | "heartbeat";
+  chunk?: number;
+  last_activity?: string;
+  total_tokens?: number;
+  cost_usd?: number;
+  cost_inr?: number;
+  per_model?: StatsSummary["per_model"];
+  stats?: StatsSummary;
+};
 
 interface AnalysisState {
   taskId: string | null;
@@ -82,17 +113,17 @@ export const useAnalysisStore = create<AnalysisState>((set, get) => ({
     });
 
     try {
-      const result: any = await runAnalysis({
+      const result = (await runAnalysis({
         ticker,
         trade_date: tradeDate,
         analysts: options.analysts,
         max_debate_rounds: options.max_debate_rounds,
         max_risk_discuss_rounds: options.max_risk_discuss_rounds,
         output_language: options.output_language,
-      });
+      })) as AnalysisStartResponse;
       const taskId = result.task_id;
 
-      const ws = connectAnalysisWS(taskId, (event: any) => {
+      const ws = connectAnalysisWS(taskId, (event: AnalysisWSEvent) => {
         const state = get();
         switch (event.type) {
           case "heartbeat":
@@ -154,8 +185,8 @@ export const useAnalysisStore = create<AnalysisState>((set, get) => ({
       });
 
       set({ taskId, ws });
-    } catch (e: any) {
-      set({ status: "error", error: e.message });
+    } catch (e) {
+      set({ status: "error", error: (e as Error).message });
     }
   },
 

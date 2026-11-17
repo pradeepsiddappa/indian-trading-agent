@@ -19,8 +19,10 @@ import {
   Database,
   AlertTriangle,
   Sparkles,
+  type LucideIcon,
 } from "lucide-react";
 import { toast } from "sonner";
+import { errorMessage } from "@/lib/utils";
 
 type Signal = { type: string; direction: string; value: string; weight: number };
 type ShadowTrade = {
@@ -55,6 +57,8 @@ type Comparison = {
   filter_verdict: string;
   filter_message: string;
 };
+// POST /api/shadow-trades/refresh → shadow_trades.refresh_shadow_prices()
+type RefreshResult = { status: string; scanned: number; updated: number };
 
 const helpItems = [
   {
@@ -84,7 +88,7 @@ const helpItems = [
   },
 ];
 
-const VERDICT_STYLES: Record<string, { color: string; label: string; icon: any }> = {
+const VERDICT_STYLES: Record<string, { color: string; label: string; icon: LucideIcon }> = {
   filter_hurts: { color: "text-red-700", label: "Filter HURTS", icon: AlertTriangle },
   filter_helps: { color: "text-green-700", label: "Filter HELPS", icon: CheckCircle2 },
   filter_neutral: { color: "text-amber-700", label: "Filter NEUTRAL", icon: Sparkles },
@@ -118,8 +122,8 @@ export default function ShadowTradesPage() {
   // Fetches data; callers that need the spinner set `loading` first.
   const fetchData = useCallback(
     () =>
-      Promise.all([listShadowTrades(windowDays), getShadowComparison(windowDays)])
-        .then(([l, c]: any[]) => {
+      (Promise.all([listShadowTrades(windowDays), getShadowComparison(windowDays)]) as Promise<[ListResp, Comparison]>)
+        .then(([l, c]) => {
           setList(l);
           setComparison(c);
         })
@@ -140,11 +144,11 @@ export default function ShadowTradesPage() {
   const refresh = async () => {
     setRefreshing(true);
     try {
-      const r: any = await refreshShadowTrades();
+      const r = (await refreshShadowTrades()) as RefreshResult;
       toast.success(`Refreshed ${r.updated} shadow trade(s)`);
       await load();
-    } catch (e: any) {
-      toast.error(e.message || "Refresh failed");
+    } catch (e) {
+      toast.error(errorMessage(e, "Refresh failed"));
     }
     setRefreshing(false);
   };

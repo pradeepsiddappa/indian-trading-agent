@@ -22,7 +22,7 @@ export function TickerSearch({ value, onChange, placeholder, disabled, className
   const [query, setQuery] = useState(value);
   const [results, setResults] = useState<StockResult[]>([]);
   const [showDropdown, setShowDropdown] = useState(false);
-  const debounceRef = useRef<any>(null);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const wrapperRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -53,7 +53,8 @@ export function TickerSearch({ value, onChange, placeholder, disabled, className
 
     debounceRef.current = setTimeout(async () => {
       try {
-        const data: any = await searchStocks(val.trim());
+        // GET /api/market-data/search returns a list of {ticker, name, symbol, score}.
+        const data = (await searchStocks(val.trim())) as StockResult[];
         setResults(data);
         setShowDropdown(data.length > 0);
       } catch {

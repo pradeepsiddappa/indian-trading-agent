@@ -2,7 +2,7 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { TrendingUp, TrendingDown, Shield, Swords, Scale } from "lucide-react";
+import { TrendingUp, TrendingDown, Shield, Swords, Scale, type LucideIcon } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 
 interface Props {
@@ -13,7 +13,7 @@ interface Props {
   riskNeutral?: string;
 }
 
-function DebateMessage({ content, side, icon: Icon, color }: { content: string; side: string; icon: any; color: string }) {
+function DebateMessage({ content, side, icon: Icon, color }: { content: string; side: string; icon: LucideIcon; color: string }) {
   if (!content) return null;
 
   // Split into individual arguments

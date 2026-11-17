@@ -1,9 +1,9 @@
 "use client";
 
 import { Card, CardContent } from "@/components/ui/card";
-import { TrendingUp, TrendingDown, Minus, AlertTriangle } from "lucide-react";
+import { TrendingUp, TrendingDown, Minus, AlertTriangle, type LucideIcon } from "lucide-react";
 
-const signalConfig: Record<string, { color: string; bg: string; icon: any }> = {
+const signalConfig: Record<string, { color: string; bg: string; icon: LucideIcon }> = {
   BUY: { color: "text-green-400", bg: "bg-green-500/10 border-green-500/30", icon: TrendingUp },
   "STRONG BUY": { color: "text-green-400", bg: "bg-green-500/10 border-green-500/30", icon: TrendingUp },
   OVERWEIGHT: { color: "text-green-300", bg: "bg-green-500/10 border-green-500/20", icon: TrendingUp },

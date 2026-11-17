@@ -137,7 +137,8 @@ export const runAnalysis = (data: {
 }) => fetchAPI(`/api/analysis/run`, { method: "POST", body: JSON.stringify(data) });
 export const getAnalysisResult = (taskId: string) => fetchAPI(`/api/analysis/${taskId}`);
 export const getAnalysisHistory = (limit = 50) => fetchAPI(`/api/analysis/history/list?limit=${limit}`);
-export const updatePnL = (taskId: string, data: { entry_price: number; exit_price: number; reflect?: boolean }) =>
+// Omit exit_price to mark the trade as open (no exit yet).
+export const updatePnL = (taskId: string, data: { entry_price: number; exit_price?: number; reflect?: boolean }) =>
   fetchAPI(`/api/analysis/${taskId}/pnl`, { method: "PUT", body: JSON.stringify(data) });
 export const getMemoryStats = () => fetchAPI(`/api/analysis/memory/stats`);
 

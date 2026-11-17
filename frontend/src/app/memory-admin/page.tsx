@@ -21,6 +21,7 @@ import {
   AlertTriangle,
 } from "lucide-react";
 import { toast } from "sonner";
+import { errorMessage } from "@/lib/utils";
 
 type Stats = {
   name: string;
@@ -45,6 +46,21 @@ type Entry = {
   age_days: number | null;
   decay_factor: number;
 };
+
+// GET /api/memory/ → {"memories": list_all_memory_stats()}
+type MemoriesResponse = { memories: Stats[] };
+// GET /api/memory/{name}/entries → {name, stats: mem.stats(), entries: mem.list_entries()}
+type MemoryEntriesResponse = { name: string; stats: Stats; entries: Entry[] };
+// FinancialSituationMemory.prune() result
+type PruneResult = {
+  pruned_count: number;
+  kept_count: number;
+  pruned_indices: number[];
+  criteria: Record<string, number>;
+  dry_run: boolean;
+};
+// POST /api/memory/prune-all → {"results": prune_all_memories()}, keyed by memory name
+type PruneAllResponse = { results: Record<string, PruneResult> };
 
 const helpItems = [
   {
@@ -103,7 +119,7 @@ export default function MemoryAdminPage() {
   // Fetches stats; callers that need the spinner set `loading` first.
   const fetchStats = () =>
     listMemories()
-      .then((r: any) => setStats(r.memories))
+      .then((r) => setStats((r as MemoriesResponse).memories))
       .catch((e) => toast.error(e.message || "Failed to load memory stats"))
       .finally(() => setLoading(false));
 
@@ -116,10 +132,10 @@ export default function MemoryAdminPage() {
     setSelected(name);
     setEntries([]);
     try {
-      const r: any = await getMemoryEntries(name);
+      const r = (await getMemoryEntries(name)) as MemoryEntriesResponse;
       setEntries(r.entries || []);
-    } catch (e: any) {
-      toast.error(e.message || "Failed to load entries");
+    } catch (e) {
+      toast.error(errorMessage(e, "Failed to load entries"));
     }
   };
 
@@ -143,9 +159,9 @@ export default function MemoryAdminPage() {
     if (!dry_run && !confirm("This will permanently delete entries. Continue?")) return;
     setBusy(true);
     try {
-      const r: any = await pruneAllMemories(args);
+      const r = (await pruneAllMemories(args)) as PruneAllResponse;
       const total = Object.values(r.results || {}).reduce<number>(
-        (acc: number, v: any) => acc + (v?.pruned_count ?? 0),
+        (acc, v) => acc + (v?.pruned_count ?? 0),
         0,
       );
       toast.success(
@@ -155,8 +171,8 @@ export default function MemoryAdminPage() {
       );
       await loadStats();
       if (selected) await loadEntries(selected);
-    } catch (e: any) {
-      toast.error(e.message || "Prune failed");
+    } catch (e) {
+      toast.error(errorMessage(e, "Prune failed"));
     }
     setBusy(false);
   };
@@ -169,8 +185,8 @@ export default function MemoryAdminPage() {
       toast.success("Entry deleted");
       await loadStats();
       await loadEntries(selected);
-    } catch (e: any) {
-      toast.error(e.message || "Delete failed");
+    } catch (e) {
+      toast.error(errorMessage(e, "Delete failed"));
     }
   };
 

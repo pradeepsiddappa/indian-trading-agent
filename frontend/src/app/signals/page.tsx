@@ -30,6 +30,7 @@ import {
   Brain,
 } from "lucide-react";
 import { toast } from "sonner";
+import { errorMessage } from "@/lib/utils";
 
 type SignalRow = {
   signal_type: string;
@@ -123,6 +124,29 @@ type RegimeSuggestions = {
   summary: Record<string, { override_count: number }>;
 };
 
+// GET /api/signal-performance/active-weights → {"overrides": get_tuned_weights()}
+type ActiveWeights = { overrides: Record<string, number> };
+// GET /api/signal-performance/regime-active → {"by_regime": get_regime_weights()}
+type ActiveRegimeWeights = { by_regime: Record<string, Record<string, number>> };
+// POST /api/signal-performance/apply → signal_performance.apply_tuned_weights()
+type ApplyWeightsResult = {
+  applied: { key: string; from: number; to: number; delta: number; n: number; win_rate: number }[];
+  active_overrides: Record<string, number>;
+};
+// POST /api/signal-performance/regime-apply → signal_performance.apply_regime_weights()
+type ApplyRegimeWeightsResult = {
+  applied: Record<string, { key: string; to: number; delta: number; n: number; win_rate: number }[]>;
+  active_regime_weights: Record<string, Record<string, number>>;
+};
+// POST /api/regime/backfill-trades → regime_backfill.backfill_regime_at_entry()
+type BackfillRegimesResult = {
+  status: string;
+  trades_scanned: number;
+  trades_updated: number;
+  unique_dates: number;
+  failed_dates: string[];
+};
+
 export default function SignalsPage() {
   const [data, setData] = useState<Performance | null>(null);
   const [regimeData, setRegimeData] = useState<RegimePerf | null>(null);
@@ -136,14 +160,16 @@ export default function SignalsPage() {
   // Fetches data; callers that need the spinner set `loading` first.
   const fetchData = useCallback(
     () =>
-      Promise.all([
-        getSignalPerformance(windowDays),
-        getActiveSignalWeights(),
-        getSignalPerformanceByRegime(Math.max(windowDays, 180)),
-        getRegimeWeightSuggestions(Math.max(windowDays, 180)),
-        getActiveRegimeWeights(),
-      ])
-        .then(([perf, weights, regime, regSugg, regActive]: any[]) => {
+      (
+        Promise.all([
+          getSignalPerformance(windowDays),
+          getActiveSignalWeights(),
+          getSignalPerformanceByRegime(Math.max(windowDays, 180)),
+          getRegimeWeightSuggestions(Math.max(windowDays, 180)),
+          getActiveRegimeWeights(),
+        ]) as Promise<[Performance, ActiveWeights, RegimePerf, RegimeSuggestions, ActiveRegimeWeights]>
+      )
+        .then(([perf, weights, regime, regSugg, regActive]) => {
           setData(perf);
           setOverrides(weights?.overrides || {});
           setRegimeData(regime);
@@ -163,8 +189,8 @@ export default function SignalsPage() {
   const applyAllRegimeWeights = async () => {
     setApplying(true);
     try {
-      const r: any = await applyRegimeWeights();
-      const total = Object.values(r.applied || {}).reduce<number>((acc: number, arr: any) => acc + (arr?.length ?? 0), 0);
+      const r = (await applyRegimeWeights()) as ApplyRegimeWeightsResult;
+      const total = Object.values(r.applied || {}).reduce<number>((acc, arr) => acc + (arr?.length ?? 0), 0);
       if (total === 0) {
         toast.info("No regime overrides to apply yet (need n≥5 per regime with significant deviation).");
       } else {
@@ -173,8 +199,8 @@ export default function SignalsPage() {
         });
       }
       await load();
-    } catch (e: any) {
-      toast.error(e.message || "Failed to apply regime weights");
+    } catch (e) {
+      toast.error(errorMessage(e, "Failed to apply regime weights"));
     }
     setApplying(false);
   };
@@ -186,19 +212,19 @@ export default function SignalsPage() {
       await resetRegimeWeights();
       toast.success("Regime weights cleared");
       await load();
-    } catch (e: any) {
-      toast.error(e.message || "Failed to reset regime weights");
+    } catch (e) {
+      toast.error(errorMessage(e, "Failed to reset regime weights"));
     }
     setApplying(false);
   };
 
   const backfillRegimes = async () => {
     try {
-      const r: any = await backfillTradeRegimes();
+      const r = (await backfillTradeRegimes()) as BackfillRegimesResult;
       toast.success(`Tagged ${r.trades_updated} trade(s) with regime`);
       await load();
-    } catch (e: any) {
-      toast.error(e.message || "Backfill failed");
+    } catch (e) {
+      toast.error(errorMessage(e, "Backfill failed"));
     }
   };
 
@@ -209,7 +235,7 @@ export default function SignalsPage() {
   const apply = async () => {
     setApplying(true);
     try {
-      const result: any = await applySignalWeights(windowDays);
+      const result = (await applySignalWeights(windowDays)) as ApplyWeightsResult;
       const n = result.applied?.length || 0;
       if (n === 0) {
         toast.info("No changes applied — all signals within tolerance.");
@@ -219,8 +245,8 @@ export default function SignalsPage() {
         });
       }
       await load();
-    } catch (e: any) {
-      toast.error(e.message || "Failed to apply weights");
+    } catch (e) {
+      toast.error(errorMessage(e, "Failed to apply weights"));
     }
     setApplying(false);
   };
@@ -232,8 +258,8 @@ export default function SignalsPage() {
       await resetSignalWeights();
       toast.success("Weights reset to defaults");
       await load();
-    } catch (e: any) {
-      toast.error(e.message || "Failed to reset");
+    } catch (e) {
+      toast.error(errorMessage(e, "Failed to reset"));
     }
     setApplying(false);
   };

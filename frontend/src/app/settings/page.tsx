@@ -8,11 +8,30 @@ import { LLMSettings } from "@/components/settings/LLMSettings";
 import { ThemeToggle } from "@/components/theme/ThemeToggle";
 import { statusColors } from "@/lib/status-colors";
 
+// GET /api/config → backend/app.py get_config(): a whitelisted slice of DEFAULT_CONFIG.
+// The money limits are read with `?.` below, so they're typed nullable.
+interface SystemConfig {
+  llm_provider: string;
+  deep_think_llm: string;
+  quick_think_llm: string;
+  market: string;
+  default_exchange: string;
+  trading_style: string;
+  max_debate_rounds: number;
+  max_risk_discuss_rounds: number;
+  dry_run: boolean;
+  order_execution_enabled: boolean;
+  max_position_value: number | null;
+  max_loss_per_trade: number | null;
+  max_daily_loss: number | null;
+  max_open_positions: number;
+}
+
 export default function SettingsPage() {
-  const [config, setConfig] = useState<Record<string, any> | null>(null);
+  const [config, setConfig] = useState<SystemConfig | null>(null);
 
   useEffect(() => {
-    getConfig().then((data: any) => setConfig(data)).catch(() => {});
+    getConfig().then((data) => setConfig(data as SystemConfig)).catch(() => {});
   }, []);
 
   if (!config) {

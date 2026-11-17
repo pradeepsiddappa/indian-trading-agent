@@ -21,6 +21,7 @@ import {
   Database,
 } from "lucide-react";
 import { toast } from "sonner";
+import { errorMessage } from "@/lib/utils";
 
 type Outcomes = { correct: number; wrong: number; neutral: number; ripe: number };
 type VerdictBucket = {
@@ -57,6 +58,13 @@ type Calibration = {
   by_verdict: Record<string, VerdictBucket>;
   recent: RecentRow[];
 };
+// POST /api/verdict-calibration/snapshot → verdict_calibration.snapshot_today(force=True)
+type SnapshotResult =
+  | { status: "ok"; date: string; verdict: string; nifty_close: number | null }
+  | { status: "skipped"; reason: string; date: string }
+  | { status: "error"; reason: string };
+// POST /api/verdict-calibration/backfill → verdict_calibration.backfill_outcomes()
+type BackfillResult = { status: string; snapshots_updated: number; scanned: number };
 
 const helpItems = [
   {
@@ -118,7 +126,7 @@ export default function VerdictCalibrationPage() {
   const fetchData = useCallback(
     () =>
       getVerdictCalibration(windowDays)
-        .then((res: any) => setData(res))
+        .then((res) => setData(res as Calibration))
         .catch((e) => toast.error(e.message || "Failed to load calibration"))
         .finally(() => setLoading(false)),
     [windowDays],
@@ -136,15 +144,15 @@ export default function VerdictCalibrationPage() {
   const snapshot = async () => {
     setBusy(true);
     try {
-      const res: any = await forceSnapshotVerdict();
+      const res = (await forceSnapshotVerdict()) as SnapshotResult;
       toast.success(
         res?.status === "ok"
           ? `Snapshotted ${res.verdict} for ${res.date}`
           : "Snapshot completed"
       );
       await load();
-    } catch (e: any) {
-      toast.error(e.message || "Snapshot failed");
+    } catch (e) {
+      toast.error(errorMessage(e, "Snapshot failed"));
     }
     setBusy(false);
   };
@@ -152,11 +160,11 @@ export default function VerdictCalibrationPage() {
   const backfill = async () => {
     setBusy(true);
     try {
-      const res: any = await backfillVerdictOutcomes();
+      const res = (await backfillVerdictOutcomes()) as BackfillResult;
       toast.success(`Backfilled ${res?.snapshots_updated ?? 0} snapshot(s)`);
       await load();
-    } catch (e: any) {
-      toast.error(e.message || "Backfill failed");
+    } catch (e) {
+      toast.error(errorMessage(e, "Backfill failed"));
     }
     setBusy(false);
   };

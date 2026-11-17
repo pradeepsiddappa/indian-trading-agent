@@ -28,6 +28,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { statusColors, splitStatusColor } from "@/lib/status-colors";
+import { errorMessage } from "@/lib/utils";
 
 type Provider = {
   name: string;
@@ -40,13 +41,27 @@ type Provider = {
 };
 
 type LLMConfig = { llm_provider: string; deep_think_llm: string; quick_think_llm: string };
+// GET /api/settings/api-keys → settings_manager.get_api_keys_status(), keyed by provider id.
+type ApiKeyStatus = {
+  provider: string;
+  name: string;
+  configured: boolean;
+  source: "ui" | "env" | null;
+  masked: string | null;
+  signup_url: string | null;
+  key_format: string | null;
+};
+// GET /api/settings/ollama/models → routers/settings.list_ollama_models()
+type OllamaModelsResponse = { reachable: boolean; models: string[]; count?: number; error?: string };
+// POST /api/settings/api-keys/test → settings_manager.test_api_key()
+type ApiKeyTestResult = { ok: true; model: string; message: string } | { ok: false; error: string };
 type ModelSel = { deep: string; quick: string };
 type OllamaState = { reachable: boolean; models: string[]; error?: string; loading: boolean };
 
 export function LLMSettings() {
   const [loading, setLoading] = useState(true);
   const [providers, setProviders] = useState<Record<string, Provider>>({});
-  const [apiKeys, setApiKeys] = useState<Record<string, any>>({});
+  const [apiKeys, setApiKeys] = useState<Record<string, ApiKeyStatus>>({});
   const [saved, setSaved] = useState<LLMConfig>({ llm_provider: "", deep_think_llm: "", quick_think_llm: "" });
   const [selected, setSelected] = useState<string>("");
   const [models, setModels] = useState<Record<string, ModelSel>>({});
@@ -69,13 +84,17 @@ export function LLMSettings() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [cfg, provs, keys]: any[] = await Promise.all([getLLMSettings(), getProviders(), getApiKeys()]);
+      const [cfg, provs, keys] = (await Promise.all([getLLMSettings(), getProviders(), getApiKeys()])) as [
+        LLMConfig,
+        Record<string, Provider>,
+        Record<string, ApiKeyStatus>,
+      ];
       setSaved(cfg);
       setProviders(provs);
       setApiKeys(keys);
       setSelected(cfg.llm_provider);
       const m: Record<string, ModelSel> = {};
-      Object.entries(provs).forEach(([id, p]: any) => {
+      Object.entries(provs).forEach(([id, p]) => {
         m[id] = initModels(id, p, cfg);
       });
       setModels(m);
@@ -93,7 +112,7 @@ export function LLMSettings() {
   const refreshOllama = useCallback(async () => {
     setOllama((o) => ({ ...o, loading: true }));
     try {
-      const r: any = await getOllamaModels();
+      const r = (await getOllamaModels()) as OllamaModelsResponse;
       setOllama({ reachable: !!r.reachable, models: r.models || [], error: r.error, loading: false });
       if (r.reachable && r.models?.length) {
         setModels((m) => {
@@ -139,8 +158,8 @@ export function LLMSettings() {
       });
       setSaved({ llm_provider: selected, deep_think_llm: sel.deep, quick_think_llm: sel.quick });
       toast.success(msg);
-    } catch (e: any) {
-      toast.error(e.message || "Failed to save");
+    } catch (e) {
+      toast.error(errorMessage(e, "Failed to save"));
     } finally {
       setBusy(false);
     }
@@ -162,9 +181,9 @@ export function LLMSettings() {
       setKeyInput("");
       setShowKey(false);
       setTestRes(null);
-      setApiKeys((await getApiKeys()) as any);
-    } catch (e: any) {
-      toast.error(e.message || "Failed to save key");
+      setApiKeys((await getApiKeys()) as Record<string, ApiKeyStatus>);
+    } catch (e) {
+      toast.error(errorMessage(e, "Failed to save key"));
     } finally {
       setBusy(false);
     }
@@ -180,9 +199,9 @@ export function LLMSettings() {
     try {
       await deleteApiKey(selected);
       toast.success("API key removed");
-      setApiKeys((await getApiKeys()) as any);
-    } catch (e: any) {
-      toast.error(e.message || "Failed to remove key");
+      setApiKeys((await getApiKeys()) as Record<string, ApiKeyStatus>);
+    } catch (e) {
+      toast.error(errorMessage(e, "Failed to remove key"));
     } finally {
       setBusy(false);
     }
@@ -192,12 +211,12 @@ export function LLMSettings() {
     setTesting(true);
     setTestRes(null);
     try {
-      const r: any = await testApiKey(selected, keyInput.trim() || undefined);
+      const r = (await testApiKey(selected, keyInput.trim() || undefined)) as ApiKeyTestResult;
       setTestRes({ ok: r.ok, msg: r.ok ? r.message : r.error });
       if (r.ok) toast.success(`${cur?.name} works!`);
       else toast.error(`Test failed: ${r.error}`);
-    } catch (e: any) {
-      setTestRes({ ok: false, msg: e.message });
+    } catch (e) {
+      setTestRes({ ok: false, msg: (e as Error).message });
     } finally {
       setTesting(false);
     }
@@ -239,7 +258,7 @@ export function LLMSettings() {
 
         {/* Provider chips */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-          {Object.entries(providers).map(([id, p]: any) => {
+          {Object.entries(providers).map(([id, p]) => {
             const isSel = id === selected;
             const local = p.requires_key === false;
             const keyed = local || apiKeys[id]?.configured;

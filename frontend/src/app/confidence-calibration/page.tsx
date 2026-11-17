@@ -14,6 +14,7 @@ import {
   TrendingDown,
   CheckCircle2,
   AlertTriangle,
+  type LucideIcon,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -26,16 +27,18 @@ type Bin = {
   actual_win_rate: number | null;
   gap: number | null;
 };
+// GET /api/confidence-calibration/ → confidence_calibration.compute_calibration().
+// Its "no_valid_data" early return omits the baseline/overall/gap fields, hence the `?`s.
 type Calibration = {
   lookback_days: number;
   n: number;
   brier_score: number | null;
-  brier_baseline_50: number;
-  brier_improvement_pct: number | null;
+  brier_baseline_50?: number;
+  brier_improvement_pct?: number | null;
   calibration_quality: string;
-  overall_predicted_avg: number | null;
-  overall_actual_win_rate: number | null;
-  calibration_gap: number | null;
+  overall_predicted_avg?: number | null;
+  overall_actual_win_rate?: number | null;
+  calibration_gap?: number | null;
   verdict: string;
   bins: Bin[];
 };
@@ -76,7 +79,7 @@ const QUALITY_STYLES: Record<string, string> = {
   no_data: "bg-muted text-muted-foreground border",
 };
 
-const VERDICT_STYLES: Record<string, { color: string; icon: any; label: string }> = {
+const VERDICT_STYLES: Record<string, { color: string; icon: LucideIcon; label: string }> = {
   well_calibrated: { color: "text-green-700", icon: CheckCircle2, label: "Well-calibrated" },
   overconfident: { color: "text-red-700", icon: TrendingDown, label: "Overconfident" },
   underconfident: { color: "text-amber-700", icon: TrendingUp, label: "Underconfident" },
@@ -97,7 +100,7 @@ export default function ConfidenceCalibrationPage() {
   const fetchData = useCallback(
     () =>
       getConfidenceCalibration(windowDays)
-        .then((r: any) => setData(r))
+        .then((r) => setData(r as Calibration))
         .catch((e) => toast.error(e.message || "Failed to load calibration"))
         .finally(() => setLoading(false)),
     [windowDays],

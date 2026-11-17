@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Loader2, Brain } from "lucide-react";
 import { toast } from "sonner";
 import { pnlPanel, pnlText, infoSubtle } from "@/lib/status-colors";
+import { errorMessage } from "@/lib/utils";
 
 interface Props {
   open: boolean;
@@ -17,6 +18,18 @@ interface Props {
   signal: string;
   onSaved: () => void;
 }
+
+// routers/analysis._reflect_on_analysis(): {ok: true, memories_updated} or {ok: false, error};
+// the "no reports to reflect on" path returns {error} with no `ok`.
+type ReflectionResult = { ok?: boolean; memories_updated?: Record<string, number>; error?: string };
+// PUT /api/analysis/{task_id}/pnl with an exit price → routers/analysis.update_pnl()
+type PnLUpdateResult = {
+  status: string;
+  pnl_pct: number;
+  pnl_amount: number;
+  pnl_status: "win" | "loss" | "breakeven";
+  reflection: ReflectionResult | null;
+};
 
 export function PnLDialog({ open, onClose, taskId, ticker, signal, onSaved }: Props) {
   const [entryPrice, setEntryPrice] = useState("");
@@ -32,16 +45,17 @@ export function PnLDialog({ open, onClose, taskId, ticker, signal, onSaved }: Pr
     }
     setSaving(true);
     try {
+      // The backend's exit_price is optional (omitted = open trade); api.ts types it as required.
       await updatePnL(taskId, {
         entry_price: entry,
-      } as any);
+      });
       toast.success(`Trade marked as OPEN at Rs.${entry}`);
       onSaved();
       onClose();
       setEntryPrice("");
       setExitPrice("");
-    } catch (e: any) {
-      toast.error(e.message || "Failed to save");
+    } catch (e) {
+      toast.error(errorMessage(e, "Failed to save"));
     } finally {
       setSaving(false);
     }
@@ -56,11 +70,11 @@ export function PnLDialog({ open, onClose, taskId, ticker, signal, onSaved }: Pr
     }
     setSaving(true);
     try {
-      const result: any = await updatePnL(taskId, {
+      const result = (await updatePnL(taskId, {
         entry_price: entry,
         exit_price: exit,
         reflect,
-      });
+      })) as PnLUpdateResult;
       toast.success(`P&L saved: ${result.pnl_pct >= 0 ? "+" : ""}${result.pnl_pct}% (${result.pnl_status})`);
       if (reflect && result.reflection?.ok) {
         toast.success("Agent memories updated — future analyses will learn from this trade", {
@@ -71,8 +85,8 @@ export function PnLDialog({ open, onClose, taskId, ticker, signal, onSaved }: Pr
       onClose();
       setEntryPrice("");
       setExitPrice("");
-    } catch (e: any) {
-      toast.error(e.message || "Failed to save P&L");
+    } catch (e) {
+      toast.error(errorMessage(e, "Failed to save P&L"));
     } finally {
       setSaving(false);
     }
